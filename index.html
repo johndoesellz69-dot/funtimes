@@ -1,224 +1,218 @@
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getDatabase, ref, set, push, get, child, update, onValue } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
-import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { getDatabase, ref, set, get, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-// --- Firebase config ---
+// ---- Firebase Setup ----
 const firebaseConfig = {
   apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
   authDomain: "easy-green-website.firebaseapp.com",
+  databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com",
   projectId: "easy-green-website",
-  storageBucket: "easy-green-website.appspot.com",
+  storageBucket: "easy-green-website.firebasestorage.app",
   messagingSenderId: "988776675269",
   appId: "1:988776675269:web:f2245f84a726d01f3e3dac",
   measurementId: "G-PR35QWS2T6"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const storage = getStorage(app);
 
-document.addEventListener('DOMContentLoaded', () => {
+// ---- Utility ----
+function uid6(){return Math.random().toString(36).slice(2,8).toUpperCase();}
+function money(n){return '$'+n.toFixed(2);}
 
-  const PRODUCTS=[
-    {id:'c1',name:'Edibles',price:20,flavors:['Sour Patch','Skittlez','Swedish Fish','Watermelon','Starburst','Trolli','Peach Rings']},
-    {id:'c2',name:'2G Ghost Disposable Carts',price:40,flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice cream Cake','Black Mamba']},
-  ];
+// ---- Global Vars ----
+const PRODUCTS=[
+  {id:'c1',name:'Edibles',price:20,flavors:['Sour Patch','Skittlez','Swedish Fish','Watermelon','Starburst','Trolli','Peach Rings']},
+  {id:'c2',name:'2G Ghost Disposable Carts',price:40,flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice cream Cake','Black Mamba']},
+];
+let account=null;
 
-  function uid6(){return Math.random().toString(36).slice(2,8).toUpperCase();}
-  function money(n){return '$'+n.toFixed(2);}
+// ---- Login ----
+function showMainSite(){
+  document.getElementById('loginModal').classList.add('hidden');
+  document.getElementById('mainWrap').classList.remove('hidden');
+  document.getElementById('warningModal').classList.remove('hidden');
+  document.getElementById('acctCode').textContent=account;
+  initSiteScripts();
+}
 
-  // --- Account/Login ---
-  let account=localStorage.getItem('eg_account')||'';
-  const acctEl=document.getElementById('acctCode');
-  function showMainSite(){document.getElementById('loginModal').classList.add('hidden');document.getElementById('mainWrap').classList.remove('hidden');document.getElementById('warningModal').classList.remove('hidden');acctEl.textContent=account;initSiteScripts();}
+document.getElementById('loginBtn').onclick=()=>{
+  const code=document.getElementById('loginCode').value.trim().toUpperCase();
+  if(!code){alert('Enter code');return;}
+  if(code==="joeygold54"){showAdmin();return;}
+  get(ref(db,'codes/'+code)).then(snap=>{
+    if(!snap.exists()){alert('Invalid code');return;}
+    account=code;showMainSite();
+  });
+};
 
-  function getAllCodes(){return JSON.parse(localStorage.getItem('eg_codes')||'[]');}
-  function addCode(c){let arr=getAllCodes();if(!arr.includes(c)){arr.push(c);localStorage.setItem('eg_codes',JSON.stringify(arr));}}
+document.getElementById('createCodeBtn').onclick=()=>{
+  account=uid6();
+  set(ref(db,'codes/'+account),true);
+  alert('New code: '+account);
+  showMainSite();
+};
 
-  document.getElementById('loginBtn').onclick=()=>{
-    const code=document.getElementById('loginCode').value.trim();
-    if(!code){alert('Enter code');return;}
-    if(code==='joeygold54'){showAdmin();return;}
-    const upper=code.toUpperCase();
-    if(!getAllCodes().includes(upper)){alert('Invalid code');return;}
-    account=upper;localStorage.setItem('eg_account',account);showMainSite();
-  };
+document.getElementById('ackBtn').onclick=()=>{
+  if(!document.getElementById('ackCheck').checked){alert('Confirm rules');return;}
+  document.getElementById('warningModal').classList.add('hidden');
+};
 
-  document.getElementById('createCodeBtn').onclick=()=>{
-    account=uid6();addCode(account);localStorage.setItem('eg_account',account);alert('New code: '+account);showMainSite();
-  };
+// ---- Help ----
+document.getElementById('helpBtn').onclick=()=>{document.getElementById('helpModal').classList.remove('hidden');};
+document.getElementById('closeHelp').onclick=()=>{document.getElementById('helpModal').classList.add('hidden');};
 
-  document.getElementById('ackBtn').onclick=()=>{
-    if(!document.getElementById('ackCheck').checked){alert('Confirm rules');return;}
-    localStorage.setItem('eg_ack','1');document.getElementById('warningModal').classList.add('hidden');
-  };
+// ---- Admin ----
+document.getElementById('closeAdmin').onclick=()=>{document.getElementById('adminScreen').style.display='none';};
+document.getElementById('refreshTickets').onclick=renderAdminTickets;
+function showAdmin(){document.getElementById('adminScreen').style.display='block';renderAdminStock();renderAdminTickets();}
 
-  // --- First Time Help ---
-  document.getElementById('helpBtn').onclick=()=>{document.getElementById('helpModal').classList.remove('hidden');};
-  document.getElementById('closeHelp').onclick=()=>{document.getElementById('helpModal').classList.add('hidden');};
-
-  // --- Admin Screen ---
-  document.getElementById('closeAdmin').onclick=()=>{document.getElementById('adminScreen').style.display='none';};
-  document.getElementById('refreshTickets').onclick=renderAdminTickets;
-  function showAdmin(){document.getElementById('adminScreen').style.display='block';renderAdminStock();renderAdminTickets();}
-
-  // --- Site scripts ---
-  function initSiteScripts(){
-    const grid=document.getElementById('productsGrid');grid.innerHTML='';
-    PRODUCTS.forEach(p=>{
-      const el=document.createElement('div');el.className='product';
-      el.innerHTML=`<h3>${p.name}</h3>
-        <div class="small">Price: ${money(p.price)}</div>
-        <label>Flavor<select aria-label="flavor-${p.id}" class="flavorSelect">${p.flavors.map(f=>`<option>${f}</option>`).join('')}</select></label>
-        <label>Qty<input type="number" min="1" value="1" class="qtyInput" style="width:70px"></label>
-        <div style="margin-top:8px"><button class="btn addBtn">Add</button></div>`;
-      grid.appendChild(el);
-      el.querySelector('.addBtn').addEventListener('click',()=>{
-        const flavor=el.querySelector('.flavorSelect').value;
-        const qty=Number(el.querySelector('.qtyInput').value)||1;
-        addToCart({productId:p.id,name:p.name,flavor,qty,price:p.price});
-      });
+// ---- Site Scripts ----
+function initSiteScripts(){
+  const grid=document.getElementById('productsGrid');grid.innerHTML='';
+  PRODUCTS.forEach(p=>{
+    const el=document.createElement('div');el.className='product';
+    el.innerHTML=`<h3>${p.name}</h3>
+      <div class="small">Price: ${money(p.price)}</div>
+      <label>Flavor<select class="flavorSelect">${p.flavors.map(f=>`<option>${f}</option>`).join('')}</select></label>
+      <label>Qty<input type="number" min="1" value="1" class="qtyInput" style="width:70px"></label>
+      <div style="margin-top:8px"><button class="btn addBtn">Add</button></div>`;
+    grid.appendChild(el);
+    el.querySelector('.addBtn').addEventListener('click',()=>{
+      const flavor=el.querySelector('.flavorSelect').value;
+      const qty=Number(el.querySelector('.qtyInput').value)||1;
+      const item={productId:p.id,name:p.name,flavor,qty,price:p.price};
+      push(ref(db,`carts/${account}`),item);
+      alert('Added to cart');
     });
+  });
 
-    let cart=[];
-    const cartList=document.getElementById('cartList');const cartTotalEl=document.getElementById('cartTotal');const ticketsArea=document.getElementById('ticketsArea');
+  // realtime cart + tickets
+  onValue(ref(db,`carts/${account}`),(snap)=>{
+    const cartList=document.getElementById('cartList');
+    const cartTotalEl=document.getElementById('cartTotal');
+    cartList.innerHTML='';
+    let total=0;
+    if(!snap.exists()){cartList.innerHTML='<div class="small">Cart empty.</div>';cartTotalEl.textContent='';return;}
+    snap.forEach(child=>{
+      const it=child.val();total+=it.price*it.qty;
+      const div=document.createElement('div');div.className='cart-item';
+      div.innerHTML=`<div><div style="font-weight:600">${it.name} ×${it.qty}</div><div class="small">${it.flavor}</div></div>
+        <div style="text-align:right"><div>${money(it.price*it.qty)}</div>
+        <button class="btn ghost" onclick="removeCart('${child.key}')">Remove</button></div>`;
+      cartList.appendChild(div);
+    });
+    cartTotalEl.textContent=`Total: ${money(total)}`;
+  });
 
-    function saveCart(){renderCart();}
-    function addToCart(item){cart.push(item);saveCart();alert('Added to cart');}
-
-    function renderCart(){
-      cartList.innerHTML='';if(cart.length===0){cartList.innerHTML='<div class="small">Cart empty.</div>';cartTotalEl.textContent='';return;}
-      cart.forEach((it,idx)=>{
-        const div=document.createElement('div');div.className='cart-item';
-        div.innerHTML=`<div><div style="font-weight:600">${it.name} ×${it.qty}</div><div class="small">${it.flavor}</div></div>
-          <div style="text-align:right"><div>${money(it.price*it.qty)}</div><div style="margin-top:6px"><button class="btn ghost" data-i="${idx}">Remove</button></div></div>`;
-        cartList.appendChild(div);
-        div.querySelector('button').addEventListener('click',(e)=>{cart.splice(Number(e.target.dataset.i),1);saveCart();});
-      });
-      const total=cart.reduce((s,i)=>s+i.price*i.qty,0);cartTotalEl.textContent=`Total: ${money(total)}`;
-    }
-
-    document.getElementById('purchaseBtn').addEventListener('click',async ()=>{
-      if(cart.length===0){alert('Cart empty');return;}
+  document.getElementById('purchaseBtn').onclick=()=>{
+    get(ref(db,`carts/${account}`)).then(snap=>{
+      if(!snap.exists()){alert('Cart empty');return;}
+      const items=[];let total=0;
+      snap.forEach(c=>{items.push(c.val());total+=c.val().price*c.val().qty;});
       const loc=document.getElementById('locationSelect').value;
-      const tid='T-'+Math.random().toString(36).slice(2,8).toUpperCase();
-      const items=JSON.parse(JSON.stringify(cart));const total=items.reduce((s,i)=>s+i.price*i.qty,0);
-      const ticket={id:tid,account,location:loc,items,total,status:'open',messages:[{from:'System',text:`Ticket created. Total ${money(total)}. Hide payment at ${loc}.`} ]};
-      await set(ref(db, `tickets/${account}/${tid}`), ticket);
-      cart=[];saveCart();alert('Ticket created: '+tid);renderTickets();
-    });
-
-    document.getElementById('clearBtn').addEventListener('click',()=>{if(confirm('Clear cart?')){cart=[];saveCart();}});
-
-    async function renderTickets(){
-      ticketsArea.innerHTML='';
-      const snap = await get(child(ref(db), `tickets/${account}`));
-      if(!snap.exists()){ticketsArea.innerHTML='<div class="small">No tickets yet.</div>';return;}
-      const tickets = snap.val();
-      Object.values(tickets).forEach(t=>{
-        const el=document.createElement('div');el.className='card';el.style.marginBottom='8px';
-        el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center">
-          <div><strong>Ticket ${t.id}</strong> <span class="small">(${t.status})</span></div>
-          <div class="small">${t.location}</div>
-        </div>
-        <div class="small" style="margin-top:6px">${t.items.map(it=>`${it.name} ×${it.qty} (${it.flavor})`).join(' • ')}</div>
-        <div style="margin-top:8px" id="ticket-${t.id}">
-          <div class="ticket" id="chat-${t.id}">${(t.messages||[]).map(m=>{if(m.image)return `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`;return `<div><strong>${m.from}:</strong> ${m.text}</div>`;}).join('')}</div>
-          <input type="text" placeholder="Send message" id="msg-${t.id}" style="width:50%;padding:4px">
-          <input type="file" accept="image/*" id="file-${t.id}" style="margin-top:4px">
-          <button class="btn" onclick="sendUserMsg('${t.id}')">Send</button>
-          <button class="btn ghost" onclick="markPaid('${t.id}')">Mark Paid</button>
-          <button class="btn ghost" onclick="cancelOrder('${t.id}')">Cancel</button>
-        </div>`; 
-        ticketsArea.appendChild(el);
+      const tid='T-'+uid6();
+      set(ref(db,`tickets/${account}/${tid}`),{
+        id:tid,account,location:loc,items,total,status:'open',
+        messages:[{from:'System',text:`Ticket created. Total ${money(total)}. Hide payment at ${loc}.`}]
       });
-    }
+      remove(ref(db,`carts/${account}`));
+      alert('Ticket created: '+tid);
+    });
+  };
+  document.getElementById('clearBtn').onclick=()=>{remove(ref(db,`carts/${account}`));};
 
-    window.sendUserMsg=async function(tid){
-      const msgEl=document.getElementById('msg-'+tid);
-      const fileEl=document.getElementById('file-'+tid);
-      const ticketRef = ref(db, `tickets/${account}/${tid}`);
-      const snap = await get(ticketRef);
-      if(!snap.exists()) return;
-      const t = snap.val();
-      if(fileEl.files[0]){
-        const file = fileEl.files[0];
-        const storageRef = sRef(storage, `tickets/${account}/${tid}/${file.name}`);
-        const snapshot = await uploadBytes(storageRef, file);
-        const url = await getDownloadURL(snapshot.ref);
-        t.messages.push({from:'User',image:url});
-      }
-      const txt=msgEl.value.trim();if(txt){t.messages.push({from:'User',text:txt});msgEl.value='';}
-      await set(ticketRef,t);
-      renderTickets();
-    }
+  onValue(ref(db,`tickets/${account}`),(snap)=>{
+    const ticketsArea=document.getElementById('ticketsArea');ticketsArea.innerHTML='';
+    if(!snap.exists()){ticketsArea.innerHTML='<div class="small">No tickets yet.</div>';return;}
+    snap.forEach(child=>{
+      const t=child.val();
+      const el=document.createElement('div');el.className='card';el.style.marginBottom='8px';
+      el.innerHTML=`<div style="display:flex;justify-content:space-between">
+        <div><strong>Ticket ${t.id}</strong> <span class="small">(${t.status})</span></div>
+        <div class="small">${t.location}</div></div>
+        <div class="small">${t.items.map(i=>`${i.name} ×${i.qty} (${i.flavor})`).join(' • ')}</div>
+        <div class="ticket">${(t.messages||[]).map(m=>m.image?`<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px">`:`<div><strong>${m.from}:</strong> ${m.text}</div>`).join('')}</div>
+        <input type="text" id="msg-${t.id}" placeholder="Send message">
+        <input type="file" id="file-${t.id}" accept="image/*">
+        <button class="btn" onclick="sendUserMsg('${t.id}')">Send</button>
+        <button class="btn ghost" onclick="markPaid('${t.id}')">Mark Paid</button>
+        <button class="btn ghost" onclick="cancelOrder('${t.id}')">Cancel</button>`;
+      ticketsArea.appendChild(el);
+    });
+  });
+}
 
-    window.markPaid=async function(tid){
-      const ticketRef = ref(db, `tickets/${account}/${tid}/status`);
-      await set(ticketRef,'paid');
-      renderTickets();
-    }
+// ---- User actions ----
+window.removeCart=(key)=>{remove(ref(db,`carts/${account}/${key}`));};
 
-    window.cancelOrder=async function(tid){
-      if(!confirm('Cancel this order?'))return;
-      const ticketRef = ref(db, `tickets/${account}/${tid}`);
-      await set(ticketRef,null);
-      renderTickets();
-    }
-
-    renderCart();
-    renderTickets();
+window.sendUserMsg=(tid)=>{
+  const msgEl=document.getElementById('msg-'+tid);
+  const fileEl=document.getElementById('file-'+tid);
+  const tRef=ref(db,`tickets/${account}/${tid}/messages`);
+  if(fileEl.files[0]){
+    const reader=new FileReader();
+    reader.onload=e=>push(tRef,{from:'User',image:e.target.result});
+    reader.readAsDataURL(fileEl.files[0]);
   }
+  if(msgEl.value.trim()){push(tRef,{from:'User',text:msgEl.value.trim()});msgEl.value='';}
+};
 
-  // --- Admin Functions ---
-  function renderAdminStock(){/* same as before, can still use localStorage for stock */ }
+window.markPaid=(tid)=>{
+  update(ref(db,`tickets/${account}/${tid}`),{status:'paid'});
+};
 
-  async function renderAdminTickets(){
-    const allTicketsArea=document.getElementById('allTicketsArea');allTicketsArea.innerHTML='';
-    const codes = getAllCodes();
-    for(const ac of codes){
-      const snap = await get(child(ref(db), `tickets/${ac}`));
-      if(!snap.exists()) continue;
-      const tix = snap.val();
-      Object.values(tix).forEach(t=>{
-        const div=document.createElement('div');div.className='card';div.style.marginBottom='8px';
-        div.innerHTML=`<div style="font-weight:600">Ticket ${t.id} | Account: ${t.account} | Location: ${t.location} | Status: ${t.status}</div>
+window.cancelOrder=(tid)=>{remove(ref(db,`tickets/${account}/${tid}`));};
+
+// ---- Admin rendering ----
+function renderAdminStock(){
+  const area=document.getElementById('adminStockArea');area.innerHTML='';
+  PRODUCTS.forEach(p=>{
+    const card=document.createElement('div');card.className='card';card.innerHTML=`<strong>${p.name}</strong>`;
+    p.flavors.forEach(f=>{
+      const chk=document.createElement('input');chk.type='checkbox';chk.checked=true;
+      const label=document.createElement('label');label.append(chk,document.createTextNode(' '+f));
+      card.appendChild(label);
+    });
+    area.appendChild(card);
+  });
+}
+
+function renderAdminTickets(){
+  const allTicketsArea=document.getElementById('allTicketsArea');allTicketsArea.innerHTML='';
+  onValue(ref(db,'tickets'),(snap)=>{
+    allTicketsArea.innerHTML='';
+    if(!snap.exists()){allTicketsArea.innerHTML='<div class="small">No tickets.</div>';return;}
+    snap.forEach(user=>{
+      user.forEach(child=>{
+        const t=child.val();
+        const div=document.createElement('div');div.className='card';div.innerHTML=`
+          <div style="font-weight:600">Ticket ${t.id} | ${t.account} | ${t.location} | ${t.status}</div>
           <div class="small">${t.items.map(i=>i.name+' ×'+i.qty+' ('+i.flavor+')').join(' • ')}</div>
-          <div id="adminChat-${t.id}" class="ticket">${(t.messages||[]).map(m=>{if(m.image)return `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`;return `<div><strong>${m.from}:</strong> ${m.text}</div>`;}).join('')}</div>
-          <input placeholder="Admin message" id="adminMsg-${t.id}" style="flex:1;padding:4px">
-          <input type="file" accept="image/*" id="adminFile-${t.id}" style="margin-top:4px">
+          <div class="ticket">${(t.messages||[]).map(m=>m.image?`<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px">`:`<div><strong>${m.from}:</strong> ${m.text}</div>`).join('')}</div>
+          <input id="adminMsg-${t.id}" placeholder="Admin message">
+          <input type="file" id="adminFile-${t.id}" accept="image/*">
           <button class="btn" onclick="sendAdmin('${t.account}','${t.id}')">Send</button>
           <button class="btn ghost" onclick="deleteOrder('${t.account}','${t.id}')">Delete</button>`;
         allTicketsArea.appendChild(div);
       });
-    }
-  }
+    });
+  });
+}
 
-  window.sendAdmin=async function(acc,ticketId){
-    const msgEl=document.getElementById('adminMsg-'+ticketId);
-    const fileEl=document.getElementById('adminFile-'+ticketId);
-    const ticketRef = ref(db, `tickets/${acc}/${ticketId}`);
-    const snap = await get(ticketRef);
-    if(!snap.exists()) return;
-    const t = snap.val();
-    if(fileEl.files[0]){
-      const file = fileEl.files[0];
-      const storageRef = sRef(storage, `tickets/${acc}/${ticketId}/${file.name}`);
-      const snapshot = await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(snapshot.ref);
-      t.messages.push({from:'Admin',image:url});
-    }
-    if(msgEl.value.trim()){t.messages.push({from:'Admin',text:msgEl.value.trim()});msgEl.value='';}
-    await set(ticketRef,t);
-    renderAdminTickets();
+window.sendAdmin=(acc,tid)=>{
+  const msgEl=document.getElementById('adminMsg-'+tid);
+  const fileEl=document.getElementById('adminFile-'+tid);
+  const tRef=ref(db,`tickets/${acc}/${tid}/messages`);
+  if(fileEl.files[0]){
+    const reader=new FileReader();
+    reader.onload=e=>push(tRef,{from:'Admin',image:e.target.result});
+    reader.readAsDataURL(fileEl.files[0]);
   }
+  if(msgEl.value.trim()){push(tRef,{from:'Admin',text:msgEl.value.trim()});msgEl.value='';}
+};
 
-  window.deleteOrder=async function(acc,tid){
-    if(!confirm('Delete this ticket?'))return;
-    await set(ref(db, `tickets/${acc}/${tid}`), null);
-    renderAdminTickets();
-  }
-
-});
+window.deleteOrder=(acc,tid)=>{remove(ref(db,`tickets/${acc}/${tid}`));};
 </script>
+
+
