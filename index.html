@@ -87,6 +87,7 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
       <li>Select the "Mark as paid" button, and send a photo of your envelope and where you hid it. (Make sure to not send a picture that shows your 4 digit code)</li>
       <li>Head home and wait for the deliverant to pick up your payment and hide your item. Once finished, the admin will message you your 4 digit code, an image of the product hidden, and any further information.</li>
       <li>Go pickup your product and have fun!</li>
+
     </ol>
     <button class="btn" id="closeHelp">Got it!</button>
   </div>
@@ -168,103 +169,87 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   <div id="allTicketsArea"></div>
 </div>
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js" defer></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js" defer></script>
-
-<script defer>
+<script>
 document.addEventListener('DOMContentLoaded', () => {
-
-// --- Firebase Setup ---
-const firebaseConfig = {
-  databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com/"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-// --- Products ---
-const PRODUCTS=[{id:'c1',name:'Edibles',price:20,flavors:['Sour Patch','Skittlez','Swedish Fish','Watermelon','Starburst','Trolli','Peach Rings']},{id:'c2',name:'2G Ghost Disposable Carts',price:40,flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice cream Cake','Black Mamba']}];
-
+const PRODUCTS=[
+  {id:'c1',name:'Edibles',price:20,flavors:['Sour Patch','Skittlez','Swedish Fish','Watermelon','Starburst','Trolli','Peach Rings']},
+  {id:'c2',name:'2G Ghost Disposable Carts',price:40,flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice cream Cake','Black Mamba']},
+];
 function uid6(){return Math.random().toString(36).slice(2,8).toUpperCase();}
 function money(n){return '$'+n.toFixed(2);}
 
-// --- Account/Login ---
+/* ---- Account & Login ---- */
 let account=localStorage.getItem('eg_account')||'';
 const acctEl=document.getElementById('acctCode');
-
+function getAllCodes(){return JSON.parse(localStorage.getItem('eg_codes')||'[]');}
+function addCode(c){let arr=getAllCodes();if(!arr.includes(c)){arr.push(c);localStorage.setItem('eg_codes',JSON.stringify(arr));}}
+function cartKey(acc){return 'eg_cart_'+acc;}
+function ticketKey(acc){return 'eg_tickets_'+acc;}
 function showMainSite(){document.getElementById('loginModal').classList.add('hidden');document.getElementById('mainWrap').classList.remove('hidden');document.getElementById('warningModal').classList.remove('hidden');acctEl.textContent=account;initSiteScripts();}
 
-// --- Login/Create ---
+/* ---- Login / Create ---- */
 document.getElementById('loginBtn').onclick=()=>{
   const code=document.getElementById('loginCode').value.trim();
   if(!code){alert('Enter code');return;}
   if(code==='joeygold54'){showAdmin();return;}
   const upper=code.toUpperCase();
-  db.ref('codes/'+upper).get().then(snap=>{
-    if(!snap.exists()){alert('Invalid code');return;}
-    account=upper;localStorage.setItem('eg_account',account);showMainSite();
-  });
+  if(!getAllCodes().includes(upper)){alert('Invalid code');return;}
+  account=upper;localStorage.setItem('eg_account',account);showMainSite();
 };
-
 document.getElementById('createCodeBtn').onclick=()=>{
-  account=uid6();
-  db.ref('codes/'+account).set(true);
-  localStorage.setItem('eg_account',account);
-  alert('New code: '+account);
-  showMainSite();
+  account=uid6();addCode(account);localStorage.setItem('eg_account',account);alert('New code: '+account);showMainSite();
 };
-
 document.getElementById('ackBtn').onclick=()=>{
   if(!document.getElementById('ackCheck').checked){alert('Confirm rules');return;}
-  localStorage.setItem('eg_ack','1');
-  document.getElementById('warningModal').classList.add('hidden');
+  localStorage.setItem('eg_ack','1');document.getElementById('warningModal').classList.add('hidden');
 };
 
-// --- First Time Help ---
+/* ---- First Time Help ---- */
 document.getElementById('helpBtn').onclick=()=>{document.getElementById('helpModal').classList.remove('hidden');};
 document.getElementById('closeHelp').onclick=()=>{document.getElementById('helpModal').classList.add('hidden');};
 
-// --- Main Site Scripts ---
+/* ---- Admin Screen ---- */
+document.getElementById('closeAdmin').onclick=()=>{document.getElementById('adminScreen').style.display='none';};
+document.getElementById('refreshTickets').addEventListener('click',renderAdminTickets);
+function showAdmin(){document.getElementById('adminScreen').style.display='block';renderAdminStock();renderAdminTickets();}
+
+/* ---- Site scripts ---- */
 function initSiteScripts(){
   const grid=document.getElementById('productsGrid');grid.innerHTML='';
   PRODUCTS.forEach(p=>{
-    db.ref('stock/'+p.id).once('value').then(snap=>{
-      const stock=snap.val()||{};
-      const el=document.createElement('div');el.className='product';
-      el.innerHTML=`<h3>${p.name}</h3>
-        <div class="small">Price: ${money(p.price)}</div>
-        <label>Flavor<select aria-label="flavor-${p.id}" class="flavorSelect">${p.flavors.map(f=>{const disabled=stock[f]===false?'disabled class="option-disabled"':'';return `<option ${disabled}>${f}</option>`;}).join('')}</select></label>
-        <label>Qty<input type="number" min="1" value="1" class="qtyInput" style="width:70px"></label>
-        <div style="margin-top:8px"><button class="btn addBtn">Add</button></div>`;
-      grid.appendChild(el);
-      el.querySelector('.addBtn').addEventListener('click',()=>{
-        const flavor=el.querySelector('.flavorSelect').value;
-        const qty=Number(el.querySelector('.qtyInput').value)||1;
-        if(stock[flavor]===false){alert('Flavor out of stock');return;}
-        addToCart({productId:p.id,name:p.name,flavor,qty,price:p.price});
-      });
+    const stock=JSON.parse(localStorage.getItem('eg_stock_'+p.id)||'{}');
+    const el=document.createElement('div');el.className='product';
+    el.innerHTML=<h3>${p.name}</h3>
+      <div class="small">Price: ${money(p.price)}</div>
+      <label>Flavor<select aria-label="flavor-${p.id}" class="flavorSelect">${p.flavors.map(f=>{const disabled=stock[f]===false?'disabled class="option-disabled"':'';return <option ${disabled}>${f}</option>;}).join('')}</select></label>
+      <label>Qty<input type="number" min="1" value="1" class="qtyInput" style="width:70px"></label>
+      <div style="margin-top:8px"><button class="btn addBtn">Add</button></div>;
+    grid.appendChild(el);
+    el.querySelector('.addBtn').addEventListener('click',()=>{
+      const flavor=el.querySelector('.flavorSelect').value;
+      const qty=Number(el.querySelector('.qtyInput').value)||1;
+      if(stock[flavor]===false){alert('Flavor out of stock');return;}
+      addToCart({productId:p.id,name:p.name,flavor,qty,price:p.price,image:null});
     });
   });
 
-  let cart=JSON.parse(localStorage.getItem('eg_cart_'+account)||'[]');
-  let tickets=[];
+  let cart=JSON.parse(localStorage.getItem(cartKey(account))||'[]');
+  let tickets=JSON.parse(localStorage.getItem(ticketKey(account))||'[]');
   const cartList=document.getElementById('cartList');const cartTotalEl=document.getElementById('cartTotal');const ticketsArea=document.getElementById('ticketsArea');
-
-  function saveCart(){localStorage.setItem('eg_cart_'+account,JSON.stringify(cart));renderCart();}
-  function saveTickets(){ticketsArea.innerHTML='';tickets.forEach(t=>renderTicket(t));}
-
+  function saveCart(){localStorage.setItem(cartKey(account),JSON.stringify(cart));renderCart();}
+  function saveTickets(){localStorage.setItem(ticketKey(account),JSON.stringify(tickets));renderTickets();}
   function addToCart(item){cart.push(item);saveCart();alert('Added to cart');}
 
   function renderCart(){
     cartList.innerHTML='';if(cart.length===0){cartList.innerHTML='<div class="small">Cart empty.</div>';cartTotalEl.textContent='';return;}
     cart.forEach((it,idx)=>{
       const div=document.createElement('div');div.className='cart-item';
-      div.innerHTML=`<div><div style="font-weight:600">${it.name} ×${it.qty}</div><div class="small">${it.flavor}</div></div>
-        <div style="text-align:right"><div>${money(it.price*it.qty)}</div><div style="margin-top:6px"><button class="btn ghost" data-i="${idx}">Remove</button></div></div>`;
+      div.innerHTML=<div><div style="font-weight:600">${it.name} ×${it.qty}</div><div class="small">${it.flavor}</div>${it.image?'<img src="'+it.image+'" style="width:60px;margin-top:4px;border-radius:6px">':''}</div>
+        <div style="text-align:right"><div>${money(it.price*it.qty)}</div><div style="margin-top:6px"><button class="btn ghost" data-i="${idx}">Remove</button></div></div>;
       cartList.appendChild(div);
       div.querySelector('button').addEventListener('click',(e)=>{cart.splice(Number(e.target.dataset.i),1);saveCart();});
     });
-    const total=cart.reduce((s,i)=>s+i.price*i.qty,0);cartTotalEl.textContent=`Total: ${money(total)}`;
+    const total=cart.reduce((s,i)=>s+i.price*i.qty,0);cartTotalEl.textContent=Total: ${money(total)};
   }
 
   document.getElementById('purchaseBtn').addEventListener('click',()=>{
@@ -272,85 +257,107 @@ function initSiteScripts(){
     const loc=document.getElementById('locationSelect').value;
     const tid='T-'+Math.random().toString(36).slice(2,8).toUpperCase();
     const items=JSON.parse(JSON.stringify(cart));const total=items.reduce((s,i)=>s+i.price*i.qty,0);
-    const ticket={id:tid,account,location:loc,items,total,status:'open',messages:[{from:'System',text:`Ticket created. Total ${money(total)}. Hide payment at ${loc}.`} ]};
-    tickets.push(ticket);
-    db.ref('tickets/'+account+'/'+tid).set(ticket);
-    cart=[];saveCart();
-    alert('Ticket created: '+tid);
-    saveTickets();
+    const ticket={id:tid,account,location:loc,items,total,status:'open',messages:[{from:'System',text:Ticket created. Total ${money(total)}. Hide payment at ${loc}.} ]};
+    tickets.push(ticket);saveTickets();cart=[];saveCart();alert('Ticket created: '+tid);
   });
-
   document.getElementById('clearBtn').addEventListener('click',()=>{if(confirm('Clear cart?')){cart=[];saveCart();}});
 
-  function renderTicket(t){
-    const el=document.createElement('div');el.className='card';el.style.marginBottom='8px';
-    el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center">
-      <div><strong>Ticket ${t.id}</strong> <span class="small">(${t.status})</span></div>
-      <div class="small">${t.location}</div>
-    </div>
-    <div class="small" style="margin-top:6px">${t.items.map(it=>`${it.name} ×${it.qty} (${it.flavor})`).join(' • ')}</div>
-    <div style="margin-top:8px" id="ticket-${t.id}">
-      <div class="ticket" id="chat-${t.id}">${(t.messages||[]).map(m=>{if(m.image)return `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`;return `<div><strong>${m.from}:</strong> ${m.text}</div>`;}).join('')}</div>
-      <input type="text" placeholder="Send message" id="msg-${t.id}" style="width:50%;padding:4px">
-      <input type="file" accept="image/*" id="file-${t.id}" style="width:40%">
-      <button class="btn sendBtn" data-id="${t.id}">Send</button>
-      <button class="btn markPaidBtn" data-id="${t.id}">Mark Paid</button>
-    </div>`;
-    ticketsArea.appendChild(el);
-    const sendBtn=el.querySelector('.sendBtn');
-    const markBtn=el.querySelector('.markPaidBtn');
-    sendBtn.addEventListener('click',()=>{
-      const mid=t.id;const msgEl=document.getElementById('msg-'+mid);const fileEl=document.getElementById('file-'+mid);const text=msgEl.value.trim();
-      if(!text && !fileEl.files.length){alert('Enter message or select image');return;}
-      const msg={from:'Customer',text};if(fileEl.files.length){const reader=new FileReader();reader.onload=(ev)=>{msg.image=ev.target.result;appendMsg(mid,msg);saveMsg(mid,msg);};reader.readAsDataURL(fileEl.files[0]);}else{appendMsg(mid,msg);saveMsg(mid,msg);}
-      msgEl.value='';fileEl.value='';
-    });
-    markBtn.addEventListener('click',()=>{
-      const mid=t.id;db.ref('tickets/'+account+'/'+mid+'/status').set('paid').then(()=>{alert('Marked Paid');loadTickets();});
-    });
-  }
-
-  function appendMsg(tid,msg){
-    const chat=document.getElementById('chat-'+tid);if(msg.image) chat.innerHTML+=`<div><strong>${msg.from}:</strong><br><img src="${msg.image}" style="max-width:100px;border-radius:6px"></div>`; else chat.innerHTML+=`<div><strong>${msg.from}:</strong> ${msg.text}</div>`;
-    chat.scrollTop=chat.scrollHeight;
-  }
-
-  function saveMsg(tid,msg){db.ref('tickets/'+account+'/'+tid+'/messages').push(msg);}
-  function loadTickets(){
-    db.ref('tickets/'+account).on('value',snap=>{
-      ticketsArea.innerHTML='';
-      tickets=[];if(snap.exists()) Object.values(snap.val()).forEach(t=>tickets.push(t));
-      saveTickets();
-    });
-  }
-  loadTickets();
   renderCart();
-}
+  renderTickets();
 
-// --- Admin ---
-function showAdmin(){
-  document.getElementById('loginModal').classList.add('hidden');
-  document.getElementById('adminScreen').style.display='block';
-  const allTicketsArea=document.getElementById('allTicketsArea');
-  document.getElementById('closeAdmin').onclick=()=>{document.getElementById('adminScreen').style.display='none';};
-  document.getElementById('refreshTickets').onclick=()=>{refreshAdminTickets();}
-  function refreshAdminTickets(){
-    allTicketsArea.innerHTML='Loading...';
-    db.ref('tickets').once('value').then(snap=>{
-      allTicketsArea.innerHTML='';
-      snap.forEach(userSnap=>{
-        userSnap.forEach(ticketSnap=>{
-          const t=ticketSnap.val();
-          const div=document.createElement('div');div.className='card';div.style.marginBottom='8px';
-          div.innerHTML=`<div style="display:flex;justify-content:space-between"><div>${t.id} (${t.account})</div><div class="small">${t.status}</div></div><div class="small">${t.items.map(it=>it.name+' ×'+it.qty+' ('+it.flavor+')').join(' • ')}</div>`;
-          allTicketsArea.appendChild(div);
-        });
-      });
+  function renderTickets(){
+    ticketsArea.innerHTML='';if(tickets.length===0){ticketsArea.innerHTML='<div class="small">No tickets yet.</div>';return;}
+    tickets.forEach(t=>{
+      const el=document.createElement('div');el.className='card';el.style.marginBottom='8px';
+      el.innerHTML=<div style="display:flex;justify-content:space-between;align-items:center">
+        <div><strong>Ticket ${t.id}</strong> <span class="small">(${t.status})</span></div>
+        <div class="small">${t.location}</div>
+      </div>
+      <div class="small" style="margin-top:6px">${t.items.map(it=>${it.name} ×${it.qty} (${it.flavor})).join(' • ')}</div>
+      <div style="margin-top:8px" id="ticket-${t.id}">
+        <div class="ticket" id="chat-${t.id}">${(t.messages||[]).map(m=>{if(m.image)return <div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>;return <div><strong>${m.from}:</strong> ${m.text}</div>;}).join('')}</div>
+        <input type="text" placeholder="Send message" id="msg-${t.id}" style="width:50%;padding:4px">
+        <input type="file" accept="image/*" id="file-${t.id}" style="margin-top:4px">
+        <button class="btn" onclick="sendUserMsg('${t.id}')">Send</button>
+        <button class="btn ghost" onclick="markPaid('${t.id}')">Mark Paid</button>
+        <button class="btn ghost" onclick="cancelOrder('${t.id}')">Cancel</button>
+      </div>; 
+      ticketsArea.appendChild(el);
     });
   }
+
+  window.sendUserMsg=function(tid){
+    const msgEl=document.getElementById('msg-'+tid);
+    const fileEl=document.getElementById('file-'+tid);
+    if(!msgEl && !fileEl)return;
+    let t=tickets.find(x=>x.id===tid);if(!t)return;
+    if(fileEl.files[0]){
+      const reader=new FileReader();
+      reader.onload=(e)=>{t.messages.push({from:'User',image:e.target.result});saveTickets();renderTickets();};
+      reader.readAsDataURL(fileEl.files[0]);
+    }
+    const txt=msgEl.value.trim();if(txt){t.messages.push({from:'User',text:txt});saveTickets();msgEl.value='';renderTickets();}
+  };
+  window.markPaid=function(tid){let t=tickets.find(x=>x.id===tid);if(!t)return;t.status='paid';saveTickets();}
+  window.cancelOrder=function(tid){if(!confirm('Cancel this order?'))return;let idx=tickets.findIndex(x=>x.id===tid);if(idx>-1){tickets.splice(idx,1);saveTickets();}}
 }
 
+/* ---- Admin Functions ---- */
+function renderAdminStock(){
+  const area=document.getElementById('adminStockArea');area.innerHTML='';
+  PRODUCTS.forEach(p=>{
+    const stock=JSON.parse(localStorage.getItem('eg_stock_'+p.id)||'{}');
+    const card=document.createElement('div');card.className='card';card.style.marginBottom='8px';
+    card.innerHTML=<strong>${p.name}</strong>;
+    p.flavors.forEach(f=>{
+      const chk=document.createElement('input');chk.type='checkbox';chk.checked=stock[f]!==false;chk.dataset.prod=p.id;chk.dataset.flavor=f;
+      chk.addEventListener('change',()=>{let s=JSON.parse(localStorage.getItem('eg_stock_'+p.id)||'{}');s[f]=chk.checked;localStorage.setItem('eg_stock_'+p.id,JSON.stringify(s));initSiteScripts();});
+      const label=document.createElement('label');label.style.display='block';label.append(chk,document.createTextNode(' '+f));
+      card.appendChild(label);
+    });
+    area.appendChild(card);
+  });
+}
+
+function renderAdminTickets(){
+  const allTicketsArea=document.getElementById('allTicketsArea');allTicketsArea.innerHTML='';
+  const allCodes=getAllCodes();
+  allCodes.forEach(ac=>{
+    const tix=JSON.parse(localStorage.getItem(ticketKey(ac))||'[]');
+    tix.forEach(t=>{
+      const div=document.createElement('div');div.className='card';div.style.marginBottom='8px';
+      div.innerHTML=<div style="font-weight:600">Ticket ${t.id} | Account: ${t.account} | Location: ${t.location} | Status: ${t.status}</div>
+        <div class="small">${t.items.map(i=>i.name+' ×'+i.qty+' ('+i.flavor+')').join(' • ')}</div>
+        <div id="adminChat-${t.id}" class="ticket">${(t.messages||[]).map(m=>{if(m.image)return <div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>;return <div><strong>${m.from}:</strong> ${m.text}</div>;}).join('')}</div>
+        <input placeholder="Admin message" id="adminMsg-${t.id}" style="flex:1;padding:4px">
+        <input type="file" accept="image/*" id="adminFile-${t.id}" style="margin-top:4px">
+        <button class="btn" onclick="sendAdmin('${t.account}','${t.id}')">Send</button>
+        <button class="btn ghost" onclick="deleteOrder('${t.account}','${t.id}')">Delete</button>;
+      allTicketsArea.appendChild(div);
+    });
+  });
+}
+
+window.sendAdmin=function(acc,ticketId){
+  const msgEl=document.getElementById('adminMsg-'+ticketId);
+  const fileEl=document.getElementById('adminFile-'+ticketId);
+  let tix=JSON.parse(localStorage.getItem(ticketKey(acc))||'[]');let t=tix.find(x=>x.id===ticketId);if(!t)return;
+  if(fileEl.files[0]){
+    const reader=new FileReader();
+    reader.onload=(e)=>{t.messages.push({from:'Admin',image:e.target.result});localStorage.setItem(ticketKey(acc),JSON.stringify(tix));renderAdminTickets();};
+    reader.readAsDataURL(fileEl.files[0]);
+  }
+  if(msgEl.value.trim()){t.messages.push({from:'Admin',text:msgEl.value.trim()});msgEl.value='';localStorage.setItem(ticketKey(acc),JSON.stringify(tix));renderAdminTickets();}
+};
+
+window.deleteOrder=function(acc,tid){
+  if(!confirm('Delete this ticket?'))return;
+  let tix=JSON.parse(localStorage.getItem(ticketKey(acc))||'[]');
+  const idx=tix.findIndex(x=>x.id===tid);
+  if(idx>-1){tix.splice(idx,1);localStorage.setItem(ticketKey(acc),JSON.stringify(tix));renderAdminTickets();}
+};
 });
 </script>
 </body>
 </html>
+
