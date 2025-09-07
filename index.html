@@ -36,16 +36,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 .flavor-stock span{font-size:.88rem}
 .option-disabled{color:#aaa !important}
 </style>
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script>
-const firebaseConfig = {
-  databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com/"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-</script>
 </head>
 <body>
 
@@ -178,25 +168,52 @@ const db = firebase.database();
   <div id="allTicketsArea"></div>
 </div>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+<script>
+// Firebase setup
+const firebaseConfig = {
+  apiKey: "<YOUR_API_KEY>",
+  authDomain: "<YOUR_PROJECT_ID>.firebaseapp.com",
+  databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com/",
+  projectId: "<YOUR_PROJECT_ID>",
+  storageBucket: "<YOUR_PROJECT_ID>.appspot.com",
+  messagingSenderId: "<YOUR_SENDER_ID>",
+  appId: "<YOUR_APP_ID>"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+</script>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+
 const PRODUCTS=[
   {id:'c1',name:'Edibles',price:20,flavors:['Sour Patch','Skittlez','Swedish Fish','Watermelon','Starburst','Trolli','Peach Rings']},
   {id:'c2',name:'2G Ghost Disposable Carts',price:40,flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice cream Cake','Black Mamba']},
 ];
+
 function uid6(){return Math.random().toString(36).slice(2,8).toUpperCase();}
 function money(n){return '$'+n.toFixed(2);}
 
-/* ---- Account & Login ---- */
 let account=localStorage.getItem('eg_account')||'';
 const acctEl=document.getElementById('acctCode');
 function getAllCodes(){return JSON.parse(localStorage.getItem('eg_codes')||'[]');}
 function addCode(c){let arr=getAllCodes();if(!arr.includes(c)){arr.push(c);localStorage.setItem('eg_codes',JSON.stringify(arr));}}
 function cartKey(acc){return 'eg_cart_'+acc;}
 function ticketKey(acc){return 'eg_tickets_'+acc;}
-function showMainSite(){document.getElementById('loginModal').classList.add('hidden');document.getElementById('mainWrap').classList.remove('hidden');document.getElementById('warningModal').classList.remove('hidden');acctEl.textContent=account;initSiteScripts();}
 
-/* ---- Login / Create ---- */
+function showMainSite(){
+  document.getElementById('loginModal').classList.add('hidden');
+  document.getElementById('mainWrap').classList.remove('hidden');
+  document.getElementById('warningModal').classList.remove('hidden');
+  acctEl.textContent=account;
+  initSiteScripts();
+}
+
+/* Login / Create */
 document.getElementById('loginBtn').onclick=()=>{
   const code=document.getElementById('loginCode').value.trim();
   if(!code){alert('Enter code');return;}
@@ -206,51 +223,55 @@ document.getElementById('loginBtn').onclick=()=>{
   account=upper;localStorage.setItem('eg_account',account);showMainSite();
 };
 document.getElementById('createCodeBtn').onclick=()=>{
-  account=uid6();addCode(account);localStorage.setItem('eg_account',account);alert('New code: '+account);showMainSite();
+  account=uid6();addCode(account);localStorage.setItem('eg_account',account);
+  alert('New code: '+account);showMainSite();
 };
 document.getElementById('ackBtn').onclick=()=>{
   if(!document.getElementById('ackCheck').checked){alert('Confirm rules');return;}
   localStorage.setItem('eg_ack','1');document.getElementById('warningModal').classList.add('hidden');
 };
 
-/* ---- First Time Help ---- */
+/* First Time Help */
 document.getElementById('helpBtn').onclick=()=>{document.getElementById('helpModal').classList.remove('hidden');};
 document.getElementById('closeHelp').onclick=()=>{document.getElementById('helpModal').classList.add('hidden');};
 
-/* ---- Admin Screen ---- */
+/* Admin Screen */
 document.getElementById('closeAdmin').onclick=()=>{document.getElementById('adminScreen').style.display='none';};
-document.getElementById('refreshTickets').addEventListener('click',renderAdminTickets);
-function showAdmin(){document.getElementById('adminScreen').style.display='block';renderAdminStock();renderAdminTickets();}
+document.getElementById('refreshTickets').onclick=()=>{renderAdminTickets(); renderAdminStock();};
 
-/* ---- Site scripts ---- */
+function showAdmin(){
+  document.getElementById('adminScreen').style.display='block';
+  renderAdminStock();
+  renderAdminTickets();
+}
+
+/* Site scripts */
 function initSiteScripts(){
   const grid=document.getElementById('productsGrid');grid.innerHTML='';
   PRODUCTS.forEach(p=>{
-    const stockRef = db.ref('stock/'+p.id);
     const el=document.createElement('div');el.className='product';
-    el.innerHTML=`<h3>${p.name}</h3>
-      <div class="small">Price: ${money(p.price)}</div>
-      <label>Flavor<select aria-label="flavor-${p.id}" class="flavorSelect"></select></label>
-      <label>Qty<input type="number" min="1" value="1" class="qtyInput" style="width:70px"></label>
-      <div style="margin-top:8px"><button class="btn addBtn">Add</button></div>`;
-    grid.appendChild(el);
-
-    const flavorSelect = el.querySelector('.flavorSelect');
+    const stockRef = db.ref('stock/'+p.id);
     stockRef.once('value').then(snap=>{
-      const stock = snap.val()||{};
-      p.flavors.forEach(f=>{
-        const opt = document.createElement('option');
-        opt.value=f;
-        opt.textContent=f;
-        if(stock[f]===false) opt.disabled=true;
-        flavorSelect.appendChild(opt);
+      const stock = snap.val() || {};
+      el.innerHTML = `<h3>${p.name}</h3>
+        <div class="small">Price: ${money(p.price)}</div>
+        <label>Flavor
+          <select aria-label="flavor-${p.id}" class="flavorSelect">
+            ${p.flavors.map(f=>{
+              const disabled=stock[f]===false?'disabled class="option-disabled"':'';
+              return `<option ${disabled}>${f}</option>`;
+            }).join('')}
+          </select>
+        </label>
+        <label>Qty<input type="number" min="1" value="1" class="qtyInput" style="width:70px"></label>
+        <div style="margin-top:8px"><button class="btn addBtn">Add</button></div>`;
+      grid.appendChild(el);
+      el.querySelector('.addBtn').addEventListener('click',()=>{
+        const flavor=el.querySelector('.flavorSelect').value;
+        const qty=Number(el.querySelector('.qtyInput').value)||1;
+        if(stock[flavor]===false){alert('Flavor out of stock');return;}
+        addToCart({productId:p.id,name:p.name,flavor,qty,price:p.price,image:null});
       });
-    });
-
-    el.querySelector('.addBtn').addEventListener('click',()=>{
-      const flavor=el.querySelector('.flavorSelect').value;
-      const qty=Number(el.querySelector('.qtyInput').value)||1;
-      addToCart({productId:p.id,name:p.name,flavor,qty,price:p.price,image:null});
     });
   });
 
@@ -291,108 +312,101 @@ function initSiteScripts(){
     ticketsArea.innerHTML='';if(tickets.length===0){ticketsArea.innerHTML='<div class="small">No tickets yet.</div>';return;}
     tickets.forEach(t=>{
       const el=document.createElement('div');el.className='card';el.style.marginBottom='8px';
-      el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center">
-        <div><strong>Ticket ${t.id}</strong> <span class="small">(${t.status})</span></div>
-        <div class="small">${t.location}</div></div>
-        <div class="ticket">${(t.messages||[]).map(m=>m.text?'<div class="ticket-entry"><strong>'+m.from+':</strong> '+m.text+'</div>':'<div class="ticket-entry"><strong>'+m.from+':</strong><br><img src="'+m.image+'" style="max-width:100px;border-radius:6px"></div>').join('')}</div>
-        <input placeholder="Send message" class="ticketMsg" style="flex:1;margin-top:6px;padding:4px">
-        <input type="file" accept="image/*" class="ticketFile" style="margin-top:4px">
-        <button class="btn sendMsgBtn" style="margin-top:4px">Send</button>`;
+      el.innerHTML=`<div style="font-weight:600">Ticket ${t.id} | Location: ${t.location} | Status: ${t.status}</div>
+        <div class="small">${t.items.map(i=>i.name+' ×'+i.qty+' ('+i.flavor+')').join(' • ')}</div>
+        <div id="chat-${t.id}" class="ticket">${(t.messages||[]).map(m=>m.image?'<div><strong>'+m.from+':</strong><br><img src="'+m.image+'" style="max-width:100px;border-radius:6px"></div>':'<div><strong>'+m.from+':</strong> '+m.text+'</div>').join('')}</div>
+        <input placeholder="Message admin" id="msg-'+t.id+'" style="flex:1;padding:4px"><input type="file" accept="image/*" id="file-'+t.id+'" style="margin-top:4px">
+        <button class="btn" onclick="sendMsg('${t.id}')">Send</button>
+        <button class="btn ghost" onclick="markPaid('${t.id}')">Mark as paid</button>`;
       ticketsArea.appendChild(el);
-      el.querySelector('.sendMsgBtn').addEventListener('click',()=>{
-        const msgEl=el.querySelector('.ticketMsg');const fileEl=el.querySelector('.ticketFile');
-        if(!msgEl.value.trim()&&!fileEl.files[0])return;
-        const tIdx=tickets.findIndex(x=>x.id===t.id);
-        if(tIdx<0)return;
-        if(fileEl.files[0]){
-          const reader=new FileReader();reader.onload=(e)=>{tickets[tIdx].messages.push({from:'You',image:e.target.result});saveTickets();};reader.readAsDataURL(fileEl.files[0]);
-        }
-        if(msgEl.value.trim()){tickets[tIdx].messages.push({from:'You',text:msgEl.value.trim()});msgEl.value='';saveTickets();}
-      });
     });
   }
 }
 
-/* ---- Admin Functions ---- */
-function renderAdminStock(){
-  const area=document.getElementById('adminStockArea'); area.innerHTML='';
-  PRODUCTS.forEach(p=>{
-    const card=document.createElement('div'); card.className='card'; card.style.marginBottom='8px';
-    card.innerHTML=`<strong>${p.name}</strong>`;
-    const stockRef = db.ref('stock/'+p.id);
-    stockRef.on('value', snap=>{
-      card.querySelectorAll('label').forEach(l=>l.remove());
-      const stock = snap.val()||{};
-      p.flavors.forEach(f=>{
-        const chk=document.createElement('input'); chk.type='checkbox'; chk.checked=stock[f]!==false;
-        chk.dataset.prod=p.id; chk.dataset.flavor=f;
-        chk.addEventListener('change',()=>{
-          stock[f]=chk.checked; db.ref('stock/'+p.id).set(stock);
-        });
-        const label=document.createElement('label'); label.style.display='block';
-        label.append(chk,document.createTextNode(' '+f));
-        card.appendChild(label);
-      });
-    });
-    area.appendChild(card);
-  });
-}
-
+/* Admin Tickets */
 function renderAdminTickets(){
-  const allTicketsArea=document.getElementById('allTicketsArea'); allTicketsArea.innerHTML='';
-  db.ref('tickets').on('value',snap=>{
-    const ticketsObj = snap.val()||{};
+  const allTicketsArea = document.getElementById('allTicketsArea');
+  allTicketsArea.innerHTML = '';
+  db.ref('tickets').once('value').then(snap => {
+    const ticketsObj = snap.val() || {};
     const tickets = Object.values(ticketsObj);
-    tickets.forEach(t=>{
-      const div=document.createElement('div'); div.className='card'; div.style.marginBottom='8px';
-      div.innerHTML=`
-        <div style="font-weight:600">Ticket ${t.id} | Account: ${t.account} | Location: ${t.location} | Status: ${t.status}</div>
-        <div class="small">${t.items.map(i=>i.name+' ×'+i.qty+' ('+i.flavor+')').join(' • ')}</div>
-        <div id="adminChat-${t.id}" class="ticket">${(t.messages||[]).map(m=>{
-          if(m.image) return `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`;
-          return `<div><strong>${m.from}:</strong> ${m.text}</div>`;
-        }).join('')}</div>
+    if(tickets.length === 0){
+      allTicketsArea.innerHTML = '<div class="small">No tickets yet.</div>';
+      return;
+    }
+    tickets.forEach(t => {
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.style.marginBottom = '8px';
+      div.innerHTML = `
+        <div style="font-weight:600">
+          Ticket ${t.id} | Account: ${t.account} | Location: ${t.location} | Status: ${t.status}
+        </div>
+        <div class="small">
+          ${t.items.map(i => i.name+' ×'+i.qty+' ('+i.flavor+')').join(' • ')}
+        </div>
+        <div id="adminChat-${t.id}" class="ticket">
+          ${(t.messages||[]).map(m => m.image ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>` : `<div><strong>${m.from}:</strong> ${m.text}</div>`).join('')}
+        </div>
         <input placeholder="Admin message" id="adminMsg-${t.id}" style="flex:1;padding:4px">
         <input type="file" accept="image/*" id="adminFile-${t.id}" style="margin-top:4px">
         <button class="btn" onclick="sendAdmin('${t.account}','${t.id}')">Send</button>
-        <button class="btn ghost" onclick="deleteOrder('${t.account}','${t.id}')">Delete</button>`;
+        <button class="btn ghost" onclick="deleteOrder('${t.account}','${t.id}')">Delete</button>
+      `;
       allTicketsArea.appendChild(div);
     });
   });
 }
 
-// Send admin message
-window.sendAdmin=function(acc,ticketId){
-  const msgEl=document.getElementById('adminMsg-'+ticketId);
-  const fileEl=document.getElementById('adminFile-'+ticketId);
-  const ticketRef = db.ref('tickets/'+ticketId);
-  ticketRef.once('value').then(snap=>{
-    const t = snap.val();
-    if(!t) return;
-    if(fileEl.files[0]){
-      const reader=new FileReader();
-      reader.onload=(e)=>{
-        t.messages.push({from:'Admin',image:e.target.result});
-        ticketRef.set(t);
-      };
-      reader.readAsDataURL(fileEl.files[0]);
-    }
-    if(msgEl.value.trim()){
-      t.messages.push({from:'Admin',text:msgEl.value.trim()});
-      msgEl.value='';
-      ticketRef.set(t);
-    }
+/* Admin Stock */
+function renderAdminStock(){
+  const stockArea = document.getElementById('adminStockArea');
+  stockArea.innerHTML='';
+  PRODUCTS.forEach(p=>{
+    const div=document.createElement('div');div.style.marginBottom='8px';
+    db.ref('stock/'+p.id).once('value').then(snap=>{
+      const stock=snap.val()||{};
+      div.innerHTML=`<div style="font-weight:600">${p.name}</div>${p.flavors.map(f=>{
+        const st = stock[f]===false?'Out':'In';
+        return `<div class="flavor-stock"><span>${f}</span><span>${st}</span></div>`;
+      }).join('')}`;
+      stockArea.appendChild(div);
+    });
   });
+}
+
+/* Admin Actions */
+window.sendAdmin=(acct,ticketId)=>{
+  const msgInput=document.getElementById('adminMsg-'+ticketId);
+  const fileInput=document.getElementById('adminFile-'+ticketId);
+  const messages=[];
+  if(msgInput.value.trim()!=='') messages.push({from:'Admin',text:msgInput.value.trim()});
+  if(fileInput.files.length>0){
+    const reader=new FileReader();
+    reader.onload=(e)=>{messages.push({from:'Admin',image:e.target.result});appendAdminMsg(ticketId,messages);};
+    reader.readAsDataURL(fileInput.files[0]);
+  } else appendAdminMsg(ticketId,messages);
+  msgInput.value='';fileInput.value='';
 };
 
-// Delete ticket
-window.deleteOrder=function(acc,ticketId){
-  if(!confirm('Delete this ticket?')) return;
-  db.ref('tickets/'+ticketId).remove();
-};
+function appendAdminMsg(ticketId,msgs){
+  db.ref('tickets/'+ticketId+'/messages').once('value').then(snap=>{
+    const old = snap.val()||[];
+    db.ref('tickets/'+ticketId+'/messages').set([...old,...msgs]);
+    renderAdminTickets();
+  });
+}
+
+window.deleteOrder=(acct,ticketId)=>{if(confirm('Delete this ticket?')){db.ref('tickets/'+ticketId).remove().then(()=>renderAdminTickets());}};
+window.sendMsg=(ticketId)=>{alert('Messaging feature placeholder. Implement chat send code here.')};
+window.markPaid=(ticketId)=>{alert('Mark paid feature placeholder. Implement photo upload & status update here.')};
+
+if(!account){document.getElementById('loginModal').classList.remove('hidden');} else showMainSite();
 });
 </script>
 </body>
 </html>
+
+
 
 
