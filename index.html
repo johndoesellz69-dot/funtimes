@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html> 
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -95,7 +95,7 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   </div>
 </div>
 
-<!-- Shutdown Notice (site-wide shown when admin closes shop) -->
+<!-- Shutdown Notice -->
 <div id="shutdownNotice">
   <div class="modal">
     <h3>Easy Green — Temporary Update</h3>
@@ -187,13 +187,18 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   <div id="allTicketsArea"></div>
 </div>
 
-<!-- Firebase SDK (compat for simpler transition) -->
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
 <script>
-/* ---------- Firebase init ---------- */
-/* NOTE: these values were from your earlier snippet. If yours differ, replace them. */
+document.addEventListener('DOMContentLoaded', () => {
+
+const PRODUCTS=[
+  {id:'c1',name:'Edibles',price:20,flavors:['Sour Patch','Skittlez','Swedish Fish','Watermelon','Starburst','Trolli','Peach Rings']},
+  {id:'c2',name:'2G Ghost Disposable Carts',price:40,flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice cream Cake','Black Mamba']},
+];
+
 const firebaseConfig = {
   apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
   authDomain: "easy-green-website.firebaseapp.com",
@@ -206,24 +211,12 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-/* ---------- end firebase ---------- */
-</script>
-
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-
-const PRODUCTS=[
-  {id:'c1',name:'Edibles',price:20,flavors:['Sour Patch','Skittlez','Swedish Fish','Watermelon','Starburst','Trolli','Peach Rings']},
-  {id:'c2',name:'2G Ghost Disposable Carts',price:40,flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice cream Cake','Black Mamba']},
-];
 
 function uid6(){return Math.random().toString(36).slice(2,8).toUpperCase();}
 function money(n){return '$'+n.toFixed(2);}
 
-/* ---- Account & Login ---- */
 let account = localStorage.getItem('eg_account') || '';
 const acctEl = document.getElementById('acctCode');
-
 function getAllCodes(){ return JSON.parse(localStorage.getItem('eg_codes')||'[]'); }
 function addCode(c){ let arr=getAllCodes(); if(!arr.includes(c)){ arr.push(c); localStorage.setItem('eg_codes',JSON.stringify(arr)); } }
 function cartKey(acc){ return 'eg_cart_'+acc; }
@@ -232,13 +225,11 @@ function ticketKey(acc){ return 'eg_tickets_'+acc; }
 function showMainSite(){
   document.getElementById('loginModal').classList.add('hidden');
   document.getElementById('mainWrap').classList.remove('hidden');
-  // only show rules modal if not acked
   if(!localStorage.getItem('eg_ack')) document.getElementById('warningModal').classList.remove('hidden');
   acctEl.textContent = account;
   initSiteScripts();
 }
 
-/* ---- Login / Create ---- */
 document.getElementById('loginBtn').onclick = () => {
   const code = document.getElementById('loginCode').value.trim();
   if(!code){ alert('Enter code'); return; }
@@ -255,16 +246,10 @@ document.getElementById('ackBtn').onclick = () => {
   if(!document.getElementById('ackCheck').checked){ alert('Confirm rules'); return; }
   localStorage.setItem('eg_ack','1'); document.getElementById('warningModal').classList.add('hidden');
 };
-
-/* ---- Help + Logout ---- */
 document.getElementById('helpBtn').onclick = ()=>{ document.getElementById('helpModal').classList.remove('hidden'); };
 document.getElementById('closeHelp').onclick = ()=>{ document.getElementById('helpModal').classList.add('hidden'); };
 document.getElementById('logoutBtn').onclick = ()=>{ localStorage.removeItem('eg_account'); account=''; document.getElementById('mainWrap').classList.add('hidden'); document.getElementById('loginModal').classList.remove('hidden'); };
-
-/* ---- Shutdown notice close ---- */
 document.getElementById('closeShutdownNotice').onclick = ()=>{ document.getElementById('shutdownNotice').style.display='none'; };
-
-/* ---- Admin Screen & Shutdown Toggle ---- */
 document.getElementById('closeAdmin').onclick = ()=>{ document.getElementById('adminScreen').style.display='none'; };
 document.getElementById('refreshTickets').onclick = ()=>{ renderAdminTickets(); renderAdminStock(); };
 document.getElementById('toggleShutdownBtn').onclick = async () => {
@@ -272,23 +257,16 @@ document.getElementById('toggleShutdownBtn').onclick = async () => {
   const snap = await ref.once('value');
   const current = snap.val() === true;
   await ref.set(!current);
-  // UI update will be handled by the realtime listener
 };
 
-/* Realtime listeners for tickets & stock & shutdown status so changes show across devices */
-let ticketsCache = []; // local copy maintained from DB
+let ticketsCache = [];
 db.ref('tickets').on('value', snap => {
-  const obj = snap.val() || {};
-  // Convert to array sorted by id string (not required but consistent)
-  ticketsCache = Object.values(obj);
-  // Re-render admin area if open
+  ticketsCache = Object.values(snap.val()||{});
   if(document.getElementById('adminScreen').style.display === 'block') renderAdminTickets();
-  // Re-render user's tickets if on main site and logged in
   if(account) renderTicketsForAccount();
 });
 
 db.ref('stock').on('value', snap => {
-  // re-render product UI when stock changes
   if(document.getElementById('mainWrap').classList.contains('hidden') === false) initSiteScripts();
   if(document.getElementById('adminScreen').style.display === 'block') renderAdminStock();
 });
@@ -296,20 +274,12 @@ db.ref('stock').on('value', snap => {
 db.ref('status/shutdown').on('value', snap => {
   const isDown = snap.val() === true;
   document.getElementById('shutdownStatus').textContent = isDown ? '— SHOP CLOSED' : '— SHOP OPEN';
-  // Show notice to users
-  if(isDown){
-    document.getElementById('shutdownNotice').style.display = 'flex';
-  } else {
-    document.getElementById('shutdownNotice').style.display = 'none';
-  }
+  document.getElementById('shutdownNotice').style.display = isDown ? 'flex' : 'none';
 });
 
-/* ---- Site scripts ---- */
 function initSiteScripts(){
   const grid = document.getElementById('productsGrid'); grid.innerHTML = '';
-
   PRODUCTS.forEach(p=>{
-    // fetch stock for this product
     db.ref('stock/'+p.id).once('value').then(snap=>{
       const stock = snap.val() || {};
       const el = document.createElement('div'); el.className = 'product';
@@ -317,32 +287,26 @@ function initSiteScripts(){
         <div class="small">Price: ${money(p.price)}</div>
         <label>Flavor
           <select aria-label="flavor-${p.id}" class="flavorSelect">
-            ${p.flavors.map(f=>{
-              const disabled = stock[f] === false ? 'disabled class="option-disabled"' : '';
-              return `<option ${disabled}>${f}</option>`;
-            }).join('')}
+            ${p.flavors.map(f=>stock[f]===false?`<option disabled class="option-disabled">${f}</option>`:`<option>${f}</option>`).join('')}
           </select>
         </label>
         <label>Qty<input type="number" min="1" value="1" class="qtyInput" style="width:70px"></label>
         <div style="margin-top:8px"><button class="btn addBtn">Add</button></div>`;
       grid.appendChild(el);
 
-      el.querySelector('.addBtn').addEventListener('click',()=>{
-        // prevent purchase when shutdown active
-        db.ref('status/shutdown').once('value').then(s=> {
-          if(s.val() === true){ alert('Easy Green is currently under an update. Purchases are temporarily disabled.'); return; }
+      el.querySelector('.addBtn').addEventListener('click',()=> {
+        db.ref('status/shutdown').once('value').then(s=>{
+          if(s.val()===true){ alert('Easy Green is currently under an update. Purchases are temporarily disabled.'); return; }
           const flavor = el.querySelector('.flavorSelect').value;
           const qty = Number(el.querySelector('.qtyInput').value) || 1;
-          if(stock[flavor] === false){ alert('Flavor out of stock'); return; }
+          if(stock[flavor]===false){ alert('Flavor out of stock'); return; }
           addToCart({productId:p.id,name:p.name,flavor,qty,price:p.price,image:null});
         });
       });
     });
   });
 
-  // load local cart/tickets state (we still read/write tickets to DB)
   let cart = JSON.parse(localStorage.getItem(cartKey(account))||'[]');
-  let tickets = []; // the local ticket list will be built from DB listener
   const cartList = document.getElementById('cartList');
   const cartTotalEl = document.getElementById('cartTotal');
 
@@ -351,250 +315,93 @@ function initSiteScripts(){
 
   function renderCart(){
     cartList.innerHTML = '';
-    if(cart.length === 0){ cartList.innerHTML = '<div class="small">Cart empty.</div>'; cartTotalEl.textContent = ''; return; }
-    cart.forEach((it, idx)=>{
-      const div = document.createElement('div'); div.className = 'cart-item';
-      div.innerHTML = `<div><div style="font-weight:600">${it.name} ×${it.qty}</div><div class="small">${it.flavor}</div>${it.image?'<img src="'+it.image+'" style="width:60px;margin-top:4px;border-radius:6px">':''}</div>
+    if(cart.length===0){ cartList.innerHTML='<div class="small">Cart empty.</div>'; cartTotalEl.textContent=''; return; }
+    cart.forEach((it,idx)=>{
+      const div = document.createElement('div'); div.className='cart-item';
+      div.innerHTML=`<div><div style="font-weight:600">${it.name} ×${it.qty}</div><div class="small">${it.flavor}</div>${it.image?'<img src="'+it.image+'" style="width:60px;margin-top:4px;border-radius:6px">':''}</div>
         <div style="text-align:right"><div>${money(it.price*it.qty)}</div><div style="margin-top:6px"><button class="btn ghost" data-i="${idx}">Remove</button></div></div>`;
       cartList.appendChild(div);
       div.querySelector('button').addEventListener('click',(e)=>{ cart.splice(Number(e.target.dataset.i),1); saveCart(); });
     });
-    const total = cart.reduce((s,i)=>s + i.price * i.qty, 0); cartTotalEl.textContent = `Total: ${money(total)}`;
+    const total = cart.reduce((s,i)=>s+i.price*i.qty,0); cartTotalEl.textContent=`Total: ${money(total)}`;
   }
 
   document.getElementById('purchaseBtn').onclick = ()=>{
-    // prevent purchase when shutdown active
     db.ref('status/shutdown').once('value').then(s=>{
-      if(s.val() === true){ alert('Easy Green is currently under an update. Purchases are temporarily disabled.'); return; }
-      if(cart.length === 0){ alert('Cart empty'); return; }
+      if(s.val()===true){ alert('Easy Green is currently under an update. Purchases are temporarily disabled.'); return; }
+      if(cart.length===0){ alert('Cart empty'); return; }
       const loc = document.getElementById('locationSelect').value;
       const tid = 'T-'+Math.random().toString(36).slice(2,8).toUpperCase();
-      const items = JSON.parse(JSON.stringify(cart)); const total = items.reduce((s,i)=>s + i.price*i.qty, 0);
-      const ticket = { id:tid, account, location:loc, items, total, status:'open', messages:[ { from:'System', text:`Ticket created. Total ${money(total)}. Hide payment at ${loc}.` } ] };
-      // write to DB
-      db.ref('tickets/'+tid).set(ticket).then(()=>{
-        // local feedback
-        cart = []; saveCart();
-        alert('Ticket created: '+tid);
-      }).catch(err=>{ console.error('DB write error', err); alert('Failed to create ticket (db).'); });
+      const items = JSON.parse(JSON.stringify(cart)); const total = items.reduce((s,i)=>s+i.price*i.qty,0);
+      const ticket = {id:tid,account,location:loc,items,total,status:'open',messages:[{from:'System',text:`Ticket created. Total ${money(total)}. Hide payment at ${loc}.`}]};
+      db.ref('tickets/'+tid).set(ticket).then(()=>{ cart=[]; saveCart(); alert('Ticket created: '+tid); }).catch(err=>{ console.error(err); alert('Failed to create ticket (db).'); });
     });
   };
 
   document.getElementById('clearBtn').addEventListener('click', ()=>{ if(confirm('Clear cart?')){ cart=[]; saveCart(); } });
-
   renderCart();
 
-  // render tickets for this logged-in account using ticketsCache (kept in sync by DB listener)
   function renderTickets(){
-    // build from local ticketsCache
-    const userTickets = ticketsCache.filter(t => t.account === account);
+    const userTickets = ticketsCache.filter(t => t.account===account);
     const ticketsArea = document.getElementById('ticketsArea');
-    ticketsArea.innerHTML = '';
-    if(userTickets.length === 0){ ticketsArea.innerHTML = '<div class="small">No tickets yet.</div>'; return; }
-    userTickets.forEach(t => {
+    ticketsArea.innerHTML='';
+    if(userTickets.length===0){ ticketsArea.innerHTML='<div class="small">No tickets yet.</div>'; return; }
+    userTickets.forEach(t=>{
       const el = document.createElement('div'); el.className='card'; el.style.marginBottom='8px';
-      el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
-        <div><strong>Ticket ${t.id}</strong> <span class="small">(${t.status})</span></div>
-        <div class="small">${t.location}</div>
-      </div>
-      <div class="small" style="margin-top:6px">${t.items.map(it=>''
-        +it.name+' ×'+it.qty+' ('+it.flavor+')').join(' • ')}</div>
-      <div style="margin-top:8px" id="ticket-${t.id}">
-        <div class="ticket" id="chat-${t.id}">${(t.messages||[]).map(m=>m.image?'<div><strong>'+m.from+':</strong><br><img src="'+m.image+'" style="max-width:100px;border-radius:6px"></div>':'<div><strong>'+m.from+':</strong> '+(m.text||'')+'</div>').join('')}</div>
-        <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
-          <input type="text" placeholder="Send message" id="msg-${t.id}" style="width:50%;padding:4px">
-          <input type="file" accept="image/*" id="file-${t.id}">
-          <button class="btn" onclick="sendUserMsg('${t.id}')">Send</button>
-          <button class="btn ghost" onclick="markPaid('${t.id}')">Mark Paid</button>
-          <button class="btn ghost" onclick="cancelOrder('${t.id}')">Cancel</button>
-        </div>
-      </div>`;
+      el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><div><strong>Ticket ${t.id}</strong> <span class="small">(${t.status})</span></div><div class="small">${t.location}</div></div>
+        <div class="small" style="margin-top:6px">${t.items.map(it=>it.name+' ×'+it.qty+' ('+it.flavor+')').join(' • ')}</div>
+        <div style="margin-top:8px" id="ticket-${t.id}">
+          <div class="ticket" id="chat-${t.id}">${(t.messages||[]).map(m=>m.image?'<div><strong>'+m.from+':</strong><br><img src="'+m.image+'" style="max-width:100px;border-radius:6px"></div>':'<div><strong>'+m.from+':</strong> '+(m.text||'')+'</div>').join('')}</div>
+          <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+            <input type="text" placeholder="Send message" id="msg-${t.id}" style="width:50%;padding:4px">
+            <input type="file" accept="image/*" id="file-${t.id}">
+            <button class="btn" onclick="sendUserMsg('${t.id}')">Send</button>
+            <button class="btn ghost" onclick="markPaid('${t.id}')">Mark Paid</button>
+            <button class="btn ghost" onclick="cancelOrder('${t.id}')">Cancel</button>
+          </div>
+        </div>`;
       ticketsArea.appendChild(el);
     });
   }
 
-  // Expose function so DB listener can re-render for account
   window.renderTicketsForAccount = function(){ renderTickets(); };
-  // initial render if any
   renderTickets();
 }
 
-/* expose user messaging/markPaid/cancel functions that operate on DB */
 window.sendUserMsg = function(ticketId){
   const msgEl = document.getElementById('msg-'+ticketId);
   const fileEl = document.getElementById('file-'+ticketId);
   if(!msgEl && !fileEl) return;
   const messages = [];
   const uploadAndPush = (msgs)=>{
-    // push messages array into DB messages list
-    const ref = db.ref('tickets/'+ticketId+'/messages');
-    ref.once('value').then(snap=>{
+    db.ref('tickets/'+ticketId+'/messages').once('value').then(snap=>{
       const old = snap.val() || [];
-      const merged = [...old, ...msgs];
-      ref.set(merged);
+      db.ref('tickets/'+ticketId+'/messages').set([...old,...msgs]);
     });
   };
   if(fileEl && fileEl.files && fileEl.files[0]){
     const reader = new FileReader();
-    reader.onload = (e) => {
-      messages.push({ from:'User', image: e.target.result });
-      if(msgEl && msgEl.value.trim()){ messages.push({ from:'User', text: msgEl.value.trim() }); msgEl.value=''; }
-      uploadAndPush(messages);
-    };
+    reader.onload=(e)=>{ messages.push({from:'User',image:e.target.result}); if(msgEl && msgEl.value.trim()){ messages.push({from:'User',text:msgEl.value.trim()}); msgEl.value=''; } uploadAndPush(messages); };
     reader.readAsDataURL(fileEl.files[0]);
-  } else {
-    if(msgEl && msgEl.value.trim()){ messages.push({ from:'User', text: msgEl.value.trim() }); msgEl.value=''; }
-    if(messages.length) uploadAndPush(messages);
-  }
+  } else { if(msgEl && msgEl.value.trim()){ messages.push({from:'User',text:msgEl.value.trim()}); msgEl.value=''; } if(messages.length) uploadAndPush(messages); }
 };
 
 window.markPaid = function(ticketId){
-  // require photo to be attached? We'll allow status change + append system message placeholder for admin verification flow
   const fileInput = document.getElementById('file-'+ticketId);
   const messages = [];
-  const updateStatus = ()=>{
-    db.ref('tickets/'+ticketId).once('value').then(snap=>{
-      const t = snap.val();
-      if(!t) return;
-      t.status = 'paid';
-      db.ref('tickets/'+ticketId).set(t);
-    });
-  };
+  const updateStatus = ()=>{ db.ref('tickets/'+ticketId).once('value').then(snap=>{ const t=snap.val(); if(!t) return; t.status='paid'; db.ref('tickets/'+ticketId).set(t); }); };
   if(fileInput && fileInput.files && fileInput.files[0]){
     const reader = new FileReader();
-    reader.onload = (e)=>{
-      messages.push({ from:'User', image: e.target.result, text: 'Buyer marked as paid (image attached).' });
-      // append message then update status
-      db.ref('tickets/'+ticketId+'/messages').once('value').then(snap=>{
-        const old = snap.val()||[];
-        db.ref('tickets/'+ticketId+'/messages').set([...old, ...messages]).then(()=> updateStatus());
-      });
-    };
+    reader.onload=(e)=>{ messages.push({from:'User',image:e.target.result,text:'Buyer marked as paid (image attached).'}); db.ref('tickets/'+ticketId+'/messages').once('value').then(snap=>{ const old=snap.val()||[]; db.ref('tickets/'+ticketId+'/messages').set([...old,...messages]).then(()=>updateStatus()); }); };
     reader.readAsDataURL(fileInput.files[0]);
-  } else {
-    // no image attached, just update status and add system note
-    messages.push({ from:'System', text: 'Buyer marked payment complete (no image attached).' });
-    db.ref('tickets/'+ticketId+'/messages').once('value').then(snap=>{
-      const old = snap.val()||[];
-      db.ref('tickets/'+ticketId+'/messages').set([...old, ...messages]).then(()=> updateStatus());
-    });
-  }
+  } else { messages.push({from:'System',text:'Buyer marked payment complete (no image attached).'}); db.ref('tickets/'+ticketId+'/messages').once('value').then(snap=>{ const old=snap.val()||[]; db.ref('tickets/'+ticketId+'/messages').set([...old,...messages]).then(()=>updateStatus()); }); }
 };
 
-window.cancelOrder = function(ticketId){
-  if(!confirm('Cancel this order?')) return;
-  db.ref('tickets/'+ticketId).remove();
-};
-
-/* ---- Admin functions (stock UI and tickets UI) ---- */
+window.cancelOrder = function(ticketId){ if(!confirm('Cancel this order?')) return; db.ref('tickets/'+ticketId).remove(); };
 
 function renderAdminStock(){
-  const stockArea = document.getElementById('adminStockArea');
-  stockArea.innerHTML = '';
-  PRODUCTS.forEach(p=>{
-    const card = document.createElement('div'); card.className='card'; card.style.marginBottom='8px';
-    const container = document.createElement('div');
-    container.innerHTML = `<strong>${p.name}</strong>`;
-    card.appendChild(container);
-    // get current stock
-    db.ref('stock/'+p.id).once('value').then(snap=>{
-      const stock = snap.val() || {};
-      p.flavors.forEach(f=>{
-        const row = document.createElement('div'); row.className='flavor-stock';
-        const label = document.createElement('label'); label.style.display='flex'; label.style.alignItems='center'; label.style.gap='8px';
-        const chk = document.createElement('input'); chk.type='checkbox'; chk.checked = stock[f] !== false; chk.dataset.prod = p.id; chk.dataset.flavor = f;
-        // on change update DB
-        chk.addEventListener('change', (e)=>{
-          const prod = e.target.dataset.prod;
-          const flav = e.target.dataset.flavor;
-          db.ref('stock/'+prod+'/'+flav).set(e.target.checked === true ? true : false).then(()=> {
-            // nothing else — realtime listener will refresh site UIs
-          });
-        });
-        const span = document.createElement('span'); span.textContent = ' ' + f;
-        label.appendChild(chk); label.appendChild(span);
-        row.appendChild(label);
-        card.appendChild(row);
-      });
-      stockArea.appendChild(card);
-    });
-  });
-}
+  const stockArea = document.getElementById('adminStockArea'); stockArea.inner
 
-function renderAdminTickets(){
-  const allTicketsArea = document.getElementById('allTicketsArea');
-  allTicketsArea.innerHTML = '';
-
-  // use ticketsCache (kept in sync)
-  const tickets = ticketsCache.slice().sort((a,b)=> a.id > b.id ? 1 : -1);
-  if(tickets.length === 0){
-    allTicketsArea.innerHTML = '<div class="small">No tickets yet.</div>';
-    return;
-  }
-
-  tickets.forEach(t=>{
-    const div = document.createElement('div'); div.className='card'; div.style.marginBottom='8px';
-    div.innerHTML = `<div style="font-weight:600">Ticket ${t.id} | Account: ${t.account} | Location: ${t.location} | Status: ${t.status}</div>
-      <div class="small" style="margin-top:6px">${t.items.map(i=> i.name+' ×'+i.qty+' ('+i.flavor+')').join(' • ')}</div>
-      <div id="adminChat-${t.id}" class="ticket">${(t.messages||[]).map(m => m.image?'<div><strong>'+m.from+':</strong><br><img src="'+m.image+'" style="max-width:100px;border-radius:6px"></div>':'<div><strong>'+m.from+':</strong> '+(m.text||'')+'</div>').join('')}</div>
-      <div style="margin-top:6px;display:flex;gap:6px;align-items:center">
-        <input placeholder="Admin message" id="adminMsg-${t.id}" style="flex:1;padding:6px;border:1px solid #ddd;border-radius:6px">
-        <input type="file" accept="image/*" id="adminFile-${t.id}">
-        <button class="btn" onclick="sendAdmin('${t.account}','${t.id}')">Send</button>
-        <button class="btn ghost" onclick="deleteOrder('${t.account}','${t.id}')">Delete</button>
-      </div>`;
-    allTicketsArea.appendChild(div);
-  });
-}
-
-/* Admin send message */
-window.sendAdmin = function(acct, ticketId){
-  const msgInput = document.getElementById('adminMsg-'+ticketId);
-  const fileInput = document.getElementById('adminFile-'+ticketId);
-  const messages = [];
-  const pushMessages = (msgs)=>{
-    db.ref('tickets/'+ticketId+'/messages').once('value').then(snap=>{
-      const old = snap.val() || [];
-      db.ref('tickets/'+ticketId+'/messages').set([...old, ...msgs]).then(()=>{ renderAdminTickets(); });
-    });
-  };
-
-  if(fileInput && fileInput.files && fileInput.files[0]){
-    const reader = new FileReader();
-    reader.onload = (e)=> {
-      messages.push({ from:'Admin', image: e.target.result });
-      if(msgInput && msgInput.value.trim()) messages.push({ from:'Admin', text: msgInput.value.trim() });
-      pushMessages(messages);
-      if(msgInput) msgInput.value = '';
-      if(fileInput) fileInput.value = '';
-    };
-    reader.readAsDataURL(fileInput.files[0]);
-  } else {
-    if(msgInput && msgInput.value.trim()) messages.push({ from:'Admin', text: msgInput.value.trim() });
-    if(messages.length) pushMessages(messages);
-    if(msgInput) msgInput.value = '';
-  }
-};
-
-window.deleteOrder = function(acct, ticketId){
-  if(!confirm('Delete this ticket?')) return;
-  db.ref('tickets/'+ticketId).remove().then(()=>{ renderAdminTickets(); });
-};
-
-/* If not logged in at load, show login, otherwise show main site */
-if(!account){
-  document.getElementById('loginModal').classList.remove('hidden');
-} else {
-  showMainSite();
-}
-
-/* Make admin screen accessible by entering admin password on login (already handled above) */
-/* Provide a small function so admin can open admin manually if logged in as admin code - we used login button check */
-
-}); // DOMContentLoaded
-</script>
-</body>
-</html>
 
 
 
