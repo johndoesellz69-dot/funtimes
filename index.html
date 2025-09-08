@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html> 
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -30,12 +30,19 @@ select,input[type="number"],input[type="file"]{padding:6px;border-radius:8px;bor
 .ticket-entry{margin-bottom:8px}
 footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 .hidden{display:none !important;}
+#adminScreen{position:fixed;inset:0;background:rgba(0,0,0,.95);color:#111;padding:16px;overflow:auto;display:none;z-index:3000}
+#adminScreen h2{margin-top:0;color:var(--accent)}
+.flavor-stock{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.flavor-stock span{font-size:.88rem}
+.option-disabled{color:#aaa !important}
+#shutdownNotice{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:4000;padding:20px}
+#shutdownNotice .modal{max-width:640px}
 .logoutBtn{background:#e53e3e;padding:8px 10px;border-radius:8px;color:#fff;border:0;cursor:pointer}
 </style>
 </head>
 <body>
 
-<!-- Login / Create Code Modal -->
+<!-- Login Modal -->
 <div id="loginModal" class="modal-back">
   <div class="modal">
     <h3>Login</h3>
@@ -63,16 +70,20 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
       <button class="logoutBtn" id="logoutBtn">Logout</button>
     </div>
   </header>
+  <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+    <div class="small">(Write this down) Your account code: <span id="acctCode"></span></div>
+  </div>
   <div class="grid" role="main">
     <section class="card" aria-labelledby="productsLabel">
       <h2 id="productsLabel">Products</h2>
+      <div class="small" style="margin-bottom:8px">Select flavors and add to cart.</div>
       <div class="products" id="productsGrid"></div>
     </section>
     <aside class="card" aria-labelledby="cartLabel">
       <h2 id="cartLabel">Cart & Pickup</h2>
       <div>
         <label class="small">Pickup Location</label>
-        <select id="locationSelect">
+        <select id="locationSelect" aria-label="Pickup location">
           <option value="Hasbrook Park">Hasbrook Park</option>
           <option value="Virginia Terrace Park">Virginia Terrace Park</option>
           <option value="Frontier Park">Frontier Park</option>
@@ -98,23 +109,22 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 </div>
 
 <!-- Admin Screen -->
-<div id="adminScreen" class="hidden" style="position:fixed;inset:0;background:#f6fff6;color:#111;padding:16px;overflow:auto;z-index:5000;">
+<div id="adminScreen">
   <h2>Admin Console</h2>
-  <button id="closeAdmin" class="btn" style="margin-bottom:12px;">Close Admin</button>
-
+  <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
+    <button class="btn" id="refreshTickets">Refresh Tickets</button>
+    <button class="btn ghost" id="closeAdmin">Close Admin</button>
+  </div>
   <h3>Stock Control</h3>
   <div id="adminStockArea"></div>
-
-  <h3>User Tickets</h3>
-  <div id="adminTicketsArea"></div>
+  <h3>All Tickets</h3>
+  <div id="allTicketsArea"></div>
 </div>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
 <script>
-// Firebase init
 const firebaseConfig = {
   apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
   authDomain: "easy-green-website.firebaseapp.com",
@@ -122,163 +132,166 @@ const firebaseConfig = {
   projectId: "easy-green-website",
   storageBucket: "easy-green-website.appspot.com",
   messagingSenderId: "988776675269",
-  appId: "1:988776675269:web:f2245f84a726d01f3e3dac",
-  measurementId: "G-PR35QWS2T6"
+  appId: "1:988776675269:web:f2245f84a726d01f3e3dac"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-</script>
 
-<script>
 document.addEventListener('DOMContentLoaded', () => {
 
 const PRODUCTS=[
-  {id:'c1',name:'Edibles',price:20,flavors:['Sour Patch','Skittlez','Watermelon']},
-  {id:'c2',name:'2G Ghost Disposable Carts',price:40,flavors:['Alien Burger','Durban Gushers','Papaya']},
+  {id:'c1',name:'Edibles',price:20,flavors:['Sour Patch','Skittlez','Swedish Fish']},
+  {id:'c2',name:'Carts',price:40,flavors:['Alien Burger','Durban Gushers','Papaya']}
 ];
 
 function uid6(){return Math.random().toString(36).slice(2,8).toUpperCase();}
 function money(n){return '$'+n.toFixed(2);}
-
 let account = localStorage.getItem('eg_account') || '';
-
-/* ---- Account & Login ---- */
 const acctEl = document.getElementById('acctCode');
 
 function getAllCodes(){ return JSON.parse(localStorage.getItem('eg_codes')||'[]'); }
 function addCode(c){ let arr=getAllCodes(); if(!arr.includes(c)){ arr.push(c); localStorage.setItem('eg_codes',JSON.stringify(arr)); } }
+function cartKey(acc){ return 'eg_cart_'+acc; }
+function ticketKey(acc){ return 'eg_tickets_'+acc; }
 
 function showMainSite(){
   document.getElementById('loginModal').classList.add('hidden');
-  document.getElementById('mainWrap').classList.remove('hidden');
   acctEl.textContent = account;
-  initSiteScripts();
+  if(account==='joeygold54'){
+    document.getElementById('adminScreen').classList.remove('hidden');
+  } else {
+    document.getElementById('mainWrap').classList.remove('hidden');
+    initSiteScripts();
+  }
 }
 
-/* ---- Login ---- */
-const adminPassword = 'joeygold54';
+/* Login / Create */
 document.getElementById('loginBtn').onclick = () => {
   const code = document.getElementById('loginCode').value.trim();
   if(!code){ alert('Enter code'); return; }
-  if(code.toLowerCase() === adminPassword){
-    document.getElementById('loginModal').classList.add('hidden');
-    document.getElementById('mainWrap').classList.add('hidden');
-    document.getElementById('adminScreen').classList.remove('hidden');
-    renderAdminStock();
-    renderAdminTickets();
-    return;
-  }
+  if(code==='joeygold54'){ account = code; localStorage.setItem('eg_account', account); showMainSite(); return; }
   const upper = code.toUpperCase();
   if(!getAllCodes().includes(upper)){ alert('Invalid code'); return; }
   account = upper; localStorage.setItem('eg_account', account); showMainSite();
 };
-
 document.getElementById('createCodeBtn').onclick = () => {
   account = uid6(); addCode(account); localStorage.setItem('eg_account',account);
   alert('New code: '+account); showMainSite();
 };
 
-/* Logout */
-document.getElementById('logoutBtn').onclick = ()=>{ 
-  localStorage.removeItem('eg_account'); account=''; 
-  document.getElementById('mainWrap').classList.add('hidden'); 
-  document.getElementById('loginModal').classList.remove('hidden'); 
-};
+document.getElementById('logoutBtn').onclick = ()=>{ localStorage.removeItem('eg_account'); account=''; document.getElementById('mainWrap').classList.add('hidden'); document.getElementById('adminScreen').classList.add('hidden'); document.getElementById('loginModal').classList.remove('hidden'); };
 
-/* ---- Site Scripts ---- */
-function initSiteScripts(){
-  const grid = document.getElementById('productsGrid'); grid.innerHTML = '';
-  PRODUCTS.forEach(p=>{
-    const el = document.createElement('div'); el.className = 'product';
-    el.innerHTML = `<h3>${p.name}</h3>
-      <div class="small">Price: ${money(p.price)}</div>
-      <label>Flavor
-        <select class="flavorSelect">${p.flavors.map(f=>`<option>${f}</option>`).join('')}</select>
-      </label>
-      <label>Qty<input type="number" min="1" value="1" class="qtyInput" style="width:70px"></label>
-      <div style="margin-top:8px"><button class="btn addBtn">Add</button></div>`;
-    grid.appendChild(el);
-    el.querySelector('.addBtn').addEventListener('click', ()=>{
-      const flavor = el.querySelector('.flavorSelect').value;
-      const qty = Number(el.querySelector('.qtyInput').value) || 1;
-      addToCart({productId:p.id,name:p.name,flavor,qty,price:p.price});
-    });
-  });
+/* ---- Admin Stock + Tickets ---- */
+document.getElementById('closeAdmin').onclick = ()=>{ document.getElementById('adminScreen').classList.add('hidden'); };
+document.getElementById('refreshTickets').onclick = ()=>{ renderAdminStock(); renderAdminTickets(); };
 
-  let cart = JSON.parse(localStorage.getItem('eg_cart_'+account)||'[]');
-  const cartList = document.getElementById('cartList');
-  const cartTotalEl = document.getElementById('cartTotal');
-
-  function saveCart(){ localStorage.setItem('eg_cart_'+account, JSON.stringify(cart)); renderCart(); }
-  function addToCart(item){ cart.push(item); saveCart(); alert('Added to cart'); }
-
-  function renderCart(){
-    cartList.innerHTML=''; 
-    if(cart.length===0){ cartList.innerHTML='<div class="small">Cart empty.</div>'; cartTotalEl.textContent=''; return; }
-    cart.forEach((it,idx)=>{
-      const div=document.createElement('div'); div.className='cart-item';
-      div.innerHTML = `<div>${it.name} ×${it.qty} <div class="small">${it.flavor}</div></div>
-        <div><div>${money(it.price*it.qty)}</div><div><button class="btn ghost" data-i="${idx}">Remove</button></div></div>`;
-      cartList.appendChild(div);
-      div.querySelector('button').onclick=(e)=>{ cart.splice(Number(e.target.dataset.i),1); saveCart(); };
-    });
-    const total = cart.reduce((s,i)=>s+i.price*i.qty,0); cartTotalEl.textContent=`Total: ${money(total)}`;
-  }
-
-  document.getElementById('clearBtn').onclick=()=>{ if(confirm('Clear cart?')){ cart=[]; saveCart(); } };
-  renderCart();
-}
-
-/* ---- Admin Functions ---- */
 function renderAdminStock(){
-  const area = document.getElementById('adminStockArea');
-  area.innerHTML='';
+  const stockArea = document.getElementById('adminStockArea'); stockArea.innerHTML='';
   PRODUCTS.forEach(p=>{
-    const card = document.createElement('div'); card.className='card'; card.style.marginBottom='8px';
-    card.innerHTML=`<strong>${p.name}</strong>`;
-    p.flavors.forEach(f=>{
-      const row = document.createElement('div'); row.className='row';
-      row.innerHTML=`${f}: <input type="number" min="0" value="10" data-prod="${p.id}" data-flavor="${f}" style="width:60px;margin-left:6px">`;
-      card.appendChild(row);
+    const card=document.createElement('div'); card.className='card'; card.style.marginBottom='8px';
+    const container=document.createElement('div'); container.innerHTML='<strong>'+p.name+'</strong>'; card.appendChild(container);
+    db.ref('stock/'+p.id).once('value').then(snap=>{
+      const stock = snap.val()||{};
+      p.flavors.forEach(f=>{
+        const row = document.createElement('div'); row.className='flavor-stock';
+        const label = document.createElement('label'); label.style.display='flex'; label.style.alignItems='center'; label.style.gap='8px';
+        const chk = document.createElement('input'); chk.type='checkbox'; chk.checked = stock[f]!==false; chk.dataset.prod = p.id; chk.dataset.flavor = f;
+        chk.addEventListener('change',(e)=>{ db.ref('stock/'+e.target.dataset.prod+'/'+e.target.dataset.flavor).set(e.target.checked); });
+        const span=document.createElement('span'); span.textContent=' '+f;
+        label.appendChild(chk); label.appendChild(span); row.appendChild(label); card.appendChild(row);
+      });
+      stockArea.appendChild(card);
     });
-    area.appendChild(card);
   });
 }
 
-let ticketsCache=[
-  {id:'T1',account:'ABC123',location:'Hasbrook Park',items:[{name:'Edibles',flavor:'Sour Patch',qty:1,price:20}],status:'open',messages:[]}
-];
+let ticketsCache=[];
+db.ref('tickets').on('value', snap=>{ ticketsCache = Object.values(snap.val()||{}); renderAdminTickets(); });
 
 function renderAdminTickets(){
-  const area = document.getElementById('adminTicketsArea');
-  area.innerHTML='';
-  ticketsCache.forEach((t,i)=>{
-    const div=document.createElement('div');
-    div.className='card'; div.style.marginBottom='8px';
-    div.innerHTML=`<strong>User: ${t.account}</strong>
-      <div>Location: ${t.location}</div>
-      <div>Items: ${t.items.map(it=>it.name+' ×'+it.qty+' ('+it.flavor+')').join(', ')}</div>
-      <div><input type="text" id="resp${i}" placeholder="Type response...">
-      <button class="btn" onclick="sendResponse(${i})">Send</button></div>
-      <div style="color:${t.responded?'green':'red'}">${t.responded?'Responded':'Pending'}</div>`;
-    area.appendChild(div);
+  const allTicketsArea=document.getElementById('allTicketsArea'); allTicketsArea.innerHTML='';
+  if(ticketsCache.length===0){ allTicketsArea.innerHTML='<div class="small">No tickets yet.</div>'; return; }
+  ticketsCache.forEach(t=>{
+    const div=document.createElement('div'); div.className='card'; div.style.marginBottom='8px';
+    div.innerHTML='<div style="font-weight:600">Ticket '+t.id+' | Account: '+t.account+' | Location: '+t.location+' | Status: '+t.status+'</div>'+
+      '<div class="small">'+t.items.map(i=> i.name+' ×'+i.qty+' ('+i.flavor+')').join(' • ')+'</div>'+
+      '<div id="adminChat-'+t.id+'" class="ticket">'+(t.messages||[]).map(m=>m.image?'<div><strong>'+m.from+':</strong><br><img src="'+m.image+'" style="max-width:100px;border-radius:6px"></div>':'<div><strong>'+m.from+':</strong> '+(m.text||'')+'</div>').join('')+'</div>'+
+      '<div style="margin-top:6px;display:flex;gap:6px;align-items:center">'+
+      '<input placeholder="Admin message" id="adminMsg-'+t.id+'" style="flex:1;padding:6px;border:1px solid #ddd;border-radius:6px">'+
+      '<input type="file" accept="image/*" id="adminFile-'+t.id+'">'+
+      '<button class="btn" onclick="sendAdmin(\''+t.account+'\',\''+t.id+'\')">Send</button>'+
+      '<button class="btn ghost" onclick="deleteOrder(\''+t.account+'\',\''+t.id+'\')">Delete</button></div>';
+    allTicketsArea.appendChild(div);
   });
 }
 
-window.sendResponse=(idx)=>{
-  const inp=document.getElementById('resp'+idx);
-  ticketsCache[idx].messages.push({admin:inp.value}); ticketsCache[idx].responded=true; inp.value='';
-  renderAdminTickets();
+window.sendAdmin=function(acct,ticketId){
+  const msgInput=document.getElementById('adminMsg-'+ticketId); const fileInput=document.getElementById('adminFile-'+ticketId); const messages=[];
+  const pushMessages=(msgs)=>{ db.ref('tickets/'+ticketId+'/messages').once('value').then(snap=>{ const old=snap.val()||[]; db.ref('tickets/'+ticketId+'/messages').set([...old,...msgs]).then(()=>{ renderAdminTickets(); }); }); };
+  if(fileInput && fileInput.files[0]){
+    const reader=new FileReader(); reader.onload=e=>{ messages.push({from:'Admin', image:e.target.result}); if(msgInput && msgInput.value.trim()) messages.push({from:'Admin', text:msgInput.value.trim()}); pushMessages(messages); msgInput.value=''; fileInput.value=''; }; reader.readAsDataURL(fileInput.files[0]);
+  } else { if(msgInput && msgInput.value.trim()) messages.push({from:'Admin', text:msgInput.value.trim()}); if(messages.length) pushMessages(messages); if(msgInput) msgInput.value=''; }
 };
 
-document.getElementById('closeAdmin').onclick=()=>{
-  document.getElementById('adminScreen').classList.add('hidden');
-  document.getElementById('loginModal').classList.remove('hidden');
-};
+window.deleteOrder=function(acct,ticketId){ if(!confirm('Delete this ticket?')) return; db.ref('tickets/'+ticketId).remove().then(()=>{ renderAdminTickets(); }); };
 
-});
+/* ---- Start ---- */
+if(!account){ document.getElementById('loginModal').classList.remove('hidden'); } else { showMainSite(); }
+
+/* ---- User shop functions ---- */
+function initSiteScripts(){
+  const grid=document.getElementById('productsGrid'); grid.innerHTML='';
+  PRODUCTS.forEach(p=>{
+    db.ref('stock/'+p.id).once('value').then(snap=>{
+      const stock=snap.val()||{};
+      const el=document.createElement('div'); el.className='product';
+      el.innerHTML='<h3>'+p.name+'</h3><div class="small">Price: '+money(p.price)+'</div>'+
+        '<label>Flavor<select class="flavorSelect">'+p.flavors.map(f=>{ const disabled=stock[f]===false?'disabled':''; return '<option '+disabled+'>'+f+'</option>'; }).join('')+'</select></label>'+
+        '<label>Qty<input type="number" min="1" value="1" class="qtyInput" style="width:70px"></label>'+
+        '<div style="margin-top:8px"><button class="btn addBtn">Add</button></div>';
+      grid.appendChild(el);
+      el.querySelector('.addBtn').addEventListener('click',()=>{
+        const flavor = el.querySelector('.flavorSelect').value; const qty=Number(el.querySelector('.qtyInput').value)||1;
+        if(stock[flavor]===false){ alert('Flavor out of stock'); return; }
+        addToCart({productId:p.id,name:p.name,flavor,qty,price:p.price});
+      });
+    });
+  });
+
+  let cart=JSON.parse(localStorage.getItem(cartKey(account))||'[]'); const cartList=document.getElementById('cartList'); const cartTotalEl=document.getElementById('cartTotal');
+  function saveCart(){ localStorage.setItem(cartKey(account), JSON.stringify(cart)); renderCart(); }
+  function addToCart(item){ cart.push(item); saveCart(); alert('Added to cart'); }
+  function renderCart(){
+    cartList.innerHTML=''; if(cart.length===0){ cartList.innerHTML='<div class="small">Cart empty.</div>'; cartTotalEl.textContent=''; return; }
+    let total=0; cart.forEach((i,idx)=>{ total+=i.price*i.qty; const div=document.createElement('div'); div.className='cart-item'; div.innerHTML=i.name+' ('+i.flavor+') ×'+i.qty+' '+money(i.price*i.qty)+' <button class="btn ghost" onclick="cart.splice('+idx+',1);saveCart();">x</button>'; cartList.appendChild(div); });
+    cartTotalEl.textContent='Total: '+money(total);
+  }
+  document.getElementById('clearBtn').onclick=()=>{ cart=[]; saveCart(); };
+  document.getElementById('purchaseBtn').onclick=()=>{
+    if(cart.length===0){ alert('Cart empty'); return; }
+    const loc=document.getElementById('locationSelect').value;
+    const ticketId='T'+Date.now(); db.ref('tickets/'+ticketId).set({id:ticketId,account,location:loc,items:cart,status:'Pending',messages:[]}).then(()=>{ alert('Order placed!'); cart=[]; saveCart(); renderUserTickets(); });
+  };
+  renderCart(); renderUserTickets();
+}
+
+/* ---- User tickets ---- */
+function renderUserTickets(){
+  const area=document.getElementById('ticketsArea'); area.innerHTML=''; db.ref('tickets').once('value').then(snap=>{
+    const all= snap.val()||{};
+    const userTickets = Object.values(all).filter(t=>t.account===account);
+    if(userTickets.length===0){ area.innerHTML='<div class="small">No tickets yet.</div>'; return; }
+    userTickets.forEach(t=>{
+      const div=document.createElement('div'); div.className='ticket-entry card'; div.style.marginBottom='6px';
+      div.innerHTML='<div style="font-weight:600">Ticket '+t.id+' | Location: '+t.location+' | Status: '+t.status+'</div>'+
+        '<div class="small">'+t.items.map(i=> i.name+' ×'+i.qty+' ('+i.flavor+')').join(' • ')+'</div>'+
+        '<div class="ticket">'+(t.messages||[]).map(m=>m.image?'<div><strong>'+m.from+':</strong><br><img src="'+m.image+'" style="max-width:100px;border-radius:6px"></div>':'<div><strong>'+m.from+':</strong> '+(m.text||'')+'</div>').join('')+'</div>';
+      area.appendChild(div);
+    });
+  });
+}
+
 </script>
-
 </body>
 </html>
 
