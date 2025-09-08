@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html>     
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -156,19 +156,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   </footer>
 </div>
 
-<!-- Admin Screen -->
-<div id="adminScreen">
-  <h2>Admin Console</h2>
-  <div style="margin-bottom:12px">
-    <button class="btn" id="refreshTickets">Refresh Tickets</button>
-    <button class="btn ghost" id="closeAdmin">Close Admin</button>
-  </div>
-  <h3>Stock Control</h3>
-  <div id="adminStockArea"></div>
-  <h3>All Tickets</h3>
-  <div id="allTicketsArea"></div>
-</div>
-
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -176,13 +163,13 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 <script>
 // Firebase setup
 const firebaseConfig = {
-  apiKey: "<YOUR_API_KEY>",
-  authDomain: "<YOUR_PROJECT_ID>.firebaseapp.com",
+  apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
+  authDomain: "easy-green-website.firebaseapp.com",
   databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com/",
-  projectId: "<YOUR_PROJECT_ID>",
-  storageBucket: "<YOUR_PROJECT_ID>.appspot.com",
-  messagingSenderId: "<YOUR_SENDER_ID>",
-  appId: "<YOUR_APP_ID>"
+  projectId: "easy-green-website",
+  storageBucket: "easy-green-website.firebasestorage.app",
+  messagingSenderId: "988776675269",
+  appId: "1:988776675269:web:f2245f84a726d01f3e3dac"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
@@ -202,237 +189,156 @@ function money(n){return '$'+n.toFixed(2);}
 let account=localStorage.getItem('eg_account')||'';
 const acctEl=document.getElementById('acctCode');
 function getAllCodes(){return JSON.parse(localStorage.getItem('eg_codes')||'[]');}
-function addCode(c){let arr=getAllCodes();if(!arr.includes(c)){arr.push(c);localStorage.setItem('eg_codes',JSON.stringify(arr));}}
-function cartKey(acc){return 'eg_cart_'+acc;}
-function ticketKey(acc){return 'eg_tickets_'+acc;}
 
-function showMainSite(){
-  document.getElementById('loginModal').classList.add('hidden');
-  document.getElementById('mainWrap').classList.remove('hidden');
-  document.getElementById('warningModal').classList.remove('hidden');
-  acctEl.textContent=account;
-  initSiteScripts();
-}
+function saveAccount(){localStorage.setItem('eg_account',account);acctEl.textContent=account;}
 
-/* Login / Create */
-document.getElementById('loginBtn').onclick=()=>{
-  const code=document.getElementById('loginCode').value.trim();
-  if(!code){alert('Enter code');return;}
-  if(code==='joeygold54'){showAdmin();return;}
-  const upper=code.toUpperCase();
-  if(!getAllCodes().includes(upper)){alert('Invalid code');return;}
-  account=upper;localStorage.setItem('eg_account',account);showMainSite();
-};
-document.getElementById('createCodeBtn').onclick=()=>{
-  account=uid6();addCode(account);localStorage.setItem('eg_account',account);
-  alert('New code: '+account);showMainSite();
-};
-document.getElementById('ackBtn').onclick=()=>{
-  if(!document.getElementById('ackCheck').checked){alert('Confirm rules');return;}
-  localStorage.setItem('eg_ack','1');document.getElementById('warningModal').classList.add('hidden');
+const loginModal=document.getElementById('loginModal');
+const loginCodeInput=document.getElementById('loginCode');
+const loginBtn=document.getElementById('loginBtn');
+const createBtn=document.getElementById('createCodeBtn');
+const mainWrap=document.getElementById('mainWrap');
+const helpModal=document.getElementById('helpModal');
+const helpBtn=document.getElementById('helpBtn');
+const closeHelpBtn=document.getElementById('closeHelp');
+
+function showMain(){mainWrap.classList.remove('hidden');loginModal.classList.add('hidden');saveAccount();renderProducts();renderCart();renderTickets();}
+
+if(!account){loginModal.classList.remove('hidden');}
+else{showMain();}
+
+loginBtn.onclick=()=>{
+  const code=loginCodeInput.value.trim();
+  if(code===''){alert('Enter a code');return;}
+  account=code;
+  showMain();
 };
 
-/* First Time Help */
-document.getElementById('helpBtn').onclick=()=>{document.getElementById('helpModal').classList.remove('hidden');};
-document.getElementById('closeHelp').onclick=()=>{document.getElementById('helpModal').classList.add('hidden');};
-
-/* Log Out */
-document.getElementById('logoutBtn').onclick = () => {
-  localStorage.removeItem('eg_account');
-  account = '';
-  document.getElementById('mainWrap').classList.add('hidden');
-  document.getElementById('loginModal').classList.remove('hidden');
+createBtn.onclick=()=>{
+  account=uid6();
+  alert('Your code: '+account);
+  showMain();
 };
 
-/* Admin Screen */
-document.getElementById('closeAdmin').onclick=()=>{document.getElementById('adminScreen').style.display='none';};
-document.getElementById('refreshTickets').onclick=()=>{renderAdminTickets(); renderAdminStock();};
+helpBtn.onclick=()=>helpModal.classList.remove('hidden');
+closeHelpBtn.onclick=()=>helpModal.classList.add('hidden');
 
-function showAdmin(){
-  document.getElementById('adminScreen').style.display='block';
-  renderAdminStock();
-  renderAdminTickets();
-}
+const productsGrid=document.getElementById('productsGrid');
+let cart=[];
 
-/* Site scripts */
-function initSiteScripts(){
-  const grid=document.getElementById('productsGrid');grid.innerHTML='';
+function renderProducts(){
+  productsGrid.innerHTML='';
   PRODUCTS.forEach(p=>{
-    const el=document.createElement('div');el.className='product';
-    const stockRef = db.ref('stock/'+p.id);
-    stockRef.once('value').then(snap=>{
-      const stock = snap.val() || {};
-      el.innerHTML = `<h3>${p.name}</h3>
-        <div class="small">Price: ${money(p.price)}</div>
-        <label>Flavor
-          <select aria-label="flavor-${p.id}" class="flavorSelect">
-            ${p.flavors.map(f=>{
-              const disabled=stock[f]===false?'disabled class="option-disabled"':'';
-              return `<option ${disabled}>${f}</option>`;
-            }).join('')}
-          </select>
-        </label>
-        <label>Qty<input type="number" min="1" value="1" class="qtyInput" style="width:70px"></label>
-        <div style="margin-top:8px"><button class="btn addBtn">Add</button></div>`;
-      grid.appendChild(el);
-      el.querySelector('.addBtn').addEventListener('click',()=>{
-        const flavor=el.querySelector('.flavorSelect').value;
-        const qty=Number(el.querySelector('.qtyInput').value)||1;
-        if(stock[flavor]===false){alert('Flavor out of stock');return;}
-        addToCart({productId:p.id,name:p.name,flavor,qty,price:p.price,image:null});
-      });
-    });
-  });
-
-  let cart=JSON.parse(localStorage.getItem(cartKey(account))||'[]');
-  let tickets=JSON.parse(localStorage.getItem(ticketKey(account))||'[]');
-  const cartList=document.getElementById('cartList');const cartTotalEl=document.getElementById('cartTotal');const ticketsArea=document.getElementById('ticketsArea');
-  function saveCart(){localStorage.setItem(cartKey(account),JSON.stringify(cart));renderCart();}
-  function saveTickets(){localStorage.setItem(ticketKey(account),JSON.stringify(tickets));renderTickets();}
-  function addToCart(item){cart.push(item);saveCart();alert('Added to cart');}
-
-  function renderCart(){
-    cartList.innerHTML='';if(cart.length===0){cartList.innerHTML='<div class="small">Cart empty.</div>';cartTotalEl.textContent='';return;}
-    cart.forEach((it,idx)=>{
-      const div=document.createElement('div');div.className='cart-item';
-      div.innerHTML=`<div><div style="font-weight:600">${it.name} ×${it.qty}</div><div class="small">${it.flavor}</div>${it.image?'<img src="'+it.image+'" style="width:60px;margin-top:4px;border-radius:6px">':''}</div>
-        <div style="text-align:right"><div>${money(it.price*it.qty)}</div><div style="margin-top:6px"><button class="btn ghost" data-i="${idx}">Remove</button></div></div>`;
-      cartList.appendChild(div);
-      div.querySelector('button').addEventListener('click',(e)=>{cart.splice(Number(e.target.dataset.i),1);saveCart();});
-    });
-    const total=cart.reduce((s,i)=>s+i.price*i.qty,0);cartTotalEl.textContent=`Total: ${money(total)}`;
-  }
-
-  document.getElementById('purchaseBtn').addEventListener('click',()=>{
-    if(cart.length===0){alert('Cart empty');return;}
-    const loc=document.getElementById('locationSelect').value;
-    const tid='T-'+Math.random().toString(36).slice(2,8).toUpperCase();
-    const items=JSON.parse(JSON.stringify(cart));const total=items.reduce((s,i)=>s+i.price*i.qty,0);
-    const ticket={id:tid,account,location:loc,items,total,status:'open',messages:[{from:'System',text:`Ticket created. Total ${money(total)}. Hide payment at ${loc}.`} ]};
-    db.ref('tickets/'+tid).set(ticket);
-    db.ref('messages/'+tid).set(ticket.messages); // <-- user messages node
-    tickets.push(ticket);saveTickets();cart=[];saveCart();alert('Ticket created: '+tid);
-  });
-  document.getElementById('clearBtn').addEventListener('click',()=>{if(confirm('Clear cart?')){cart=[];saveCart();}});
-
-  renderCart();
-  renderTickets();
-
-  function renderTickets(){
-    ticketsArea.innerHTML='';if(tickets.length===0){ticketsArea.innerHTML='<div class="small">No tickets yet.</div>';return;}
-    tickets.forEach(t=>{
-      const el=document.createElement('div');el.className='card';el.style.marginBottom='8px';
-      el.innerHTML=`<div style="font-weight:600">Ticket ${t.id} | Location: ${t.location} | Status: ${t.status}</div>
-        <div class="small">${t.items.map(i=>i.name+' ×'+i.qty+' ('+i.flavor+')').join(' • ')}</div>
-        <div id="chat-${t.id}" class="ticket">${(t.messages||[]).map(m=>m.image?'<div><strong>'+m.from+':</strong><br><img src="'+m.image+'" style="max-width:100px;border-radius:6px"></div>':'<div><strong>'+m.from+':</strong> '+m.text+'</div>').join('')}</div>
-        <input placeholder="Message admin" id="msg-'+t.id+'" style="flex:1;padding:4px"><input type="file" accept="image/*" id="file-'+t.id+'" style="margin-top:4px">
-        <button class="btn" onclick="sendMsg('${t.id}')">Send</button>
-        <button class="btn ghost" onclick="markPaid('${t.id}')">Mark as paid</button>`;
-      ticketsArea.appendChild(el);
-    });
-  }
-}
-
-/* Admin Tickets */
-function renderAdminTickets() {
-  const allTicketsArea = document.getElementById('allTicketsArea');
-  db.ref('tickets').on('value', snap => {
-    const ticketsObj = snap.val() || {};
-    const tickets = Object.values(ticketsObj);
-    allTicketsArea.innerHTML = '';
-    if (tickets.length === 0) {
-      allTicketsArea.innerHTML = '<div class="small">No tickets yet.</div>';
-      return;
+    const div=document.createElement('div');
+    div.className='product';
+    div.innerHTML=`<h3>${p.name}</h3><div class="small">${money(p.price)}</div>`;
+    if(p.flavors){
+      const sel=document.createElement('select');
+      sel.innerHTML=p.flavors.map(f=>`<option value="${f}">${f}</option>`).join('');
+      div.appendChild(sel);
     }
-    tickets.forEach(t => {
-      const div = document.createElement('div');
-      div.className = 'card';
-      div.style.marginBottom = '8px';
-      div.innerHTML = `
-        <div style="font-weight:600">
-          Ticket ${t.id} | Account: ${t.account} | Location: ${t.location} | Status: ${t.status}
-        </div>
-        <div class="small">
-          ${t.items.map(i => i.name+' ×'+i.qty+' ('+i.flavor+')').join(' • ')}
-        </div>
-        <div id="adminChat-${t.id}" class="ticket"></div>
-        <input placeholder="Admin message" id="adminMsg-${t.id}" style="flex:1;padding:4px">
-        <input type="file" accept="image/*" id="adminFile-${t.id}" style="margin-top:4px">
-        <button class="btn" onclick="sendAdmin('${t.account}','${t.id}')">Send</button>
-        <button class="btn ghost" onclick="deleteOrder('${t.account}','${t.id}')">Delete</button>
-      `;
-      allTicketsArea.appendChild(div);
+    const qty=document.createElement('input');
+    qty.type='number';qty.min='1';qty.value='1';qty.style.width='50px';qty.style.marginTop='4px';
+    div.appendChild(qty);
+    const btn=document.createElement('button');btn.className='btn';btn.textContent='Add';
+    btn.onclick=()=>{cart.push({id:p.id,name:p.name,flavor:sel?sel.value:'',qty:+qty.value,price:p.price});renderCart();}
+    div.appendChild(btn);
+    productsGrid.appendChild(div);
+  });
+}
 
-      // Listen for messages in real-time
-      const chatDiv = document.getElementById('adminChat-' + t.id);
-      db.ref('messages/' + t.id).on('value', snap => {
-        const msgs = snap.val() || [];
-        chatDiv.innerHTML = msgs.map(m => 
-          m.image ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>` 
-                  : `<div><strong>${m.from}:</strong> ${m.text}</div>`
-        ).join('');
+const cartList=document.getElementById('cartList');
+const cartTotal=document.getElementById('cartTotal');
+const purchaseBtn=document.getElementById('purchaseBtn');
+const clearBtn=document.getElementById('clearBtn');
+
+function renderCart(){
+  cartList.innerHTML='';
+  if(cart.length===0){cartList.textContent='Cart is empty';cartTotal.textContent='';return;}
+  let total=0;
+  cart.forEach((i,idx)=>{
+    const div=document.createElement('div');div.className='cart-item';
+    div.textContent=i.name+' '+(i.flavor?('('+i.flavor+')'):'')+' ×'+i.qty+' '+money(i.price*i.qty);
+    const del=document.createElement('button');del.className='btn ghost';del.textContent='x';
+    del.onclick=()=>{cart.splice(idx,1);renderCart();}
+    div.appendChild(del);
+    cartList.appendChild(div);
+    total+=i.price*i.qty;
+  });
+  cartTotal.textContent='Total: '+money(total);
+}
+
+clearBtn.onclick=()=>{cart=[];renderCart();}
+
+purchaseBtn.onclick=()=>{
+  if(cart.length===0){alert('Cart empty');return;}
+  const loc=document.getElementById('locationSelect').value;
+  const ticketId='t'+Date.now();
+  const ticket={id:ticketId,account,location:loc,status:'Pending',items:cart.map(c=>({name:c.name,flavor:c.flavor,qty:c.qty,price:c.price})),messages:[]};
+  db.ref('tickets/'+ticketId).set(ticket);
+  cart=[];renderCart();renderTickets();
+}
+
+const ticketsArea=document.getElementById('ticketsArea');
+
+function renderTickets(){
+  ticketsArea.innerHTML='';
+  db.ref('tickets').orderByChild('account').equalTo(account).on('value', snap=>{
+    const tickets=snap.val()||{};
+    Object.values(tickets).forEach(t=>{
+      const div=document.createElement('div');div.className='card';div.style.marginBottom='8px';
+      div.innerHTML=`
+        <div style="font-weight:600">Ticket ${t.id} | Location: ${t.location} | Status: ${t.status}</div>
+        <div class="small">${t.items.map(i=>i.name+' ×'+i.qty+' ('+i.flavor+')').join(' • ')}</div>
+        <div id="chat-${t.id}" class="ticket"></div>
+        <input placeholder="Message admin" id="msg-${t.id}" style="flex:1;padding:4px;margin-top:4px">
+        <input type="file" accept="image/*" id="file-${t.id}" style="margin-top:4px">
+        <button class="btn" onclick="sendMsg('${t.id}')">Send</button>
+      `;
+      ticketsArea.appendChild(div);
+
+      const chatDiv=document.getElementById('chat-'+t.id);
+      db.ref('tickets/'+t.id+'/messages').on('value', msgSnap=>{
+        const msgs=msgSnap.val()||[];
+        chatDiv.innerHTML='';
+        msgs.forEach(m=>{
+          if(m.image){chatDiv.innerHTML+=`<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`}
+          else{chatDiv.innerHTML+=`<div><strong>${m.from}:</strong> ${m.text}</div>`}
+        });
+        chatDiv.scrollTop=chatDiv.scrollHeight;
       });
     });
   });
 }
 
-/* Admin Stock */
-function renderAdminStock(){
-  const stockArea = document.getElementById('adminStockArea');
-  stockArea.innerHTML='';
-  PRODUCTS.forEach(p=>{
-    const div=document.createElement('div');div.style.marginBottom='8px';
-    db.ref('stock/'+p.id).once('value').then(snap=>{
-      const stock=snap.val()||{};
-      div.innerHTML=`<div style="font-weight:600">${p.name}</div>${p.flavors.map(f=>{
-        const st = stock[f]===false?'Out':'In';
-        return `<div class="flavor-stock"><span>${f}</span><span>${st}</span></div>`;
-      }).join('')}`;
-      stockArea.appendChild(div);
-    });
-  });
-}
-
-/* Admin Actions */
-window.sendAdmin=(acct,ticketId)=>{
-  const msgInput=document.getElementById('adminMsg-'+ticketId);
-  const fileInput=document.getElementById('adminFile-'+ticketId);
-  const messages=[];
-  if(msgInput.value.trim()!=='') messages.push({from:'Admin',text:msgInput.value.trim()});
-  if(fileInput.files.length>0){
-    const reader=new FileReader();
-    reader.onload=(e)=>{messages.push({from:'Admin',image:e.target.result});appendAdminMsg(ticketId,messages);};
-    reader.readAsDataURL(fileInput.files[0]);
-  } else appendAdminMsg(ticketId,messages);
-  msgInput.value='';fileInput.value='';
-};
-
-function appendAdminMsg(ticketId,msgs){
-  db.ref('messages/'+ticketId).once('value').then(snap=>{
-    const old = snap.val()||[];
-    db.ref('messages/'+ticketId).set([...old,...msgs]);
-  });
-}
-
-window.deleteOrder=(acct,ticketId)=>{if(confirm('Delete this ticket?')){db.ref('tickets/'+ticketId).remove().then(()=>renderAdminTickets()); db.ref('messages/'+ticketId).remove();}};
 window.sendMsg=(ticketId)=>{
   const msgInput=document.getElementById('msg-'+ticketId);
   const fileInput=document.getElementById('file-'+ticketId);
-  const messages=[];
-  if(msgInput.value.trim()!=='') messages.push({from:'User',text:msgInput.value.trim()});
+  const msgs=[];
+  if(msgInput.value.trim()!=='') msgs.push({from:'User',text:msgInput.value.trim()});
   if(fileInput.files.length>0){
     const reader=new FileReader();
-    reader.onload=(e)=>{messages.push({from:'User',image:e.target.result});appendAdminMsg(ticketId,messages);};
+    reader.onload=e=>{
+      msgs.push({from:'User',image:e.target.result});
+      appendMsg(ticketId,msgs);
+    };
     reader.readAsDataURL(fileInput.files[0]);
-  } else appendAdminMsg(ticketId,messages);
+  } else {appendMsg(ticketId,msgs);}
   msgInput.value='';fileInput.value='';
-};
+}
 
-window.markPaid=(ticketId)=>{db.ref('tickets/'+ticketId+'/status').set('paid');};
+function appendMsg(ticketId,msgs){
+  db.ref('tickets/'+ticketId+'/messages').once('value').then(snap=>{
+    const old=snap.val()||[];
+    db.ref('tickets/'+ticketId+'/messages').set([...old,...msgs]);
+  });
+}
+
+document.getElementById('logoutBtn').onclick=()=>{localStorage.removeItem('eg_account');location.reload();}
+
 });
 </script>
-
 </body>
 </html>
+
 
 
