@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -24,6 +24,14 @@
     }
     label {
       margin-left: 6px;
+    }
+    select {
+      margin-left: 6px;
+      padding: 4px;
+      border-radius: 4px;
+      background: #222;
+      color: #eee;
+      border: 1px solid #444;
     }
     .tickets {
       margin-top: 20px;
@@ -77,7 +85,6 @@
   </div>
 
   <script>
-    // Your Firebase config
     const firebaseConfig = {
       apiKey: "YOUR_API_KEY",
       authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
@@ -90,22 +97,17 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Login
     function login() {
       const code = document.getElementById("loginCode").value.trim();
-
       if (code === "joeygold54") {
-        // Admin login
         document.getElementById("loginPanel").style.display = "none";
         document.getElementById("adminPanel").style.display = "block";
         loadStock();
         listenForTickets();
       } else {
-        // Try as user login
         db.ref("users/" + code).once("value").then(snapshot => {
           if (snapshot.exists()) {
             alert("Logged in as user: " + code);
-            // (user view can be built here if needed)
           } else {
             alert("Invalid code");
           }
@@ -119,7 +121,6 @@
       document.getElementById("loginCode").value = "";
     }
 
-    // Load stock as checkboxes
     function loadStock() {
       const stockDiv = document.getElementById("stockControl");
       stockDiv.innerHTML = "";
@@ -128,26 +129,33 @@
           const category = document.createElement("h3");
           category.textContent = catSnap.key;
           stockDiv.appendChild(category);
+
+          // Create dropdown for category
+          const select = document.createElement("select");
           catSnap.forEach(itemSnap => {
-            const div = document.createElement("div");
-            div.className = "stock-item";
-            const checkbox = document.createElement("input");
-            checkbox.type = "checkbox";
-            checkbox.checked = itemSnap.val();
-            checkbox.onchange = () => {
-              db.ref("stock/" + catSnap.key + "/" + itemSnap.key).set(checkbox.checked);
-            };
-            const label = document.createElement("label");
-            label.textContent = itemSnap.key;
-            div.appendChild(checkbox);
-            div.appendChild(label);
-            stockDiv.appendChild(div);
+            const option = document.createElement("option");
+            option.value = itemSnap.key;
+            option.textContent = itemSnap.key;
+            if (itemSnap.val()) option.selected = true;
+            select.appendChild(option);
           });
+
+          select.onchange = () => {
+            const selected = select.value;
+            catSnap.forEach(itemSnap => {
+              db.ref("stock/" + catSnap.key + "/" + itemSnap.key)
+                .set(itemSnap.key === selected);
+            });
+          };
+
+          const div = document.createElement("div");
+          div.className = "stock-item";
+          div.appendChild(select);
+          stockDiv.appendChild(div);
         });
       });
     }
 
-    // Tickets - real time
     function listenForTickets() {
       const ticketsDiv = document.getElementById("tickets");
       db.ref("tickets").on("value", snapshot => {
@@ -166,10 +174,8 @@
     }
 
     function refreshTickets() {
-      listenForTickets(); // manually reattach listener
+      listenForTickets();
     }
   </script>
 </body>
 </html>
-
-
