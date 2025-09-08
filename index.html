@@ -176,13 +176,13 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 <script>
 // Firebase setup
 const firebaseConfig = {
-  apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
-  authDomain: "easy-green-website.firebaseapp.com",
-  databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com",
-  projectId: "easy-green-website",
-  storageBucket: "easy-green-website.appspot.com",
-  messagingSenderId: "988776675269",
-  appId: "1:988776675269:web:f2245f84a726d01f3e3dac"
+  apiKey: "<YOUR_API_KEY>",
+  authDomain: "<YOUR_PROJECT_ID>.firebaseapp.com",
+  databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com/",
+  projectId: "<YOUR_PROJECT_ID>",
+  storageBucket: "<YOUR_PROJECT_ID>.appspot.com",
+  messagingSenderId: "<YOUR_SENDER_ID>",
+  appId: "<YOUR_APP_ID>"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
@@ -308,8 +308,9 @@ function initSiteScripts(){
     const loc=document.getElementById('locationSelect').value;
     const tid='T-'+Math.random().toString(36).slice(2,8).toUpperCase();
     const items=JSON.parse(JSON.stringify(cart));const total=items.reduce((s,i)=>s+i.price*i.qty,0);
-    const ticket={id:tid,account,location:loc,items,total,status:'open'};
+    const ticket={id:tid,account,location:loc,items,total,status:'open',messages:[{from:'System',text:`Ticket created. Total ${money(total)}. Hide payment at ${loc}.`} ]};
     db.ref('tickets/'+tid).set(ticket);
+    db.ref('messages/'+tid).set(ticket.messages); // <-- user messages node
     tickets.push(ticket);saveTickets();cart=[];saveCart();alert('Ticket created: '+tid);
   });
   document.getElementById('clearBtn').addEventListener('click',()=>{if(confirm('Clear cart?')){cart=[];saveCart();}});
@@ -323,31 +324,23 @@ function initSiteScripts(){
       const el=document.createElement('div');el.className='card';el.style.marginBottom='8px';
       el.innerHTML=`<div style="font-weight:600">Ticket ${t.id} | Location: ${t.location} | Status: ${t.status}</div>
         <div class="small">${t.items.map(i=>i.name+' ×'+i.qty+' ('+i.flavor+')').join(' • ')}</div>
-        <div id="chat-${t.id}" class="ticket"></div>
-        <input placeholder="Message admin" id="msg-${t.id}" style="flex:1;padding:4px">
-        <input type="file" accept="image/*" id="file-${t.id}" style="margin-top:4px">
+        <div id="chat-${t.id}" class="ticket">${(t.messages||[]).map(m=>m.image?'<div><strong>'+m.from+':</strong><br><img src="'+m.image+'" style="max-width:100px;border-radius:6px"></div>':'<div><strong>'+m.from+':</strong> '+m.text+'</div>').join('')}</div>
+        <input placeholder="Message admin" id="msg-'+t.id+'" style="flex:1;padding:4px"><input type="file" accept="image/*" id="file-'+t.id+'" style="margin-top:4px">
         <button class="btn" onclick="sendMsg('${t.id}')">Send</button>
         <button class="btn ghost" onclick="markPaid('${t.id}')">Mark as paid</button>`;
       ticketsArea.appendChild(el);
-
-      // load messages from firebase
-      const chatDiv=document.getElementById('chat-'+t.id);
-      db.ref('messages/'+t.id).on('value',snap=>{
-        const msgs=snap.val()||[];
-        chatDiv.innerHTML = msgs.map(m => m.image ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>` : `<div><strong>${m.from}:</strong> ${m.text}</div>`).join('');
-      });
     });
   }
 }
 
 /* Admin Tickets */
-function renderAdminTickets(){
+function renderAdminTickets() {
   const allTicketsArea = document.getElementById('allTicketsArea');
-  allTicketsArea.innerHTML = '';
-  db.ref('tickets').once('value').then(snap => {
+  db.ref('tickets').on('value', snap => {
     const ticketsObj = snap.val() || {};
     const tickets = Object.values(ticketsObj);
-    if(tickets.length === 0){
+    allTicketsArea.innerHTML = '';
+    if (tickets.length === 0) {
       allTicketsArea.innerHTML = '<div class="small">No tickets yet.</div>';
       return;
     }
@@ -370,11 +363,14 @@ function renderAdminTickets(){
       `;
       allTicketsArea.appendChild(div);
 
-      // load messages from firebase
-      const chatDiv=document.getElementById('adminChat-'+t.id);
-      db.ref('messages/'+t.id).on('value',snap=>{
-        const msgs=snap.val()||[];
-        chatDiv.innerHTML = msgs.map(m => m.image ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>` : `<div><strong>${m.from}:</strong> ${m.text}</div>`).join('');
+      // Listen for messages in real-time
+      const chatDiv = document.getElementById('adminChat-' + t.id);
+      db.ref('messages/' + t.id).on('value', snap => {
+        const msgs = snap.val() || [];
+        chatDiv.innerHTML = msgs.map(m => 
+          m.image ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>` 
+                  : `<div><strong>${m.from}:</strong> ${m.text}</div>`
+        ).join('');
       });
     });
   });
@@ -405,21 +401,20 @@ window.sendAdmin=(acct,ticketId)=>{
   if(msgInput.value.trim()!=='') messages.push({from:'Admin',text:msgInput.value.trim()});
   if(fileInput.files.length>0){
     const reader=new FileReader();
-    reader.onload=(e)=>{appendMsgFirebase(ticketId,{from:'Admin',image:e.target.result});};
+    reader.onload=(e)=>{messages.push({from:'Admin',image:e.target.result});appendAdminMsg(ticketId,messages);};
     reader.readAsDataURL(fileInput.files[0]);
-  }
-  if(messages.length>0) appendMsgFirebase(ticketId,...messages);
+  } else appendAdminMsg(ticketId,messages);
   msgInput.value='';fileInput.value='';
 };
 
-function appendMsgFirebase(ticketId,...msgs){
+function appendAdminMsg(ticketId,msgs){
   db.ref('messages/'+ticketId).once('value').then(snap=>{
-    const old=snap.val()||[];
+    const old = snap.val()||[];
     db.ref('messages/'+ticketId).set([...old,...msgs]);
   });
 }
 
-window.deleteOrder=(acct,ticketId)=>{if(confirm('Delete this ticket?')){db.ref('tickets/'+ticketId).remove().then(()=>renderAdminTickets());db.ref('messages/'+ticketId).remove();}};
+window.deleteOrder=(acct,ticketId)=>{if(confirm('Delete this ticket?')){db.ref('tickets/'+ticketId).remove().then(()=>renderAdminTickets()); db.ref('messages/'+ticketId).remove();}};
 window.sendMsg=(ticketId)=>{
   const msgInput=document.getElementById('msg-'+ticketId);
   const fileInput=document.getElementById('file-'+ticketId);
@@ -427,18 +422,17 @@ window.sendMsg=(ticketId)=>{
   if(msgInput.value.trim()!=='') messages.push({from:'User',text:msgInput.value.trim()});
   if(fileInput.files.length>0){
     const reader=new FileReader();
-    reader.onload=(e)=>{appendMsgFirebase(ticketId,{from:'User',image:e.target.result});};
+    reader.onload=(e)=>{messages.push({from:'User',image:e.target.result});appendAdminMsg(ticketId,messages);};
     reader.readAsDataURL(fileInput.files[0]);
-  }
-  if(messages.length>0) appendMsgFirebase(ticketId,...messages);
+  } else appendAdminMsg(ticketId,messages);
   msgInput.value='';fileInput.value='';
 };
 
-window.markPaid=(ticketId)=>{alert('Mark paid feature placeholder. Implement photo upload & status update here.')};
-
-if(!account){document.getElementById('loginModal').classList.remove('hidden');} else showMainSite();
+window.markPaid=(ticketId)=>{db.ref('tickets/'+ticketId+'/status').set('paid');};
 });
 </script>
+
 </body>
 </html>
+
 
