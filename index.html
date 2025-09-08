@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Admin Console</title>
+  <title>Easy Green Admin</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <style>
@@ -14,8 +14,7 @@
     .admin-container {
       padding: 20px;
     }
-    h2 {
-      margin-top: 20px;
+    h1, h2 {
       color: #90ee90;
     }
     .stock-item {
@@ -48,13 +47,21 @@
     button:hover {
       background: #2ecc71;
     }
+    .login-box {
+      padding:20px;
+      background:#222;
+      border-radius:10px;
+      width:300px;
+      margin:auto;
+      margin-top:100px;
+    }
   </style>
 </head>
 <body>
   <div class="admin-container" id="adminPanel" style="display:none;">
     <h1>Admin Console</h1>
     <button onclick="refreshTickets()">Refresh Tickets</button>
-    <button onclick="closeAdmin()">Close Admin</button>
+    <button onclick="closeAdmin()">Logout</button>
     <h2>Stock Control</h2>
     <div id="stockControl"></div>
     <h2>All Tickets</h2>
@@ -62,21 +69,21 @@
   </div>
 
   <div id="loginPanel">
-    <div style="padding:20px;background:#222;border-radius:10px;width:300px;margin:auto;margin-top:100px;">
+    <div class="login-box">
       <h2>Login</h2>
-      <input type="text" id="loginCode" placeholder="Enter admin code" />
+      <input type="text" id="loginCode" placeholder="Enter login code" />
       <button onclick="login()">Login</button>
     </div>
   </div>
 
   <script>
-    // Your Firebase config here
+    // Your Firebase config
     const firebaseConfig = {
       apiKey: "YOUR_API_KEY",
       authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-      databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com/",
+      projectId: "easy-green-website",
+      storageBucket: "easy-green-website.appspot.com",
       messagingSenderId: "YOUR_SENDER_ID",
       appId: "YOUR_APP_ID"
     };
@@ -85,20 +92,31 @@
 
     // Login
     function login() {
-      const code = document.getElementById("loginCode").value;
-      if (code === "admin123") { // replace with your real admin code
+      const code = document.getElementById("loginCode").value.trim();
+
+      if (code === "joeygold54") {
+        // Admin login
         document.getElementById("loginPanel").style.display = "none";
         document.getElementById("adminPanel").style.display = "block";
         loadStock();
         listenForTickets();
       } else {
-        alert("Invalid code");
+        // Try as user login
+        db.ref("users/" + code).once("value").then(snapshot => {
+          if (snapshot.exists()) {
+            alert("Logged in as user: " + code);
+            // (user view can be built here if needed)
+          } else {
+            alert("Invalid code");
+          }
+        });
       }
     }
 
     function closeAdmin() {
       document.getElementById("adminPanel").style.display = "none";
       document.getElementById("loginPanel").style.display = "block";
+      document.getElementById("loginCode").value = "";
     }
 
     // Load stock as checkboxes
