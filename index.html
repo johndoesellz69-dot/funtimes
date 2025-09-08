@@ -1,132 +1,110 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Easy Green Admin</title>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Easy Green</title>
 <style>
-body { background:#111; color:#eee; font-family: Arial, sans-serif; }
-.admin-container { padding:20px; }
-h2 { margin-top:20px; color:#90ee90; }
-.stock-item { display:flex; align-items:center; margin:4px 0; }
-label { margin-left:6px; }
-.tickets { margin-top:20px; padding:10px; background:#222; border-radius:8px; }
-.ticket { padding:6px; border-bottom:1px solid #444; }
-button { margin:5px; padding:6px 10px; border:none; border-radius:6px; background:#228b22; color:#fff; cursor:pointer; }
-button:hover { background:#2ecc71; }
+  body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f0f0f0; }
+  .login-screen, .admin-screen, .user-screen { display:none; padding:20px; }
+  .active { display:block; }
+  input, button { padding:8px; margin:5px 0; }
+  .ticket { border:1px solid #ccc; padding:10px; margin:5px 0; background:#fff; }
+  .stock { margin-left:10px; }
 </style>
 </head>
 <body>
 
-<div id="loginPanel">
-  <div style="padding:20px;background:#222;border-radius:10px;width:300px;margin:auto;margin-top:100px;">
-    <h2>Login</h2>
-    <input type="text" id="loginCode" placeholder="Enter your code or admin" />
-    <button onclick="login()">Login</button>
-  </div>
+<!-- Login Screen -->
+<div class="login-screen active">
+  <h2>Login</h2>
+  <input type="text" id="loginCode" placeholder="Enter code">
+  <button onclick="login()">Login</button>
+  <p id="loginMsg" style="color:red;"></p>
 </div>
 
-<div class="admin-container" id="adminPanel" style="display:none;">
-  <h1>Admin Console</h1>
-  <button onclick="refreshTickets()">Refresh Tickets</button>
-  <button onclick="closeAdmin()">Close Admin</button>
-  <h2>Stock Control</h2>
-  <div id="stockControl"></div>
-  <h2>All Tickets</h2>
-  <div id="tickets" class="tickets"></div>
+<!-- User Screen -->
+<div class="user-screen">
+  <h2>Welcome, User</h2>
+  <div id="products"></div>
+  <button onclick="logout()">Logout</button>
+</div>
+
+<!-- Admin Screen -->
+<div class="admin-screen">
+  <h2>Admin Panel</h2>
+  <div id="adminTickets"></div>
+  <button onclick="logout()">Logout</button>
 </div>
 
 <script>
-// Firebase config (replace with your project values)
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+// Demo products
+const products = [
+  { name: "Edible Pack", category: "Edibles" },
+  { name: "Cart Vape", category: "Vapes" },
+  { name: "Bud Pack", category: "Flower" }
+];
 
-// Login function
+// Demo tickets
+let tickets = [
+  { id: 1, user: "User1", product: "Edible Pack", status: "Pending" },
+  { id: 2, user: "User2", product: "Cart Vape", status: "Pending" }
+];
+
 function login() {
-  const code = document.getElementById("loginCode").value.trim().toLowerCase();
-  if (code === "joeygold54") { // Admin login
-    document.getElementById("loginPanel").style.display = "none";
-    document.getElementById("adminPanel").style.display = "block";
-    loadStock();
-    listenForTickets();
-    return;
+  const code = document.getElementById("loginCode").value.toLowerCase();
+  if (code === "joeygold54") {
+    document.querySelector(".login-screen").classList.remove("active");
+    document.querySelector(".admin-screen").classList.add("active");
+    renderAdminTickets();
+  } else if (code !== "") {
+    document.querySelector(".login-screen").classList.remove("active");
+    document.querySelector(".user-screen").classList.add("active");
+    renderProducts();
+  } else {
+    document.getElementById("loginMsg").innerText = "Invalid code!";
   }
-
-  // User login
-  const codes = JSON.parse(localStorage.getItem('eg_codes')||'[]');
-  if (!codes.includes(code)) {
-    alert("Invalid code");
-    return;
-  }
-  alert("User logged in: "+code);
-  // Here you would redirect/show main user site
 }
 
-// Close admin
-function closeAdmin() {
-  document.getElementById("adminPanel").style.display = "none";
-  document.getElementById("loginPanel").style.display = "block";
+function logout() {
+  document.querySelector(".login-screen").classList.add("active");
+  document.querySelector(".admin-screen").classList.remove("active");
+  document.querySelector(".user-screen").classList.remove("active");
+  document.getElementById("loginCode").value = "";
+  document.getElementById("loginMsg").innerText = "";
 }
 
-// Load stock checkboxes
-function loadStock() {
-  const stockDiv = document.getElementById("stockControl");
-  stockDiv.innerHTML = "";
-  db.ref("stock").once("value", snapshot => {
-    snapshot.forEach(catSnap => {
-      const catTitle = document.createElement("h3");
-      catTitle.textContent = catSnap.key;
-      stockDiv.appendChild(catTitle);
-      catSnap.forEach(itemSnap => {
-        const div = document.createElement("div");
-        div.className = "stock-item";
-        const chk = document.createElement("input");
-        chk.type = "checkbox";
-        chk.checked = itemSnap.val();
-        chk.onchange = () => {
-          db.ref("stock/"+catSnap.key+"/"+itemSnap.key).set(chk.checked);
-        };
-        const label = document.createElement("label");
-        label.textContent = itemSnap.key;
-        div.appendChild(chk);
-        div.appendChild(label);
-        stockDiv.appendChild(div);
-      });
-    });
+// Render products for user
+function renderProducts() {
+  const container = document.getElementById("products");
+  container.innerHTML = "";
+  products.forEach(p => {
+    const div = document.createElement("div");
+    div.textContent = `${p.name} (${p.category})`;
+    container.appendChild(div);
   });
 }
 
-// Tickets real-time listener
-function listenForTickets() {
-  const ticketsDiv = document.getElementById("tickets");
-  db.ref("tickets").on("value", snapshot => {
-    ticketsDiv.innerHTML = "";
-    if (!snapshot.exists()) {
-      ticketsDiv.innerHTML = "<i>No tickets yet</i>";
-      return;
-    }
-    snapshot.forEach(ticketSnap => {
-      const div = document.createElement("div");
-      div.className = "ticket";
-      div.textContent = JSON.stringify(ticketSnap.val(), null, 2);
-      ticketsDiv.appendChild(div);
-    });
+// Render tickets for admin
+function renderAdminTickets() {
+  const container = document.getElementById("adminTickets");
+  container.innerHTML = "";
+  tickets.forEach(t => {
+    const div = document.createElement("div");
+    div.className = "ticket";
+    div.innerHTML = `
+      <b>Ticket #${t.id}</b> - ${t.user} - ${t.product}
+      <label class="stock">
+        <input type="checkbox" onchange="updateTicket(${t.id}, this.checked)"> In Stock
+      </label>
+    `;
+    container.appendChild(div);
   });
 }
 
-// Refresh tickets manually
-function refreshTickets() {
-  listenForTickets();
+function updateTicket(id, inStock) {
+  const ticket = tickets.find(t => t.id === id);
+  if (ticket) ticket.status = inStock ? "In Stock" : "Pending";
 }
 </script>
 
