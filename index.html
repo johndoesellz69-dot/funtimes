@@ -263,4 +263,168 @@ function initSiteScripts(){
     stockRef.once('value').then(snap=>{
       const stock = snap.val() || {};
       el.innerHTML = `<h3>${p.name}</h3>
-        <div class="
+        <div class="small">Price: ${money(p.price)}</div>
+        <label>Flavor
+          <select aria-label="flavor-${p.id}" class="flavorSelect">
+            ${p.flavors.map(f=>{
+              const disabled=stock[f]===false?'disabled class="option-disabled"':'';
+              return `<option ${disabled}>${f}</option>`;
+            }).join('')}
+          </select>
+        </label>
+        <label>Qty<input type="number" min="1" value="1" class="qtyInput" style="width:70px"></label>
+        <div style="margin-top:8px"><button class="btn addBtn">Add</button></div>`;
+      grid.appendChild(el);
+      el.querySelector('.addBtn').addEventListener('click',()=>{
+        const flavor=el.querySelector('.flavorSelect').value;
+        const qty=Number(el.querySelector('.qtyInput').value)||1;
+        if(stock[flavor]===false){alert('Flavor out of stock');return;}
+        addToCart({productId:p.id,name:p.name,flavor,qty,price:p.price,image:null});
+      });
+    });
+  });
+
+  let cart=JSON.parse(localStorage.getItem(cartKey(account))||'[]');
+  let tickets=JSON.parse(localStorage.getItem(ticketKey(account))||'[]');
+  const cartList=document.getElementById('cartList');const cartTotalEl=document.getElementById('cartTotal');const ticketsArea=document.getElementById('ticketsArea');
+  function saveCart(){localStorage.setItem(cartKey(account),JSON.stringify(cart));renderCart();}
+  function saveTickets(){localStorage.setItem(ticketKey(account),JSON.stringify(tickets));renderTickets();}
+  function addToCart(item){cart.push(item);saveCart();alert('Added to cart');}
+
+  function renderCart(){
+    cartList.innerHTML='';if(cart.length===0){cartList.innerHTML='<div class="small">Cart empty.</div>';cartTotalEl.textContent='';return;}
+    cart.forEach((it,idx)=>{
+      const div=document.createElement('div');div.className='cart-item';
+      div.innerHTML=`<div><div style="font-weight:600">${it.name} ×${it.qty}</div><div class="small">${it.flavor}</div>${it.image?'<img src="'+it.image+'" style="width:60px;margin-top:4px;border-radius:6px">':''}</div>
+        <div style="text-align:right"><div>${money(it.price*it.qty)}</div><div style="margin-top:6px"><button class="btn ghost" data-i="${idx}">Remove</button></div></div>`;
+      cartList.appendChild(div);
+      div.querySelector('button').addEventListener('click',(e)=>{cart.splice(Number(e.target.dataset.i),1);saveCart();});
+    });
+    const total=cart.reduce((s,i)=>s+i.price*i.qty,0);cartTotalEl.textContent=`Total: ${money(total)}`;
+  }
+
+  document.getElementById('purchaseBtn').addEventListener('click',()=>{
+    if(cart.length===0){alert('Cart empty');return;}
+    const loc=document.getElementById('locationSelect').value;
+    const tid='T-'+Math.random().toString(36).slice(2,8).toUpperCase();
+    const items=JSON.parse(JSON.stringify(cart));const total=items.reduce((s,i)=>s+i.price*i.qty,0);
+    const ticket={id:tid,account,location:loc,items,total,status:'open',messages:[{from:'System',text:`Ticket created. Total ${money(total)}. Hide payment at ${loc}.`} ]};
+    db.ref('tickets/'+tid).set(ticket);
+    db.ref('messages/'+tid).set(ticket.messages);
+    tickets.push(ticket);saveTickets();cart=[];saveCart();
+  });
+
+  document.getElementById('clearBtn').onclick=()=>{cart=[];saveCart();};
+
+  function renderTickets(){
+    ticketsArea.innerHTML='';
+    tickets.forEach(t=>{
+      const div=document.createElement('div');div.className='ticket';
+      div.id='ticket-'+t.id;
+      div.innerHTML=`<div class="ticket-entry"><strong>Ticket ${t.id}</strong> @ ${t.location} | Total ${money(t.total)}</div>
+        <div id="chat-${t.id}" style="margin-top:6px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
+        <div style="margin-top:4px;display:flex;gap:4px">
+          <input type="text" placeholder="Message" class="msgInput" style="flex:1">
+          <input type="file" class="imgInput" style="flex:1">
+          <button class="btn sendBtn">Send</button>
+        </div>`;
+      ticketsArea.appendChild(div);
+
+      const chatEl=document.getElementById('chat-'+t.id);
+      db.ref('messages/'+t.id).on('value',snap=>{
+        const msgs=snap.val()||[];
+        chatEl.innerHTML=msgs.map(m=>m.image?`<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`:`<div><strong>${m.from}:</strong> ${m.text}</div>`).join('');
+        chatEl.scrollTop=chatEl.scrollHeight;
+      });
+
+      div.querySelector('.sendBtn').onclick=()=>{
+        const text=div.querySelector('.msgInput').value.trim();
+        const file=div.querySelector('.imgInput').files[0];
+        if(!text&&!file){alert('Write message or choose image');return;}
+        if(file){
+          const reader=new FileReader();
+          reader.onload=e=>{
+            const msg={from:'User',image:e.target.result};
+            db.ref('messages/'+t.id).push(msg);
+            div.querySelector('.imgInput').value='';
+          };
+          reader.readAsDataURL(file);
+        }
+        if(text){
+          const msg={from:'User',text};
+          db.ref('messages/'+t.id).push(msg);
+          div.querySelector('.msgInput').value='';
+        }
+      };
+    });
+  }
+  renderCart();renderTickets();
+}
+
+/* Admin render tickets */
+function renderAdminTickets(){
+  const area=document.getElementById('allTicketsArea');area.innerHTML='';
+  db.ref('tickets').once('value').then(snap=>{
+    const tickets=snap.val()||{};
+    Object.values(tickets).forEach(t=>{
+      const div=document.createElement('div');div.className='ticket';div.style.marginBottom='6px';
+      div.innerHTML=`<div class="ticket-entry"><strong>${t.id}</strong> @ ${t.location} | Total ${money(t.total)} | Status: ${t.status}</div>
+        <div id="admin-chat-${t.id}" style="margin-top:4px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
+        <div style="margin-top:4px;display:flex;gap:4px">
+          <input type="text" placeholder="Message" class="msgInput" style="flex:1">
+          <input type="file" class="imgInput" style="flex:1">
+          <button class="btn sendBtn">Send</button>
+        </div>`;
+      area.appendChild(div);
+      const chatEl=document.getElementById('admin-chat-'+t.id);
+      db.ref('messages/'+t.id).on('value',snap=>{
+        const msgs=snap.val()||[];
+        chatEl.innerHTML=msgs.map(m=>m.image?`<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`:`<div><strong>${m.from}:</strong> ${m.text}</div>`).join('');
+        chatEl.scrollTop=chatEl.scrollHeight;
+      });
+      div.querySelector('.sendBtn').onclick=()=>{
+        const text=div.querySelector('.msgInput').value.trim();
+        const file=div.querySelector('.imgInput').files[0];
+        if(!text&&!file){alert('Write message or choose image');return;}
+        if(file){
+          const reader=new FileReader();
+          reader.onload=e=>{
+            db.ref('messages/'+t.id).push({from:'Admin',image:e.target.result});
+            div.querySelector('.imgInput').value='';
+          };
+          reader.readAsDataURL(file);
+        }
+        if(text){
+          db.ref('messages/'+t.id).push({from:'Admin',text});
+          div.querySelector('.msgInput').value='';
+        }
+      };
+    });
+  });
+}
+
+/* Admin stock */
+function renderAdminStock(){
+  const area=document.getElementById('adminStockArea');area.innerHTML='';
+  PRODUCTS.forEach(p=>{
+    const card=document.createElement('div');card.className='card';card.style.marginBottom='6px';
+    card.innerHTML=`<h4>${p.name}</h4>`;
+    const stockRef=db.ref('stock/'+p.id);
+    stockRef.once('value').then(snap=>{
+      const stock=snap.val()||{};
+      p.flavors.forEach(f=>{
+        const div=document.createElement('div');div.className='flavor-stock';
+        const val=(stock[f]!==false);const chk=document.createElement('input');chk.type='checkbox';chk.checked=val;
+        chk.onchange=()=>{stockRef.update({[f]:chk.checked});};
+        div.innerHTML=`<span>${f}</span>`;div.prepend(chk);
+        card.appendChild(div);
+      });
+    });
+    area.appendChild(card);
+  });
+}
+
+});
+</script>
+</body>
+</html>
