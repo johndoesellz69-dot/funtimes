@@ -1,4 +1,4 @@
-<!doctype html>    
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -176,13 +176,13 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 <script>
 // Firebase setup
 const firebaseConfig = {
-  apiKey: "<YOUR_API_KEY>",
-  authDomain: "<YOUR_PROJECT_ID>.firebaseapp.com",
+  apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
+  authDomain: "easy-green-website.firebaseapp.com",
   databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com/",
-  projectId: "<YOUR_PROJECT_ID>",
-  storageBucket: "<YOUR_PROJECT_ID>.appspot.com",
-  messagingSenderId: "<YOUR_SENDER_ID>",
-  appId: "<YOUR_APP_ID>"
+  projectId: "easy-green-website",
+  storageBucket: "easy-green-website.firebasestorage.app",
+  messagingSenderId: "988776675269",
+  appId: "1:988776675269:web:f2245f84a726d01f3e3dac"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
@@ -323,14 +323,48 @@ function initSiteScripts(){
       const el=document.createElement('div');el.className='card';el.style.marginBottom='8px';
       el.innerHTML=`<div style="font-weight:600">Ticket ${t.id} | Location: ${t.location} | Status: ${t.status}</div>
         <div class="small">${t.items.map(i=>i.name+' ×'+i.qty+' ('+i.flavor+')').join(' • ')}</div>
-        <div id="chat-${t.id}" class="ticket">${(t.messages||[]).map(m=>m.image?'<div><strong>'+m.from+':</strong><br><img src="'+m.image+'" style="max-width:100px;border-radius:6px"></div>':'<div><strong>'+m.from+':</strong> '+m.text+'</div>').join('')}</div>
-        <input placeholder="Message admin" id="msg-'+t.id+'" style="flex:1;padding:4px"><input type="file" accept="image/*" id="file-'+t.id+'" style="margin-top:4px">
+        <div id="chat-${t.id}" class="ticket"></div>
+        <input placeholder="Message admin" id="msg-${t.id}" style="flex:1;padding:4px">
+        <input type="file" accept="image/*" id="file-${t.id}" style="margin-top:4px">
         <button class="btn" onclick="sendMsg('${t.id}')">Send</button>
         <button class="btn ghost" onclick="markPaid('${t.id}')">Mark as paid</button>`;
       ticketsArea.appendChild(el);
+
+      // Listen for admin messages in user chat
+      const messagesRef = db.ref('messages/' + account + '/' + t.id);
+      messagesRef.on('child_added', snap=>{
+        const msg = snap.val();
+        const div = document.createElement('div');
+        div.className='ticket-entry';
+        if(msg.sender==='admin') div.innerHTML = msg.image?`<strong>Admin:</strong><br><img src="${msg.image}" style="max-width:100px;border-radius:6px">`:`<strong>Admin:</strong> ${msg.text}`;
+        else div.innerHTML = msg.image?`<strong>User:</strong><br><img src="${msg.image}" style="max-width:100px;border-radius:6px">`:`<strong>User:</strong> ${msg.text}`;
+        document.getElementById('chat-'+t.id).appendChild(div);
+      });
     });
   }
 }
+
+/* User messaging */
+window.sendMsg=(ticketId)=>{
+  const msgInput=document.getElementById('msg-'+ticketId);
+  const fileInput=document.getElementById('file-'+ticketId);
+  const messagesRef=db.ref('messages/'+account+'/'+ticketId);
+  if(msgInput.value.trim()!==''){
+    messagesRef.push({sender:'user',text:msgInput.value.trim(),ts:Date.now()});
+    msgInput.value='';
+  }
+  if(fileInput.files.length>0){
+    const reader=new FileReader();
+    reader.onload=e=>{
+      messagesRef.push({sender:'user',image:e.target.result,ts:Date.now()});
+    };
+    reader.readAsDataURL(fileInput.files[0]);
+    fileInput.value='';
+  }
+};
+
+/* Mark Paid Placeholder */
+window.markPaid=(ticketId)=>{alert('Mark paid feature placeholder. Implement photo upload & status update here.')};
 
 /* Admin Tickets */
 function renderAdminTickets(){
@@ -354,15 +388,24 @@ function renderAdminTickets(){
         <div class="small">
           ${t.items.map(i => i.name+' ×'+i.qty+' ('+i.flavor+')').join(' • ')}
         </div>
-        <div id="adminChat-${t.id}" class="ticket">
-          ${(t.messages||[]).map(m => m.image ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>` : `<div><strong>${m.from}:</strong> ${m.text}</div>`).join('')}
-        </div>
+        <div id="adminChat-${t.id}" class="ticket"></div>
         <input placeholder="Admin message" id="adminMsg-${t.id}" style="flex:1;padding:4px">
         <input type="file" accept="image/*" id="adminFile-${t.id}" style="margin-top:4px">
         <button class="btn" onclick="sendAdmin('${t.account}','${t.id}')">Send</button>
         <button class="btn ghost" onclick="deleteOrder('${t.account}','${t.id}')">Delete</button>
       `;
       allTicketsArea.appendChild(div);
+
+      // Listen for messages
+      const messagesRef=db.ref('messages/'+t.account+'/'+t.id);
+      messagesRef.on('child_added', snap=>{
+        const msg=snap.val();
+        const divMsg=document.createElement('div');
+        divMsg.className='ticket-entry';
+        if(msg.sender==='user') divMsg.innerHTML = msg.image?`<strong>User:</strong><br><img src="${msg.image}" style="max-width:100px;border-radius:6px">`:`<strong>User:</strong> ${msg.text}`;
+        else divMsg.innerHTML = msg.image?`<strong>Admin:</strong><br><img src="${msg.image}" style="max-width:100px;border-radius:6px">`:`<strong>Admin:</strong> ${msg.text}`;
+        document.getElementById('adminChat-'+t.id).appendChild(divMsg);
+      });
     });
   });
 }
@@ -388,28 +431,20 @@ function renderAdminStock(){
 window.sendAdmin=(acct,ticketId)=>{
   const msgInput=document.getElementById('adminMsg-'+ticketId);
   const fileInput=document.getElementById('adminFile-'+ticketId);
-  const messages=[];
-  if(msgInput.value.trim()!=='') messages.push({from:'Admin',text:msgInput.value.trim()});
+  const messagesRef=db.ref('messages/'+acct+'/'+ticketId);
+  if(msgInput.value.trim()!=='') messagesRef.push({sender:'admin',text:msgInput.value.trim(),ts:Date.now()});
   if(fileInput.files.length>0){
     const reader=new FileReader();
-    reader.onload=(e)=>{messages.push({from:'Admin',image:e.target.result});appendAdminMsg(ticketId,messages);};
+    reader.onload=e=>{
+      messagesRef.push({sender:'admin',image:e.target.result,ts:Date.now()});
+    };
     reader.readAsDataURL(fileInput.files[0]);
-  } else appendAdminMsg(ticketId,messages);
-  msgInput.value='';fileInput.value='';
+    fileInput.value='';
+  }
+  msgInput.value='';
 };
 
-function appendAdminMsg(ticketId,msgs){
-  db.ref('tickets/'+ticketId+'/messages').once('value').then(snap=>{
-    const old = snap.val()||[];
-    db.ref('tickets/'+ticketId+'/messages').set([...old,...msgs]);
-    renderAdminTickets();
-  });
-}
-
-window.deleteOrder=(acct,ticketId)=>{if(confirm('Delete this ticket?')){db.ref('tickets/'+ticketId).remove().then(()=>renderAdminTickets());}};
-window.sendMsg=(ticketId)=>{alert('Messaging feature placeholder. Implement chat send code here.')};
-window.markPaid=(ticketId)=>{alert('Mark paid feature placeholder. Implement photo upload & status update here.')};
-
+window.deleteOrder=(acct,ticketId)=>{if(confirm('Delete this ticket?')){db.ref('tickets/'+ticketId).remove(); db.ref('messages/'+acct+'/'+ticketId).remove(); renderAdminTickets();}};
 if(!account){document.getElementById('loginModal').classList.remove('hidden');} else showMainSite();
 });
 </script>
