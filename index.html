@@ -1,4 +1,4 @@
-<!doctype html>    
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -30,14 +30,17 @@ select,input[type="number"],input[type="file"]{padding:6px;border-radius:8px;bor
 .ticket-entry{margin-bottom:8px}
 footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 .hidden{display:none !important;}
-#adminScreen{position:fixed;inset:0;background:rgba(0,0,0,.95);color:#111;padding:16px;overflow:auto;display:none;z-index:3000}
+#adminScreen{position:fixed;inset:0;background:#f9f9f9;color:#111;padding:16px;overflow:auto;display:none;z-index:3000}
 #adminScreen h2{margin-top:0;color:var(--accent)}
 .flavor-stock{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
 .flavor-stock span{font-size:.88rem}
 .option-disabled{color:#aaa !important}
+#maintenanceMsg{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:white;z-index:5000;font-size:1.2rem;font-weight:600;color:#2f2f2f;text-align:center;padding:20px}
 </style>
 </head>
 <body>
+
+<div id="maintenanceMsg">Easy Green is currently undergoing an update. Please stay patient as we work to improve your experience.</div>
 
 <!-- Login / Create Code Modal -->
 <div id="loginModal" class="modal-back">
@@ -50,45 +53,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
     <div style="display:flex;justify-content:flex-end;gap:8px">
       <button class="btn" id="loginBtn">Login</button>
     </div>
-  </div>
-</div>
-
-<!-- Warning modal -->
-<div id="warningModal" class="modal-back hidden">
-  <div class="modal">
-    <h3>Warnings & Rules</h3>
-    <ul>
-      <li>Easy Green is not liable for any stolen Product/Payments.</li>
-      <li>Use products safely.</li>
-      <li>Respect site anonymity.</li>
-    </ul>
-    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
-      <label style="display:flex;align-items:center;gap:8px">
-        <input type="checkbox" id="ackCheck"> I agree
-      </label>
-      <button class="btn" id="ackBtn">Confirm</button>
-    </div>
-  </div>
-</div>
-
-<!-- First Time Help Modal -->
-<div id="helpModal" class="modal-back hidden">
-  <div class="modal">
-    <h3>First Time Help</h3>
-    <p>Welcome to Easy Green! Here's how it works:</p>
-    <ol>
-      <li>Select products and flavors you want.</li>
-      <li>Add items to your cart and choose pickup location.</li>
-      <li>Click Purchase to generate a ticket for your order.</li>
-      <li>Use the chat under your ticket to send messages or images to admin.</li>
-      <li>Admin can respond and send images back. Keep communications secure and anonymous.</li>
-      <li>Place the specified cash amount in an Envelope, and write a 4 digit code of your choosing on the Envelope</li>
-      <li>Hide Envelope at your selected location in a very discreet and out of sight spot (Easy Green is not liable for stolen payments)</li>
-      <li>Select the "Mark as paid" button, and send a photo of your envelope and where you hid it. (Make sure to not send a picture that shows your 4 digit code)</li>
-      <li>Head home and wait for the deliverant to pick up your payment and hide your item. Once finished, the admin will message you your 4 digit code, an image of the product hidden, and any further information.</li>
-      <li>Go pickup your product and have fun!</li>
-    </ol>
-    <button class="btn" id="closeHelp">Got it!</button>
   </div>
 </div>
 
@@ -107,7 +71,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 
   <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
     <div class="small">(Write this down) Your account code: <span id="acctCode"></span></div>
-    <button class="btn" id="helpBtn" style="margin-left:auto">First time help</button>
   </div>
 
   <div class="grid" role="main">
@@ -122,20 +85,13 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
       <div>
         <label class="small">Pickup Location</label>
         <select id="locationSelect" aria-label="Pickup location">
-          <option value="Hasbrook Park">Hasbrook Park</option>
-          <option value="Virginia Terrace Park">Virginia Terrace Park</option>
-          <option value="Frontier Park">Frontier Park</option>
-          <option value="Pioneer Park">Pioneer Park</option>
-          <option value="Grealish Park">Grealish Park</option>
-          <option value="Happiness Park">Happiness Park</option>
-          <option value="Greenbrier Park">Greenbrier Park</option>
-          <option value="Kimball Hill Park">Kimball Hill Park</option>
-          <option value="Centennial Park">Centennial Park</option>
+          <option>Hasbrook Park</option>
+          <option>Virginia Terrace Park</option>
         </select>
       </div>
 
       <div style="margin-top:12px">
-        <div id="cartList" aria-live="polite"></div>
+        <div id="cartList"></div>
         <div class="cart-total small" id="cartTotal"></div>
       </div>
 
@@ -151,9 +107,7 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
     </aside>
   </div>
 
-  <footer>
-    Easy Green only accepts cash payments. Fake cash will result in a ban.
-  </footer>
+  <footer>Easy Green only accepts cash payments. Fake cash will result in a ban.</footer>
 </div>
 
 <!-- Admin Screen -->
@@ -162,6 +116,7 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   <div style="margin-bottom:12px">
     <button class="btn" id="refreshTickets">Refresh Tickets</button>
     <button class="btn ghost" id="closeAdmin">Close Admin</button>
+    <button class="btn" id="toggleShop">Toggle Shop Open/Closed</button>
   </div>
   <h3>Stock Control</h3>
   <div id="adminStockArea"></div>
@@ -174,7 +129,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
 <script>
-// Firebase setup
 const firebaseConfig = {
   apiKey: "<YOUR_API_KEY>",
   authDomain: "<YOUR_PROJECT_ID>.firebaseapp.com",
@@ -190,63 +144,57 @@ const db = firebase.database();
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-
 const PRODUCTS=[
-  {id:'c1',name:'Edibles',price:20,flavors:['Sour Patch','Skittlez','Swedish Fish','Watermelon','Starburst','Trolli','Peach Rings']},
-  {id:'c2',name:'2G Ghost Disposable Carts',price:40,flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice cream Cake','Black Mamba']},
+  {id:'c1',name:'Edibles',price:20,flavors:['Sour Patch','Skittlez']},
+  {id:'c2',name:'2G Ghost Disposable Carts',price:40,flavors:['Alien Burger','Durban Gushers']},
 ];
-
-function uid6(){return Math.random().toString(36).slice(2,8).toUpperCase();}
-function money(n){return '$'+n.toFixed(2);}
 
 let account=localStorage.getItem('eg_account')||'';
 const acctEl=document.getElementById('acctCode');
-function getAllCodes(){return JSON.parse(localStorage.getItem('eg_codes')||'[]');}
-function addCode(c){let arr=getAllCodes();if(!arr.includes(c)){arr.push(c);localStorage.setItem('eg_codes',JSON.stringify(arr));}}
-function cartKey(acc){return 'eg_cart_'+acc;}
-function ticketKey(acc){return 'eg_tickets_'+acc;}
 
 function showMainSite(){
   document.getElementById('loginModal').classList.add('hidden');
   document.getElementById('mainWrap').classList.remove('hidden');
-  document.getElementById('warningModal').classList.remove('hidden');
   acctEl.textContent=account;
   initSiteScripts();
+  checkMaintenance();
 }
 
-/* Login / Create */
+/* Login */
 document.getElementById('loginBtn').onclick=()=>{
   const code=document.getElementById('loginCode').value.trim();
   if(!code){alert('Enter code');return;}
   if(code==='joeygold54'){showAdmin();return;}
-  const upper=code.toUpperCase();
-  if(!getAllCodes().includes(upper)){alert('Invalid code');return;}
-  account=upper;localStorage.setItem('eg_account',account);showMainSite();
+  account=code.toUpperCase();
+  localStorage.setItem('eg_account',account);
+  showMainSite();
 };
+
 document.getElementById('createCodeBtn').onclick=()=>{
-  account=uid6();addCode(account);localStorage.setItem('eg_account',account);
-  alert('New code: '+account);showMainSite();
-};
-document.getElementById('ackBtn').onclick=()=>{
-  if(!document.getElementById('ackCheck').checked){alert('Confirm rules');return;}
-  localStorage.setItem('eg_ack','1');document.getElementById('warningModal').classList.add('hidden');
+  account=Math.random().toString(36).slice(2,8).toUpperCase();
+  localStorage.setItem('eg_account',account);
+  alert('New code: '+account);
+  showMainSite();
 };
 
-/* First Time Help */
-document.getElementById('helpBtn').onclick=()=>{document.getElementById('helpModal').classList.remove('hidden');};
-document.getElementById('closeHelp').onclick=()=>{document.getElementById('helpModal').classList.add('hidden');};
-
-/* Log Out */
-document.getElementById('logoutBtn').onclick = () => {
+document.getElementById('logoutBtn').onclick=()=>{
   localStorage.removeItem('eg_account');
-  account = '';
-  document.getElementById('mainWrap').classList.add('hidden');
-  document.getElementById('loginModal').classList.remove('hidden');
+  location.reload();
 };
 
-/* Admin Screen */
-document.getElementById('closeAdmin').onclick=()=>{document.getElementById('adminScreen').style.display='none';};
+/* Admin */
+document.getElementById('closeAdmin').onclick=()=>{
+  document.getElementById('adminScreen').style.display='none';
+};
 document.getElementById('refreshTickets').onclick=()=>{renderAdminTickets(); renderAdminStock();};
+document.getElementById('toggleShop').onclick=()=>{
+  db.ref('maintenance').once('value').then(snap=>{
+    const current = snap.val()||false;
+    db.ref('maintenance').set(!current);
+    alert('Shop is now '+(!current?'CLOSED':'OPEN'));
+    checkMaintenance();
+  });
+};
 
 function showAdmin(){
   document.getElementById('adminScreen').style.display='block';
@@ -254,166 +202,80 @@ function showAdmin(){
   renderAdminTickets();
 }
 
-/* Site scripts */
-function initSiteScripts(){
-  const grid=document.getElementById('productsGrid');grid.innerHTML='';
-  PRODUCTS.forEach(p=>{
-    const el=document.createElement('div');el.className='product';
-    const stockRef = db.ref('stock/'+p.id);
-    stockRef.once('value').then(snap=>{
-      const stock = snap.val() || {};
-      el.innerHTML = `<h3>${p.name}</h3>
-        <div class="small">Price: ${money(p.price)}</div>
-        <label>Flavor
-          <select aria-label="flavor-${p.id}" class="flavorSelect">
-            ${p.flavors.map(f=>{
-              const disabled=stock[f]===false?'disabled class="option-disabled"':'';
-              return `<option ${disabled}>${f}</option>`;
-            }).join('')}
-          </select>
-        </label>
-        <label>Qty<input type="number" min="1" value="1" class="qtyInput" style="width:70px"></label>
-        <div style="margin-top:8px"><button class="btn addBtn">Add</button></div>`;
-      grid.appendChild(el);
-      el.querySelector('.addBtn').addEventListener('click',()=>{
-        const flavor=el.querySelector('.flavorSelect').value;
-        const qty=Number(el.querySelector('.qtyInput').value)||1;
-        if(stock[flavor]===false){alert('Flavor out of stock');return;}
-        addToCart({productId:p.id,name:p.name,flavor,qty,price:p.price,image:null});
-      });
-    });
-  });
-
-  let cart=JSON.parse(localStorage.getItem(cartKey(account))||'[]');
-  let tickets=JSON.parse(localStorage.getItem(ticketKey(account))||'[]');
-  const cartList=document.getElementById('cartList');const cartTotalEl=document.getElementById('cartTotal');const ticketsArea=document.getElementById('ticketsArea');
-  function saveCart(){localStorage.setItem(cartKey(account),JSON.stringify(cart));renderCart();}
-  function saveTickets(){localStorage.setItem(ticketKey(account),JSON.stringify(tickets));renderTickets();}
-  function addToCart(item){cart.push(item);saveCart();alert('Added to cart');}
-
-  function renderCart(){
-    cartList.innerHTML='';if(cart.length===0){cartList.innerHTML='<div class="small">Cart empty.</div>';cartTotalEl.textContent='';return;}
-    cart.forEach((it,idx)=>{
-      const div=document.createElement('div');div.className='cart-item';
-      div.innerHTML=`<div><div style="font-weight:600">${it.name} ×${it.qty}</div><div class="small">${it.flavor}</div>${it.image?'<img src="'+it.image+'" style="width:60px;margin-top:4px;border-radius:6px">':''}</div>
-        <div style="text-align:right"><div>${money(it.price*it.qty)}</div><div style="margin-top:6px"><button class="btn ghost" data-i="${idx}">Remove</button></div></div>`;
-      cartList.appendChild(div);
-      div.querySelector('button').addEventListener('click',(e)=>{cart.splice(Number(e.target.dataset.i),1);saveCart();});
-    });
-    const total=cart.reduce((s,i)=>s+i.price*i.qty,0);cartTotalEl.textContent=`Total: ${money(total)}`;
-  }
-
-  document.getElementById('purchaseBtn').addEventListener('click',()=>{
-    if(cart.length===0){alert('Cart empty');return;}
-    const loc=document.getElementById('locationSelect').value;
-    const tid='T-'+Math.random().toString(36).slice(2,8).toUpperCase();
-    const items=JSON.parse(JSON.stringify(cart));const total=items.reduce((s,i)=>s+i.price*i.qty,0);
-    const ticket={id:tid,account,location:loc,items,total,status:'open',messages:[{from:'System',text:`Ticket created. Total ${money(total)}. Hide payment at ${loc}.`} ]};
-    db.ref('tickets/'+tid).set(ticket);
-    tickets.push(ticket);saveTickets();cart=[];saveCart();alert('Ticket created: '+tid);
-  });
-  document.getElementById('clearBtn').addEventListener('click',()=>{if(confirm('Clear cart?')){cart=[];saveCart();}});
-
-  renderCart();
-  renderTickets();
-
-  function renderTickets(){
-    ticketsArea.innerHTML='';if(tickets.length===0){ticketsArea.innerHTML='<div class="small">No tickets yet.</div>';return;}
-    tickets.forEach(t=>{
-      const el=document.createElement('div');el.className='card';el.style.marginBottom='8px';
-      el.innerHTML=`<div style="font-weight:600">Ticket ${t.id} | Location: ${t.location} | Status: ${t.status}</div>
-        <div class="small">${t.items.map(i=>i.name+' ×'+i.qty+' ('+i.flavor+')').join(' • ')}</div>
-        <div id="chat-${t.id}" class="ticket">${(t.messages||[]).map(m=>m.image?'<div><strong>'+m.from+':</strong><br><img src="'+m.image+'" style="max-width:100px;border-radius:6px"></div>':'<div><strong>'+m.from+':</strong> '+m.text+'</div>').join('')}</div>
-        <input placeholder="Message admin" id="msg-'+t.id+'" style="flex:1;padding:4px"><input type="file" accept="image/*" id="file-'+t.id+'" style="margin-top:4px">
-        <button class="btn" onclick="sendMsg('${t.id}')">Send</button>
-        <button class="btn ghost" onclick="markPaid('${t.id}')">Mark as paid</button>`;
-      ticketsArea.appendChild(el);
-    });
-  }
-}
-
-/* Admin Tickets */
-function renderAdminTickets(){
-  const allTicketsArea = document.getElementById('allTicketsArea');
-  allTicketsArea.innerHTML = '';
-  db.ref('tickets').once('value').then(snap => {
-    const ticketsObj = snap.val() || {};
-    const tickets = Object.values(ticketsObj);
-    if(tickets.length === 0){
-      allTicketsArea.innerHTML = '<div class="small">No tickets yet.</div>';
-      return;
+/* Maintenance */
+function checkMaintenance(){
+  db.ref('maintenance').on('value',snap=>{
+    const val=snap.val();
+    if(val){
+      document.getElementById('maintenanceMsg').style.display='flex';
+      document.getElementById('mainWrap').style.display='none';
+    } else {
+      document.getElementById('maintenanceMsg').style.display='none';
+      document.getElementById('mainWrap').style.display='block';
     }
-    tickets.forEach(t => {
-      const div = document.createElement('div');
-      div.className = 'card';
-      div.style.marginBottom = '8px';
-      div.innerHTML = `
-        <div style="font-weight:600">
-          Ticket ${t.id} | Account: ${t.account} | Location: ${t.location} | Status: ${t.status}
-        </div>
-        <div class="small">
-          ${t.items.map(i => i.name+' ×'+i.qty+' ('+i.flavor+')').join(' • ')}
-        </div>
-        <div id="adminChat-${t.id}" class="ticket">
-          ${(t.messages||[]).map(m => m.image ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>` : `<div><strong>${m.from}:</strong> ${m.text}</div>`).join('')}
-        </div>
-        <input placeholder="Admin message" id="adminMsg-${t.id}" style="flex:1;padding:4px">
-        <input type="file" accept="image/*" id="adminFile-${t.id}" style="margin-top:4px">
-        <button class="btn" onclick="sendAdmin('${t.account}','${t.id}')">Send</button>
-        <button class="btn ghost" onclick="deleteOrder('${t.account}','${t.id}')">Delete</button>
-      `;
-      allTicketsArea.appendChild(div);
-    });
   });
 }
 
-/* Admin Stock */
+/* Stock Control */
 function renderAdminStock(){
-  const stockArea = document.getElementById('adminStockArea');
+  const stockArea=document.getElementById('adminStockArea');
   stockArea.innerHTML='';
   PRODUCTS.forEach(p=>{
-    const div=document.createElement('div');div.style.marginBottom='8px';
-    db.ref('stock/'+p.id).once('value').then(snap=>{
-      const stock=snap.val()||{};
-      div.innerHTML=`<div style="font-weight:600">${p.name}</div>${p.flavors.map(f=>{
-        const st = stock[f]===false?'Out':'In';
-        return `<div class="flavor-stock"><span>${f}</span><span>${st}</span></div>`;
-      }).join('')}`;
-      stockArea.appendChild(div);
+    const div=document.createElement('div');
+    div.innerHTML=`<div style="font-weight:600">${p.name}</div>`;
+    p.flavors.forEach(f=>{
+      const id=`${p.id}_${f}`;
+      const row=document.createElement('div');row.className='flavor-stock';
+      row.innerHTML=`<span>${f}</span><input type="checkbox" id="stock-${id}">`;
+      stockArea.appendChild(row);
+      db.ref('stock/'+p.id+'/'+f).once('value').then(snap=>{
+        if(snap.val()!==false){document.getElementById('stock-'+id).checked=true;}
+      });
+      document.addEventListener('change',e=>{
+        if(e.target && e.target.id===`stock-${id}`){
+          db.ref('stock/'+p.id+'/'+f).set(e.target.checked);
+        }
+      });
+    });
+    stockArea.appendChild(div);
+  });
+}
+
+/* Tickets */
+function renderAdminTickets(){
+  const area=document.getElementById('allTicketsArea');
+  area.innerHTML='';
+  db.ref('tickets').once('value').then(snap=>{
+    const obj=snap.val()||{};
+    const tickets=Object.values(obj);
+    if(tickets.length===0){area.innerHTML='<div class="small">No tickets yet.</div>';return;}
+    tickets.forEach(t=>{
+      const div=document.createElement('div');div.className='card';
+      div.innerHTML=`<div style="font-weight:600">Ticket ${t.id} | ${t.account}</div>
+        <div class="small">${t.items.map(i=>i.name+' x'+i.qty+' ('+i.flavor+')').join(', ')}</div>
+        <div id="adminChat-${t.id}" class="ticket">${(t.messages||[]).map(m=>m.text?`<div><b>${m.from}:</b> ${m.text}</div>`:`<div><b>${m.from}:</b><br><img src="${m.image}" style="max-width:100px"></div>`).join('')}</div>
+        <input id="adminMsg-${t.id}" placeholder="Admin message"><button class="btn" onclick="sendAdmin('${t.id}')">Send</button>`;
+      area.appendChild(div);
     });
   });
 }
 
-/* Admin Actions */
-window.sendAdmin=(acct,ticketId)=>{
-  const msgInput=document.getElementById('adminMsg-'+ticketId);
-  const fileInput=document.getElementById('adminFile-'+ticketId);
-  const messages=[];
-  if(msgInput.value.trim()!=='') messages.push({from:'Admin',text:msgInput.value.trim()});
-  if(fileInput.files.length>0){
-    const reader=new FileReader();
-    reader.onload=(e)=>{messages.push({from:'Admin',image:e.target.result});appendAdminMsg(ticketId,messages);};
-    reader.readAsDataURL(fileInput.files[0]);
-  } else appendAdminMsg(ticketId,messages);
-  msgInput.value='';fileInput.value='';
-};
-
-function appendAdminMsg(ticketId,msgs){
+window.sendAdmin=(ticketId)=>{
+  const msg=document.getElementById('adminMsg-'+ticketId).value.trim();
+  if(!msg)return;
   db.ref('tickets/'+ticketId+'/messages').once('value').then(snap=>{
-    const old = snap.val()||[];
-    db.ref('tickets/'+ticketId+'/messages').set([...old,...msgs]);
+    const old=snap.val()||[];
+    old.push({from:'Admin',text:msg});
+    db.ref('tickets/'+ticketId+'/messages').set(old);
     renderAdminTickets();
   });
-}
-
-window.deleteOrder=(acct,ticketId)=>{if(confirm('Delete this ticket?')){db.ref('tickets/'+ticketId).remove().then(()=>renderAdminTickets());}};
-window.sendMsg=(ticketId)=>{alert('Messaging feature placeholder. Implement chat send code here.')};
-window.markPaid=(ticketId)=>{alert('Mark paid feature placeholder. Implement photo upload & status update here.')};
+};
 
 if(!account){document.getElementById('loginModal').classList.remove('hidden');} else showMainSite();
 });
 </script>
 </body>
 </html>
+
 
 
