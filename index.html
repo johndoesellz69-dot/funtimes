@@ -1,251 +1,123 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Easy Green</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin:0; display:flex; }
-    #sidebar { width:220px; background:#f4f4f4; padding:12px; border-right:1px solid #ddd; }
-    #main { flex:1; padding:12px; }
-    .card { border:1px solid #ccc; border-radius:6px; padding:10px; margin:6px 0; }
-    .btn { background:#2f9c4a; color:#fff; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; }
-    .ticket { border:1px solid #ddd; padding:6px; margin:6px 0; border-radius:6px; }
-    .ticket-entry { font-size:14px; margin-bottom:4px; }
-    .flavor-stock { display:flex; align-items:center; gap:6px; }
-  </style>
-</head>
-<body>
-  <!-- Deals Sidebar -->
-  <div id="sidebar">
-    <h3>Deals</h3>
-    <ul>
-      <li>🍬 Buy 3 edibles → get 1 free</li>
-      <li>💨 Buy 1 cart → 2nd cart $10 off</li>
-    </ul>
-  </div>
-
-  <!-- Main Content -->
-  <div id="main">
-    <h2>Easy Green Shop</h2>
-    <div id="shopArea"></div>
-    <h3>Your Cart</h3>
-    <div id="cartArea"></div>
-    <button id="checkoutBtn" class="btn">Checkout</button>
-
-    <h3>Your Tickets</h3>
-    <div id="ticketsArea"></div>
-
-    <hr>
-    <h2>Admin Panel</h2>
-    <button id="refreshTicketsBtn" class="btn">Refresh Tickets</button>
-    <div id="allTicketsArea"></div>
-
-    <h3>Manage Stock</h3>
-    <div id="adminStockArea"></div>
-  </div>
-
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
-  authDomain: "easy-green-website.firebaseapp.com",
-  databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com",
-  projectId: "easy-green-website",
-  storageBucket: "easy-green-website.firebasestorage.app",
-  messagingSenderId: "988776675269",
-  appId: "1:988776675269:web:f2245f84a726d01f3e3dac",
-  measurementId: "G-PR35QWS2T6"
-};
-firebase.initializeApp(firebaseConfig);
-const db=firebase.database();
-
-const PRODUCTS=[
-  {id:'edible',name:'Edible',price:20,flavors:['Gummy','Brownie']},
-  {id:'cart',name:'Cart',price:40,flavors:['Sour Diesel','OG Kush']},
-  {id:'bud',name:'Bud',price:30,flavors:['Indica','Sativa']}
-];
-
-let cart=[];let tickets=[];
-
-function money(v){return '$'+v.toFixed(2);}
-
-function renderShop(){
-  const area=document.getElementById('shopArea');area.innerHTML='';
-  PRODUCTS.forEach(p=>{
-    const card=document.createElement('div');card.className='card';
-    card.innerHTML=`<h4>${p.name} - ${money(p.price)}</h4>`;
-    p.flavors.forEach(f=>{
-      const btn=document.createElement('button');btn.className='btn';
-      btn.innerText='Add '+f;
-      btn.onclick=()=>{cart.push({product:p.id,flavor:f,price:p.price});saveCart();};
-      card.appendChild(btn);
-    });
-    area.appendChild(card);
-  });
-}
-function saveCart(){localStorage.setItem('cart',JSON.stringify(cart));renderCart();}
-function loadCart(){cart=JSON.parse(localStorage.getItem('cart')||'[]');}
-
-function applyDeals(items){
-  let total=0;
-  const edibleItems=items.filter(i=>i.product==='edible');
-  const cartItems=items.filter(i=>i.product==='cart');
-
-  // Normal sum
-  items.forEach(i=>total+=i.price);
-
-  // Deal 1: Buy 3 edibles get 1 free
-  if(edibleItems.length>=4){
-    const freeCount=Math.floor(edibleItems.length/4);
-    total -= freeCount*20; // each edible = $20
-  }
-
-  // Deal 2: Buy 1 cart → 2nd cart $10 off
-  if(cartItems.length>=2){
-    const discount=Math.floor(cartItems.length/2)*10;
-    total-=discount;
-  }
-  return total;
-}
-
-function renderCart(){
-  const area=document.getElementById('cartArea');area.innerHTML='';
-  cart.forEach((c,i)=>{
-    const div=document.createElement('div');div.innerText=c.product+' - '+c.flavor+' - '+money(c.price);
-    area.appendChild(div);
-  });
-  const total=applyDeals(cart);
-  const totalDiv=document.createElement('div');totalDiv.innerHTML='<strong>Total: '+money(total)+'</strong>';
-  area.appendChild(totalDiv);
-}
-document.getElementById('checkoutBtn').onclick=()=>{
-  if(cart.length===0)return alert('Cart empty');
-  const id=db.ref().child('tickets').push().key;
-  const t={id,total:applyDeals(cart),items:cart,status:'new',location:'Pickup'};
-  db.ref('tickets/'+id).set(t);
-  tickets.push(t);
-  cart=[];saveCart();renderTickets();
-};
-document.getElementById('refreshTicketsBtn').onclick=()=>{renderAdminTickets();renderAdminStock();};
-
-function renderTickets(){
-  const area=document.getElementById('ticketsArea');area.innerHTML='';
-  tickets.forEach(t=>{
-    const div=document.createElement('div');div.className='ticket';
-    div.innerHTML=`
+// --- USER SIDE ---
+function renderTickets() {
+  ticketsArea.innerHTML = '';
+  tickets.forEach(t => {
+    const div = document.createElement('div');
+    div.className = 'ticket';
+    div.id = 'ticket-' + t.id;
+    div.innerHTML = `
       <div class="ticket-entry"><strong>Ticket ${t.id}</strong> @ ${t.location} | Total ${money(t.total)}</div>
       <div id="chat-${t.id}" style="margin-top:6px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
       <div style="margin-top:4px;display:flex;gap:4px">
         <input type="text" placeholder="Message" class="msgInput" style="flex:1">
         <input type="file" class="imgInput" style="flex:1">
         <button class="btn sendBtn">Send</button>
-      </div>`;
-    area.appendChild(div);
+      </div>
+    `;
+    ticketsArea.appendChild(div);
 
-    const chatEl=document.getElementById('chat-'+t.id);
-    db.ref('messages/'+t.id).on('value',snap=>{
-      const msgs=snap.val()||{};
-      chatEl.innerHTML=Object.values(msgs).map(m=>
-        m.image?`<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`
-               :`<div><strong>${m.from}:</strong> ${m.text}</div>`
+    // --- Real-time chat listener for this ticket ---
+    const chatEl = document.getElementById('chat-' + t.id);
+    db.ref('messages/' + t.id).on('value', snap => {
+      const msgs = snap.val() || {};
+      chatEl.innerHTML = Object.values(msgs).map(m =>
+        m.image
+          ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`
+          : `<div><strong>${m.from}:</strong> ${m.text}</div>`
       ).join('');
-      chatEl.scrollTop=chatEl.scrollHeight;
+      chatEl.scrollTop = chatEl.scrollHeight;
     });
 
-    div.querySelector('.sendBtn').onclick=()=>{
-      const textInput=div.querySelector('.msgInput');
-      const fileInput=div.querySelector('.imgInput');
-      const text=textInput.value.trim();
-      const file=fileInput.files[0];
-      if(!text&&!file){alert('Write a message or choose an image');return;}
-      if(file){
-        const reader=new FileReader();
-        reader.onload=e=>{
-          db.ref('messages/'+t.id).push({from:'User',image:e.target.result});
-          fileInput.value='';
+    // --- Send button logic ---
+    div.querySelector('.sendBtn').onclick = () => {
+      const textInput = div.querySelector('.msgInput');
+      const fileInput = div.querySelector('.imgInput');
+      const text = textInput.value.trim();
+      const file = fileInput.files[0];
+
+      if (!text && !file) {
+        alert('Write a message or choose an image first');
+        return;
+      }
+
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          db.ref('messages/' + t.id).push({ from: 'User', image: e.target.result });
+          fileInput.value = '';
         };
         reader.readAsDataURL(file);
       }
-      if(text){
-        db.ref('messages/'+t.id).push({from:'User',text});
-        textInput.value='';
+
+      if (text) {
+        db.ref('messages/' + t.id).push({ from: 'User', text });
+        textInput.value = '';
       }
     };
   });
 }
 
-function renderAdminTickets(){
-  const area=document.getElementById('allTicketsArea');area.innerHTML='';
-  db.ref('tickets').once('value').then(snap=>{
-    const tickets=snap.val()||{};
-    Object.values(tickets).forEach(t=>{
-      const div=document.createElement('div');div.className='ticket';
-      div.innerHTML=`
+// --- ADMIN SIDE ---
+function renderAdminTickets() {
+  const area = document.getElementById('allTicketsArea');
+  area.innerHTML = '';
+
+  db.ref('tickets').once('value').then(snap => {
+    const tickets = snap.val() || {};
+    Object.values(tickets).forEach(t => {
+      const div = document.createElement('div');
+      div.className = 'ticket';
+      div.innerHTML = `
         <div class="ticket-entry"><strong>${t.id}</strong> @ ${t.location} | Total ${money(t.total)} | Status: ${t.status}</div>
         <div id="admin-chat-${t.id}" style="margin-top:4px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
         <div style="margin-top:4px;display:flex;gap:4px">
           <input type="text" placeholder="Message" class="msgInput" style="flex:1">
           <input type="file" class="imgInput" style="flex:1">
           <button class="btn sendBtn">Send</button>
-        </div>`;
+        </div>
+      `;
       area.appendChild(div);
 
-      const chatEl=document.getElementById('admin-chat-'+t.id);
-      db.ref('messages/'+t.id).on('value',snap=>{
-        const msgs=snap.val()||{};
-        chatEl.innerHTML=Object.values(msgs).map(m=>
-          m.image?`<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`
-                 :`<div><strong>${m.from}:</strong> ${m.text}</div>`
+      // --- Real-time chat listener ---
+      const chatEl = document.getElementById('admin-chat-' + t.id);
+      db.ref('messages/' + t.id).on('value', snap => {
+        const msgs = snap.val() || {};
+        chatEl.innerHTML = Object.values(msgs).map(m =>
+          m.image
+            ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`
+            : `<div><strong>${m.from}:</strong> ${m.text}</div>`
         ).join('');
-        chatEl.scrollTop=chatEl.scrollHeight;
+        chatEl.scrollTop = chatEl.scrollHeight;
       });
 
-      div.querySelector('.sendBtn').onclick=()=>{
-        const textInput=div.querySelector('.msgInput');
-        const fileInput=div.querySelector('.imgInput');
-        const text=textInput.value.trim();
-        const file=fileInput.files[0];
-        if(!text&&!file){alert('Write message or choose an image');return;}
-        if(file){
-          const reader=new FileReader();
-          reader.onload=e=>{
-            db.ref('messages/'+t.id).push({from:'Admin',image:e.target.result});
-            fileInput.value='';
+      // --- Send button logic ---
+      div.querySelector('.sendBtn').onclick = () => {
+        const textInput = div.querySelector('.msgInput');
+        const fileInput = div.querySelector('.imgInput');
+        const text = textInput.value.trim();
+        const file = fileInput.files[0];
+
+        if (!text && !file) {
+          alert('Write a message or choose an image first');
+          return;
+        }
+
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = e => {
+            db.ref('messages/' + t.id).push({ from: 'Admin', image: e.target.result });
+            fileInput.value = '';
           };
           reader.readAsDataURL(file);
         }
-        if(text){
-          db.ref('messages/'+t.id).push({from:'Admin',text});
-          textInput.value='';
+
+        if (text) {
+          db.ref('messages/' + t.id).push({ from: 'Admin', text });
+          textInput.value = '';
         }
       };
     });
   });
 }
-
-function renderAdminStock(){
-  const area=document.getElementById('adminStockArea');area.innerHTML='';
-  PRODUCTS.forEach(p=>{
-    const card=document.createElement('div');card.className='card';
-    card.innerHTML=`<h4>${p.name}</h4>`;
-    const stockRef=db.ref('stock/'+p.id);
-    stockRef.once('value').then(snap=>{
-      const stock=snap.val()||{};
-      p.flavors.forEach(f=>{
-        const div=document.createElement('div');div.className='flavor-stock';
-        const chk=document.createElement('input');chk.type='checkbox';chk.checked=(stock[f]!==false);
-        chk.onchange=()=>{stockRef.update({[f]:chk.checked});};
-        div.innerHTML=`<span>${f}</span>`;div.prepend(chk);
-        card.appendChild(div);
-      });
-    });
-    area.appendChild(card);
-  });
-}
-
-loadCart();renderShop();renderCart();renderTickets();renderAdminTickets();renderAdminStock();
 </script>
-</body>
-</html>
-
