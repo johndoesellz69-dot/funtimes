@@ -1,105 +1,104 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+  // Firebase setup
+  const firebaseConfig = {
+    apiKey: "<YOUR_API_KEY>",
+    authDomain: "<YOUR_PROJECT_ID>.firebaseapp.com",
+    databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com/",
+    projectId: "<YOUR_PROJECT_ID>",
+    storageBucket: "<YOUR_PROJECT_ID>.appspot.com",
+    messagingSenderId: "<YOUR_SENDER_ID>",
+    appId: "<YOUR_APP_ID>"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // Products
   const PRODUCTS = [
-    {id:'c1',name:'Edibles',price:20,flavors:['Sour Patch','Skittlez','Swedish Fish','Watermelon','Starburst','Trolli','Peach Rings']},
-    {id:'c2',name:'2G Ghost Disposable Carts',price:40,flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice cream Cake','Black Mamba']}
-  ];
-  const DEALS = [
-    {id:'d1',name:'Buy 2 Edibles Get 1 Free',productId:'c1',required:2,free:1},
-    {id:'d2',name:'Cart Combo Discount',productId:'c2',required:2,discount:10}
+    {id:'c1', name:'Edibles', price:20, flavors:['Sour Patch','Skittlez','Swedish Fish','Watermelon','Starburst','Trolli','Peach Rings']},
+    {id:'c2', name:'2G Ghost Disposable Carts', price:40, flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice cream Cake','Black Mamba']}
   ];
 
-  function uid6(){return Math.random().toString(36).slice(2,8).toUpperCase();}
-  function money(n){return '$'+n.toFixed(2);}
-  let account = localStorage.getItem('eg_account')||'';
+  // Helpers
+  function uid6(){ return Math.random().toString(36).slice(2,8).toUpperCase(); }
+  function money(n){ return '$'+n.toFixed(2); }
+  let account = localStorage.getItem('eg_account') || '';
   const acctEl = document.getElementById('acctCode');
 
-  function getAllCodes(){return JSON.parse(localStorage.getItem('eg_codes')||'[]');}
-  function addCode(c){let arr=getAllCodes();if(!arr.includes(c)){arr.push(c);localStorage.setItem('eg_codes',JSON.stringify(arr));}}
-  function cartKey(acc){return 'eg_cart_'+acc;}
-  function ticketKey(acc){return 'eg_tickets_'+acc;}
+  function getAllCodes(){ return JSON.parse(localStorage.getItem('eg_codes')||'[]'); }
+  function addCode(c){ let arr=getAllCodes(); if(!arr.includes(c)){ arr.push(c); localStorage.setItem('eg_codes',JSON.stringify(arr)); } }
+  function cartKey(acc){ return 'eg_cart_'+acc; }
+  function ticketKey(acc){ return 'eg_tickets_'+acc; }
 
+  // Show main site
   function showMainSite(){
     document.getElementById('loginModal').classList.add('hidden');
     document.getElementById('mainWrap').classList.remove('hidden');
-    document.getElementById('warningModal').classList.remove('hidden');
+    if(!localStorage.getItem('eg_ack')) document.getElementById('warningModal').classList.remove('hidden');
     acctEl.textContent = account;
     initSiteScripts();
   }
 
-  /* Login / Create */
+  // Login / Create
   document.getElementById('loginBtn').onclick = () => {
     const code = document.getElementById('loginCode').value.trim();
-    if(!code){alert('Enter code');return;}
-    if(code==='joeygold54'){showAdmin();return;}
+    if(!code){ alert('Enter code'); return; }
+    if(code==='joeygold54'){ showAdmin(); return; }
     const upper = code.toUpperCase();
-    if(!getAllCodes().includes(upper)){alert('Invalid code');return;}
-    account = upper; localStorage.setItem('eg_account',account);
+    if(!getAllCodes().includes(upper)){ alert('Invalid code'); return; }
+    account = upper;
+    localStorage.setItem('eg_account', account);
     showMainSite();
   };
   document.getElementById('createCodeBtn').onclick = () => {
-    account = uid6(); addCode(account); localStorage.setItem('eg_account',account);
+    account = uid6();
+    addCode(account);
+    localStorage.setItem('eg_account', account);
     alert('New code: '+account);
     showMainSite();
   };
 
-  /* Rules Acknowledgement */
+  // Warning modal
   document.getElementById('ackBtn').onclick = () => {
-    if(!document.getElementById('ackCheck').checked){alert('Confirm rules'); return;}
+    if(!document.getElementById('ackCheck').checked){ alert('Confirm rules'); return; }
     localStorage.setItem('eg_ack','1');
     document.getElementById('warningModal').classList.add('hidden');
   };
 
-  /* First Time Help */
-  document.getElementById('helpBtn').onclick = () => {document.getElementById('helpModal').classList.remove('hidden');};
-  document.getElementById('closeHelp').onclick = () => {document.getElementById('helpModal').classList.add('hidden');};
+  // First time help
+  document.getElementById('helpBtn').onclick = () => document.getElementById('helpModal').classList.remove('hidden');
+  document.getElementById('closeHelp').onclick = () => document.getElementById('helpModal').classList.add('hidden');
 
-  /* About Modal */
-  const aboutModal = document.createElement('div');
-  aboutModal.id = 'aboutModal';
-  aboutModal.className = 'modal-back hidden';
-  aboutModal.innerHTML = `
-    <div class="modal">
-      <h3>About Easy Green</h3>
-      <p>Easy Green is an anonymous cannabis distribution platform prioritizing safety, discretion, and user experience. Enjoy responsibly!</p>
-      <button class="btn" id="closeAbout">Close</button>
-    </div>`;
-  document.body.appendChild(aboutModal);
-  const aboutBtn = document.createElement('button');
-  aboutBtn.className = 'btn ghost';
-  aboutBtn.style.marginLeft = '8px';
-  aboutBtn.textContent = 'About';
-  aboutBtn.onclick = () => {aboutModal.classList.remove('hidden');};
-  document.getElementById('loginModal').querySelector('.modal').appendChild(aboutBtn);
-  document.getElementById('closeAbout').onclick = () => {aboutModal.classList.add('hidden');};
-
-  /* Log Out */
+  // Logout
   document.getElementById('logoutBtn').onclick = () => {
-    localStorage.removeItem('eg_account'); account = '';
+    localStorage.removeItem('eg_account');
+    account = '';
     document.getElementById('mainWrap').classList.add('hidden');
     document.getElementById('loginModal').classList.remove('hidden');
   };
 
-  /* Admin */
-  document.getElementById('closeAdmin').onclick=()=>{document.getElementById('adminScreen').style.display='none';};
-  document.getElementById('refreshTickets').onclick=()=>{renderAdminTickets(); renderAdminStock();};
+  // Admin
+  document.getElementById('closeAdmin').onclick = () => document.getElementById('adminScreen').style.display='none';
+  document.getElementById('refreshTickets').onclick = () => { renderAdminTickets(); renderAdminStock(); };
   function showAdmin(){
     document.getElementById('adminScreen').style.display='block';
-    renderAdminStock(); renderAdminTickets();
+    renderAdminStock();
+    renderAdminTickets();
   }
 
-  /* Site Scripts */
+  // Site scripts
   function initSiteScripts(){
-    const grid=document.getElementById('productsGrid'); grid.innerHTML='';
+    const grid = document.getElementById('productsGrid');
+    grid.innerHTML = '';
     PRODUCTS.forEach(p=>{
-      const el = document.createElement('div'); el.className='product';
+      const el = document.createElement('div');
+      el.className = 'product';
       const stockRef = db.ref('stock/'+p.id);
       stockRef.once('value').then(snap=>{
         const stock = snap.val()||{};
-        el.innerHTML = `
-          <h3>${p.name}</h3>
+        el.innerHTML = `<h3>${p.name}</h3>
           <div class="small">Price: ${money(p.price)}</div>
-          <label>Flavor <select class="flavorSelect">
+          <label>Flavor <select aria-label="flavor-${p.id}" class="flavorSelect">
             ${p.flavors.map(f=>{
               const disabled = stock[f]===false?'disabled class="option-disabled"':'';
               return `<option ${disabled}>${f}</option>`;
@@ -108,62 +107,64 @@ document.addEventListener('DOMContentLoaded', () => {
           <label>Qty<input type="number" min="1" value="1" class="qtyInput" style="width:70px"></label>
           <div style="margin-top:8px"><button class="btn addBtn">Add</button></div>`;
         grid.appendChild(el);
+
         el.querySelector('.addBtn').addEventListener('click',()=>{
           const flavor = el.querySelector('.flavorSelect').value;
           const qty = Number(el.querySelector('.qtyInput').value)||1;
-          if(stock[flavor]===false){alert('Flavor out of stock');return;}
+          if(stock[flavor]===false){ alert('Flavor out of stock'); return; }
           addToCart({productId:p.id,name:p.name,flavor,qty,price:p.price,image:null});
         });
       });
     });
 
+    // Cart & Tickets
     let cart = JSON.parse(localStorage.getItem(cartKey(account))||'[]');
     let tickets = JSON.parse(localStorage.getItem(ticketKey(account))||'[]');
-    const cartList=document.getElementById('cartList');
-    const cartTotalEl=document.getElementById('cartTotal');
-    const ticketsArea=document.getElementById('ticketsArea');
+    const cartList = document.getElementById('cartList');
+    const cartTotalEl = document.getElementById('cartTotal');
+    const ticketsArea = document.getElementById('ticketsArea');
 
-    /* Save / render cart */
-    function saveCart(){localStorage.setItem(cartKey(account),JSON.stringify(cart));renderCart();}
-    function saveTickets(){localStorage.setItem(ticketKey(account),JSON.stringify(tickets));renderTickets();}
-    function addToCart(item){cart.push(item);saveCart();alert('Added to cart');}
+    function saveCart(){ localStorage.setItem(cartKey(account),JSON.stringify(cart)); renderCart(); }
+    function saveTickets(){ localStorage.setItem(ticketKey(account),JSON.stringify(tickets)); renderTickets(); }
+    function addToCart(item){ cart.push(item); saveCart(); alert('Added to cart'); }
 
     function renderCart(){
-      cartList.innerHTML='';
-      if(cart.length===0){cartList.innerHTML='<div class="small">Cart empty.</div>';cartTotalEl.textContent='';return;}
+      cartList.innerHTML = '';
+      if(cart.length===0){ cartList.innerHTML='<div class="small">Cart empty.</div>'; cartTotalEl.textContent=''; return; }
       cart.forEach((it,idx)=>{
-        const div = document.createElement('div'); div.className='cart-item';
-        div.innerHTML = `<div><div style="font-weight:600">${it.name} ×${it.qty}</div><div class="small">${it.flavor}</div></div>
-          <div style="text-align:right"><div>${money(it.price*it.qty)}</div>
-          <div style="margin-top:6px"><button class="btn ghost" data-i="${idx}">Remove</button></div></div>`;
+        const div = document.createElement('div');
+        div.className='cart-item';
+        div.innerHTML=`<div><div style="font-weight:600">${it.name} ×${it.qty}</div><div class="small">${it.flavor}</div>${it.image?'<img src="'+it.image+'" style="width:60px;margin-top:4px;border-radius:6px">':''}</div>
+          <div style="text-align:right"><div>${money(it.price*it.qty)}</div><div style="margin-top:6px"><button class="btn ghost" data-i="${idx}">Remove</button></div></div>`;
         cartList.appendChild(div);
-        div.querySelector('button').addEventListener('click',(e)=>{cart.splice(Number(e.target.dataset.i),1);saveCart();});
+        div.querySelector('button').addEventListener('click',(e)=>{ cart.splice(Number(e.target.dataset.i),1); saveCart(); });
       });
-      let total = cart.reduce((s,i)=>s+i.price*i.qty,0);
-      cartTotalEl.textContent=`Total: ${money(total)}`;
+      const total = cart.reduce((s,i)=>s+i.price*i.qty,0);
+      cartTotalEl.textContent = `Total: ${money(total)}`;
     }
 
-    document.getElementById('purchaseBtn').addEventListener('click',()=>{
-      if(cart.length===0){alert('Cart empty');return;}
+    document.getElementById('purchaseBtn').onclick=()=>{
+      if(cart.length===0){ alert('Cart empty'); return; }
       const loc = document.getElementById('locationSelect').value;
       const tid = 'T-'+Math.random().toString(36).slice(2,8).toUpperCase();
       const items = JSON.parse(JSON.stringify(cart));
-      let total = items.reduce((s,i)=>s+i.price*i.qty,0);
+      const total = items.reduce((s,i)=>s+i.price*i.qty,0);
       const ticket = {id:tid,account,location:loc,items,total,status:'open',messages:[{from:'System',text:`Ticket created. Total ${money(total)}. Hide payment at ${loc}.`} ]};
       db.ref('tickets/'+tid).set(ticket);
       db.ref('messages/'+tid).set(ticket.messages);
       tickets.push(ticket); saveTickets();
-      cart=[]; saveCart();
-    });
+      cart = []; saveCart();
+    };
 
-    document.getElementById('clearBtn').onclick=()=>{cart=[];saveCart();};
+    document.getElementById('clearBtn').onclick = ()=>{ cart=[]; saveCart(); };
 
-    /* Render tickets */
     function renderTickets(){
-      ticketsArea.innerHTML='';
+      ticketsArea.innerHTML = '';
       tickets.forEach(t=>{
-        const div=document.createElement('div'); div.className='ticket'; div.id='ticket-'+t.id;
-        div.innerHTML = `<div class="ticket-entry"><strong>Ticket ${t.id}</strong> @ ${t.location} | Total ${money(t.total)}</div>
+        const div = document.createElement('div');
+        div.className='ticket';
+        div.id='ticket-'+t.id;
+        div.innerHTML=`<div class="ticket-entry"><strong>Ticket ${t.id}</strong> @ ${t.location} | Total ${money(t.total)}</div>
           <div id="chat-${t.id}" style="margin-top:6px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
           <div style="margin-top:4px;display:flex;gap:4px">
             <input type="text" placeholder="Message" class="msgInput" style="flex:1">
@@ -171,21 +172,24 @@ document.addEventListener('DOMContentLoaded', () => {
             <button class="btn sendBtn">Send</button>
           </div>`;
         ticketsArea.appendChild(div);
-
-        const chatEl = document.getElementById('chat-'+t.id);
+        const chatEl=document.getElementById('chat-'+t.id);
         db.ref('messages/'+t.id).on('value',snap=>{
-          const msgs = snap.val()||[];
-          chatEl.innerHTML = msgs.map(m=>m.image?`<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`:`<div><strong>${m.from}:</strong> ${m.text}</div>`).join('');
+          const msgs=snap.val()||[];
+          chatEl.innerHTML=msgs.map(m=>m.image?`<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`:`<div><strong>${m.from}:</strong> ${m.text}</div>`).join('');
           chatEl.scrollTop = chatEl.scrollHeight;
         });
 
-        div.querySelector('.sendBtn').onclick = () => {
+        div.querySelector('.sendBtn').onclick=()=>{
           const text = div.querySelector('.msgInput').value.trim();
           const file = div.querySelector('.imgInput').files[0];
-          if(!text && !file){alert('Write message or choose image');return;}
+          if(!text && !file){ alert('Write message or choose image'); return; }
           if(file){
             const reader = new FileReader();
-            reader.onload = e => { db.ref('messages/'+t.id).push({from:'User',image:e.target.result}); div.querySelector('.imgInput').value=''; };
+            reader.onload=e=>{
+              const msg = {from:'User',image:e.target.result};
+              db.ref('messages/'+t.id).push(msg);
+              div.querySelector('.imgInput').value='';
+            };
             reader.readAsDataURL(file);
           }
           if(text){ db.ref('messages/'+t.id).push({from:'User',text}); div.querySelector('.msgInput').value=''; }
@@ -193,10 +197,64 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    renderCart();
-    renderTickets();
+    renderCart(); renderTickets();
   }
 
-  /* Admin functions (unchanged from your previous code) */
+  // Admin renders
+  function renderAdminTickets(){
+    const area=document.getElementById('allTicketsArea'); area.innerHTML='';
+    db.ref('tickets').once('value').then(snap=>{
+      const tickets = snap.val()||{};
+      Object.values(tickets).forEach(t=>{
+        const div=document.createElement('div'); div.className='ticket'; div.style.marginBottom='6px';
+        div.innerHTML=`<div class="ticket-entry"><strong>${t.id}</strong> @ ${t.location} | Total ${money(t.total)} | Status: ${t.status}</div>
+          <div id="admin-chat-${t.id}" style="margin-top:4px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
+          <div style="margin-top:4px;display:flex;gap:4px">
+            <input type="text" placeholder="Message" class="msgInput" style="flex:1">
+            <input type="file" class="imgInput" style="flex:1">
+            <button class="btn sendBtn">Send</button>
+          </div>`;
+        area.appendChild(div);
+        const chatEl = document.getElementById('admin-chat-'+t.id);
+        db.ref('messages/'+t.id).on('value',snap=>{
+          const msgs = snap.val()||[];
+          chatEl.innerHTML=msgs.map(m=>m.image?`<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`:`<div><strong>${m.from}:</strong> ${m.text}</div>`).join('');
+          chatEl.scrollTop=chatEl.scrollHeight;
+        });
+        div.querySelector('.sendBtn').onclick=()=>{
+          const text=div.querySelector('.msgInput').value.trim();
+          const file=div.querySelector('.imgInput').files[0];
+          if(!text && !file){ alert('Write message or choose image'); return; }
+          if(file){
+            const reader=new FileReader();
+            reader.onload=e=>{ db.ref('messages/'+t.id).push({from:'Admin',image:e.target.result}); div.querySelector('.imgInput').value=''; };
+            reader.readAsDataURL(file);
+          }
+          if(text){ db.ref('messages/'+t.id).push({from:'Admin',text}); div.querySelector('.msgInput').value=''; }
+        };
+      });
+    });
+  }
+
+  function renderAdminStock(){
+    const area=document.getElementById('adminStockArea'); area.innerHTML='';
+    PRODUCTS.forEach(p=>{
+      const card=document.createElement('div'); card.className='card'; card.style.marginBottom='6px';
+      card.innerHTML=`<h4>${p.name}</h4>`;
+      const stockRef=db.ref('stock/'+p.id);
+      stockRef.once('value').then(snap=>{
+        const stock = snap.val()||{};
+        p.flavors.forEach(f=>{
+          const div=document.createElement('div'); div.className='flavor-stock';
+          const val = (stock[f]!==false);
+          const chk = document.createElement('input'); chk.type='checkbox'; chk.checked = val;
+          chk.onchange=()=>{ stockRef.update({[f]:chk.checked}); };
+          div.innerHTML=`<span>${f}</span>`; div.prepend(chk);
+          card.appendChild(div);
+        });
+      });
+      area.appendChild(card);
+    });
+  }
 });
 </script>
