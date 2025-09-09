@@ -1,166 +1,251 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Easy Green User</title>
+  <meta charset="UTF-8">
+  <title>Easy Green</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
-    .chat-container { display: flex; height: 100vh; }
-    .sidebar {
-      width: 250px;
-      background: #2f9c4a;
-      color: white;
-      padding: 20px;
-      box-sizing: border-box;
-    }
-    .main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
-    .messages {
-      flex: 1;
-      padding: 10px;
-      overflow-y: auto;
-      border-bottom: 1px solid #ccc;
-    }
-    .input-box {
-      display: flex;
-      padding: 10px;
-    }
-    .input-box input[type="text"] {
-      flex: 1;
-      padding: 10px;
-      margin-right: 10px;
-    }
-    .input-box button { padding: 10px; margin-left: 5px; }
-    .deal-box {
-      margin-top: 20px;
-      padding: 10px;
-      background: white;
-      color: black;
-      border-radius: 5px;
-    }
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0; top: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.6);
-    }
-    .modal-content {
-      background: white;
-      margin: 10% auto;
-      padding: 20px;
-      width: 80%;
-      max-width: 600px;
-      border-radius: 10px;
-    }
-    .close {
-      float: right;
-      font-size: 20px;
-      cursor: pointer;
-    }
-    .ticket-actions {
-      display: flex;
-      justify-content: space-between;
-      padding: 10px;
-      border-top: 1px solid #ccc;
-    }
-    .ticket-actions button {
-      padding: 10px;
-      flex: 1;
-      margin: 0 5px;
-    }
+    body { font-family: Arial, sans-serif; margin:0; display:flex; }
+    #sidebar { width:220px; background:#f4f4f4; padding:12px; border-right:1px solid #ddd; }
+    #main { flex:1; padding:12px; }
+    .card { border:1px solid #ccc; border-radius:6px; padding:10px; margin:6px 0; }
+    .btn { background:#2f9c4a; color:#fff; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; }
+    .ticket { border:1px solid #ddd; padding:6px; margin:6px 0; border-radius:6px; }
+    .ticket-entry { font-size:14px; margin-bottom:4px; }
+    .flavor-stock { display:flex; align-items:center; gap:6px; }
   </style>
 </head>
 <body>
-  <div class="chat-container">
-    <div class="sidebar">
-      <h2>Easy Green</h2>
-      <button onclick="openAbout()">About Easy Green</button>
-      <div class="deal-box">
-        <h3>Deals</h3>
-        <p>Buy 3 edibles, get 1 free</p>
-        <p>Buy 1 cart, get $10 off second</p>
-      </div>
-    </div>
-    <div class="main">
-      <div class="messages" id="messages"></div>
-      <div class="input-box">
-        <input type="text" id="messageInput" placeholder="Type your message..." />
-        <button onclick="sendMessage()">Send</button>
-      </div>
-      <div class="ticket-actions">
-        <button onclick="cancelTicket()">Cancel Ticket</button>
-        <button onclick="markPaid()">Mark Paid</button>
-      </div>
-    </div>
+  <!-- Deals Sidebar -->
+  <div id="sidebar">
+    <h3>Deals</h3>
+    <ul>
+      <li>🍬 Buy 3 edibles → get 1 free</li>
+      <li>💨 Buy 1 cart → 2nd cart $10 off</li>
+    </ul>
   </div>
 
-  <!-- About Easy Green Modal -->
-  <div id="aboutModal" class="modal">
-    <div class="modal-content">
-      <span class="close" onclick="closeAbout()">&times;</span>
-      <h2>About Easy Green</h2>
-      <p>
-        Welcome to Easy Green — your trusted, 100% anonymous local cannabis connection.
-      </p>
-      <p>
-        We understand that not everyone feels comfortable meeting a random plug face-to-face, nor does everyone have easy access to a dispensary. That’s why we created Easy Green: a safe, simple, and discreet way to access cannabis without compromising your privacy.
-      </p>
-      <p>
-        Our exchange system allows you to choose a convenient pickup location near you in <b>Arlington Heights</b>, serving both local residents and those nearby.
-      </p>
-      <p>
-        At Easy Green, we believe cannabis should be affordable and accessible to everyone. That’s why we offer unbeatable prices and exclusive deals, such as:
-      </p>
-      <ul>
-        <li><b>Buy 3 edibles, get 1 free</b></li>
-        <li><b>Buy 1 cart, get $10 off your second</b></li>
-      </ul>
-      <p>
-        We’re continuously expanding our product selection and exchange locations to serve you better. In the future, you can look forward to new additions like flower (buds) and other cannabis-related items.
-      </p>
-      <p>
-        We also value our community. Share Easy Green with your friends and send us proof of referrals on Snapchat for a chance to win free products! Every verified referral purchase equals <b>one entry</b> into our monthly raffle giveaway.
-      </p>
-      <p>
-        Experience convenience, affordability, and privacy — only with Easy Green.
-      </p>
-    </div>
+  <!-- Main Content -->
+  <div id="main">
+    <h2>Easy Green Shop</h2>
+    <div id="shopArea"></div>
+    <h3>Your Cart</h3>
+    <div id="cartArea"></div>
+    <button id="checkoutBtn" class="btn">Checkout</button>
+
+    <h3>Your Tickets</h3>
+    <div id="ticketsArea"></div>
+
+    <hr>
+    <h2>Admin Panel</h2>
+    <button id="refreshTicketsBtn" class="btn">Refresh Tickets</button>
+    <div id="allTicketsArea"></div>
+
+    <h3>Manage Stock</h3>
+    <div id="adminStockArea"></div>
   </div>
 
-  <script>
-    // About Easy Green modal functions
-    function openAbout() {
-      document.getElementById('aboutModal').style.display = 'block';
-    }
-    function closeAbout() {
-      document.getElementById('aboutModal').style.display = 'none';
-    }
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
+  authDomain: "easy-green-website.firebaseapp.com",
+  databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com",
+  projectId: "easy-green-website",
+  storageBucket: "easy-green-website.firebasestorage.app",
+  messagingSenderId: "988776675269",
+  appId: "1:988776675269:web:f2245f84a726d01f3e3dac",
+  measurementId: "G-PR35QWS2T6"
+};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
 
-    // Chat functionality (placeholder)
-    function sendMessage() {
-      const input = document.getElementById('messageInput');
-      const message = input.value.trim();
-      if (message === '') return;
-      const msgBox = document.createElement('div');
-      msgBox.textContent = "You: " + message;
-      document.getElementById('messages').appendChild(msgBox);
-      input.value = '';
-    }
+const PRODUCTS=[
+  {id:'edible',name:'Edible',price:20,flavors:['Gummy','Brownie']},
+  {id:'cart',name:'Cart',price:40,flavors:['Sour Diesel','OG Kush']},
+  {id:'bud',name:'Bud',price:30,flavors:['Indica','Sativa']}
+];
 
-    // Ticket action placeholders
-    function cancelTicket() {
-      alert("Ticket canceled (this will hook into Firebase).");
-    }
+let cart=[];let tickets=[];
 
-    function markPaid() {
-      alert("Ticket marked as paid (this will hook into Firebase).");
-    }
-  </script>
+function money(v){return '$'+v.toFixed(2);}
+
+function renderShop(){
+  const area=document.getElementById('shopArea');area.innerHTML='';
+  PRODUCTS.forEach(p=>{
+    const card=document.createElement('div');card.className='card';
+    card.innerHTML=`<h4>${p.name} - ${money(p.price)}</h4>`;
+    p.flavors.forEach(f=>{
+      const btn=document.createElement('button');btn.className='btn';
+      btn.innerText='Add '+f;
+      btn.onclick=()=>{cart.push({product:p.id,flavor:f,price:p.price});saveCart();};
+      card.appendChild(btn);
+    });
+    area.appendChild(card);
+  });
+}
+function saveCart(){localStorage.setItem('cart',JSON.stringify(cart));renderCart();}
+function loadCart(){cart=JSON.parse(localStorage.getItem('cart')||'[]');}
+
+function applyDeals(items){
+  let total=0;
+  const edibleItems=items.filter(i=>i.product==='edible');
+  const cartItems=items.filter(i=>i.product==='cart');
+
+  // Normal sum
+  items.forEach(i=>total+=i.price);
+
+  // Deal 1: Buy 3 edibles get 1 free
+  if(edibleItems.length>=4){
+    const freeCount=Math.floor(edibleItems.length/4);
+    total -= freeCount*20; // each edible = $20
+  }
+
+  // Deal 2: Buy 1 cart → 2nd cart $10 off
+  if(cartItems.length>=2){
+    const discount=Math.floor(cartItems.length/2)*10;
+    total-=discount;
+  }
+  return total;
+}
+
+function renderCart(){
+  const area=document.getElementById('cartArea');area.innerHTML='';
+  cart.forEach((c,i)=>{
+    const div=document.createElement('div');div.innerText=c.product+' - '+c.flavor+' - '+money(c.price);
+    area.appendChild(div);
+  });
+  const total=applyDeals(cart);
+  const totalDiv=document.createElement('div');totalDiv.innerHTML='<strong>Total: '+money(total)+'</strong>';
+  area.appendChild(totalDiv);
+}
+document.getElementById('checkoutBtn').onclick=()=>{
+  if(cart.length===0)return alert('Cart empty');
+  const id=db.ref().child('tickets').push().key;
+  const t={id,total:applyDeals(cart),items:cart,status:'new',location:'Pickup'};
+  db.ref('tickets/'+id).set(t);
+  tickets.push(t);
+  cart=[];saveCart();renderTickets();
+};
+document.getElementById('refreshTicketsBtn').onclick=()=>{renderAdminTickets();renderAdminStock();};
+
+function renderTickets(){
+  const area=document.getElementById('ticketsArea');area.innerHTML='';
+  tickets.forEach(t=>{
+    const div=document.createElement('div');div.className='ticket';
+    div.innerHTML=`
+      <div class="ticket-entry"><strong>Ticket ${t.id}</strong> @ ${t.location} | Total ${money(t.total)}</div>
+      <div id="chat-${t.id}" style="margin-top:6px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
+      <div style="margin-top:4px;display:flex;gap:4px">
+        <input type="text" placeholder="Message" class="msgInput" style="flex:1">
+        <input type="file" class="imgInput" style="flex:1">
+        <button class="btn sendBtn">Send</button>
+      </div>`;
+    area.appendChild(div);
+
+    const chatEl=document.getElementById('chat-'+t.id);
+    db.ref('messages/'+t.id).on('value',snap=>{
+      const msgs=snap.val()||{};
+      chatEl.innerHTML=Object.values(msgs).map(m=>
+        m.image?`<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`
+               :`<div><strong>${m.from}:</strong> ${m.text}</div>`
+      ).join('');
+      chatEl.scrollTop=chatEl.scrollHeight;
+    });
+
+    div.querySelector('.sendBtn').onclick=()=>{
+      const textInput=div.querySelector('.msgInput');
+      const fileInput=div.querySelector('.imgInput');
+      const text=textInput.value.trim();
+      const file=fileInput.files[0];
+      if(!text&&!file){alert('Write a message or choose an image');return;}
+      if(file){
+        const reader=new FileReader();
+        reader.onload=e=>{
+          db.ref('messages/'+t.id).push({from:'User',image:e.target.result});
+          fileInput.value='';
+        };
+        reader.readAsDataURL(file);
+      }
+      if(text){
+        db.ref('messages/'+t.id).push({from:'User',text});
+        textInput.value='';
+      }
+    };
+  });
+}
+
+function renderAdminTickets(){
+  const area=document.getElementById('allTicketsArea');area.innerHTML='';
+  db.ref('tickets').once('value').then(snap=>{
+    const tickets=snap.val()||{};
+    Object.values(tickets).forEach(t=>{
+      const div=document.createElement('div');div.className='ticket';
+      div.innerHTML=`
+        <div class="ticket-entry"><strong>${t.id}</strong> @ ${t.location} | Total ${money(t.total)} | Status: ${t.status}</div>
+        <div id="admin-chat-${t.id}" style="margin-top:4px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
+        <div style="margin-top:4px;display:flex;gap:4px">
+          <input type="text" placeholder="Message" class="msgInput" style="flex:1">
+          <input type="file" class="imgInput" style="flex:1">
+          <button class="btn sendBtn">Send</button>
+        </div>`;
+      area.appendChild(div);
+
+      const chatEl=document.getElementById('admin-chat-'+t.id);
+      db.ref('messages/'+t.id).on('value',snap=>{
+        const msgs=snap.val()||{};
+        chatEl.innerHTML=Object.values(msgs).map(m=>
+          m.image?`<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`
+                 :`<div><strong>${m.from}:</strong> ${m.text}</div>`
+        ).join('');
+        chatEl.scrollTop=chatEl.scrollHeight;
+      });
+
+      div.querySelector('.sendBtn').onclick=()=>{
+        const textInput=div.querySelector('.msgInput');
+        const fileInput=div.querySelector('.imgInput');
+        const text=textInput.value.trim();
+        const file=fileInput.files[0];
+        if(!text&&!file){alert('Write message or choose an image');return;}
+        if(file){
+          const reader=new FileReader();
+          reader.onload=e=>{
+            db.ref('messages/'+t.id).push({from:'Admin',image:e.target.result});
+            fileInput.value='';
+          };
+          reader.readAsDataURL(file);
+        }
+        if(text){
+          db.ref('messages/'+t.id).push({from:'Admin',text});
+          textInput.value='';
+        }
+      };
+    });
+  });
+}
+
+function renderAdminStock(){
+  const area=document.getElementById('adminStockArea');area.innerHTML='';
+  PRODUCTS.forEach(p=>{
+    const card=document.createElement('div');card.className='card';
+    card.innerHTML=`<h4>${p.name}</h4>`;
+    const stockRef=db.ref('stock/'+p.id);
+    stockRef.once('value').then(snap=>{
+      const stock=snap.val()||{};
+      p.flavors.forEach(f=>{
+        const div=document.createElement('div');div.className='flavor-stock';
+        const chk=document.createElement('input');chk.type='checkbox';chk.checked=(stock[f]!==false);
+        chk.onchange=()=>{stockRef.update({[f]:chk.checked});};
+        div.innerHTML=`<span>${f}</span>`;div.prepend(chk);
+        card.appendChild(div);
+      });
+    });
+    area.appendChild(card);
+  });
+}
+
+loadCart();renderShop();renderCart();renderTickets();renderAdminTickets();renderAdminStock();
+</script>
 </body>
 </html>
 
