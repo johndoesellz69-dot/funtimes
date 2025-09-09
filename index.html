@@ -1,17 +1,4 @@
 <script>
-// Firebase setup
-const firebaseConfig = {
-  apiKey: "<YOUR_API_KEY>",
-  authDomain: "<YOUR_PROJECT_ID>.firebaseapp.com",
-  databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com/",
-  projectId: "<YOUR_PROJECT_ID>",
-  storageBucket: "<YOUR_PROJECT_ID>.appspot.com",
-  messagingSenderId: "<YOUR_SENDER_ID>",
-  appId: "<YOUR_APP_ID>"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
 document.addEventListener('DOMContentLoaded', () => {
   const PRODUCTS = [
     {id:'c1',name:'Edibles',price:20,flavors:['Sour Patch','Skittlez','Swedish Fish','Watermelon','Starburst','Trolli','Peach Rings']},
@@ -28,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const acctEl = document.getElementById('acctCode');
 
   function getAllCodes(){return JSON.parse(localStorage.getItem('eg_codes')||'[]');}
-  function addCode(c){let arr=getAllCodes(); if(!arr.includes(c)){arr.push(c); localStorage.setItem('eg_codes',JSON.stringify(arr));}}
+  function addCode(c){let arr=getAllCodes();if(!arr.includes(c)){arr.push(c);localStorage.setItem('eg_codes',JSON.stringify(arr));}}
   function cartKey(acc){return 'eg_cart_'+acc;}
   function ticketKey(acc){return 'eg_tickets_'+acc;}
 
@@ -74,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
   aboutModal.innerHTML = `
     <div class="modal">
       <h3>About Easy Green</h3>
-      <p>Easy Green is an anonymous cannabis distribution platform prioritizing safety, discretion, and user experience. Enjoy your products responsibly!</p>
+      <p>Easy Green is an anonymous cannabis distribution platform prioritizing safety, discretion, and user experience. Enjoy responsibly!</p>
       <button class="btn" id="closeAbout">Close</button>
     </div>`;
   document.body.appendChild(aboutModal);
@@ -121,7 +108,6 @@ document.addEventListener('DOMContentLoaded', () => {
           <label>Qty<input type="number" min="1" value="1" class="qtyInput" style="width:70px"></label>
           <div style="margin-top:8px"><button class="btn addBtn">Add</button></div>`;
         grid.appendChild(el);
-
         el.querySelector('.addBtn').addEventListener('click',()=>{
           const flavor = el.querySelector('.flavorSelect').value;
           const qty = Number(el.querySelector('.qtyInput').value)||1;
@@ -136,13 +122,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const cartList=document.getElementById('cartList');
     const cartTotalEl=document.getElementById('cartTotal');
     const ticketsArea=document.getElementById('ticketsArea');
-    const dealsArea = document.createElement('aside');
-    dealsArea.className='card'; dealsArea.innerHTML='<h2>Deals</h2><div id="dealsList"></div>';
-    document.querySelector('.grid').appendChild(dealsArea);
 
+    /* Save / render cart */
     function saveCart(){localStorage.setItem(cartKey(account),JSON.stringify(cart));renderCart();}
     function saveTickets(){localStorage.setItem(ticketKey(account),JSON.stringify(tickets));renderTickets();}
-
     function addToCart(item){cart.push(item);saveCart();alert('Added to cart');}
 
     function renderCart(){
@@ -158,14 +141,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       let total = cart.reduce((s,i)=>s+i.price*i.qty,0);
       cartTotalEl.textContent=`Total: ${money(total)}`;
-
-      // Render deals based on cart
-      const dealsList = document.getElementById('dealsList'); dealsList.innerHTML='';
-      DEALS.forEach(d=>{
-        const qty = cart.filter(c=>c.productId===d.productId).reduce((s,i)=>s+i.qty,0);
-        if(d.free && qty>=d.required){dealsList.innerHTML += `<div>${d.name} applied! Get ${d.free} free!</div>`;}
-        if(d.discount && qty>=d.required){dealsList.innerHTML += `<div>${d.name} applied! ${money(d.discount)} off!</div>`;}
-      });
     }
 
     document.getElementById('purchaseBtn').addEventListener('click',()=>{
@@ -174,19 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const tid = 'T-'+Math.random().toString(36).slice(2,8).toUpperCase();
       const items = JSON.parse(JSON.stringify(cart));
       let total = items.reduce((s,i)=>s+i.price*i.qty,0);
-
-      // Apply deals discounts
-      DEALS.forEach(d=>{
-        const qty = items.filter(c=>c.productId===d.productId).reduce((s,i)=>s+i.qty,0);
-        if(d.free && qty>=d.required){
-          total -= items.filter(c=>c.productId===d.productId)[0].price*d.free;
-        }
-        if(d.discount && qty>=d.required){total -= d.discount;}
-      });
-
-      const ticket = {id:tid,account,location:loc,items,total,status:'open',
-        messages:[{from:'System',text:`Ticket created. Total ${money(total)}. Hide payment at ${loc}.`} ]
-      };
+      const ticket = {id:tid,account,location:loc,items,total,status:'open',messages:[{from:'System',text:`Ticket created. Total ${money(total)}. Hide payment at ${loc}.`} ]};
       db.ref('tickets/'+tid).set(ticket);
       db.ref('messages/'+tid).set(ticket.messages);
       tickets.push(ticket); saveTickets();
@@ -195,10 +158,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('clearBtn').onclick=()=>{cart=[];saveCart();};
 
+    /* Render tickets */
     function renderTickets(){
       ticketsArea.innerHTML='';
       tickets.forEach(t=>{
-        const div = document.createElement('div'); div.className='ticket'; div.id='ticket-'+t.id;
+        const div=document.createElement('div'); div.className='ticket'; div.id='ticket-'+t.id;
         div.innerHTML = `<div class="ticket-entry"><strong>Ticket ${t.id}</strong> @ ${t.location} | Total ${money(t.total)}</div>
           <div id="chat-${t.id}" style="margin-top:6px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
           <div style="margin-top:4px;display:flex;gap:4px">
@@ -221,16 +185,10 @@ document.addEventListener('DOMContentLoaded', () => {
           if(!text && !file){alert('Write message or choose image');return;}
           if(file){
             const reader = new FileReader();
-            reader.onload = e => {
-              db.ref('messages/'+t.id).push({from:'User',image:e.target.result});
-              div.querySelector('.imgInput').value='';
-            };
+            reader.onload = e => { db.ref('messages/'+t.id).push({from:'User',image:e.target.result}); div.querySelector('.imgInput').value=''; };
             reader.readAsDataURL(file);
           }
-          if(text){
-            db.ref('messages/'+t.id).push({from:'User',text});
-            div.querySelector('.msgInput').value='';
-          }
+          if(text){ db.ref('messages/'+t.id).push({from:'User',text}); div.querySelector('.msgInput').value=''; }
         };
       });
     }
@@ -239,7 +197,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTickets();
   }
 
-  /* Admin functions (tickets + stock) same as your previous code, unchanged */
-
+  /* Admin functions (unchanged from your previous code) */
 });
 </script>
