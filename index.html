@@ -177,12 +177,9 @@ const db = firebase.database();
 </script>
 
 <script>
-// Full original script with **only chat fix applied**
+// Full script with admin tickets & chat fix
 document.addEventListener('DOMContentLoaded', () => {
-  const PRODUCTS=[
-    {id:'c1',name:'Edibles',price:20,flavors:['Sour Patch','Skittlez','Swedish Fish','Watermelon','Starburst','Trolli','Peach Rings']},
-    {id:'c2',name:'2G Ghost Disposable Carts',price:40,flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice cream Cake','Black Mamba']},
-  ];
+  const PRODUCTS=[{id:'c1',name:'Edibles',price:20,flavors:['Sour Patch','Skittlez','Swedish Fish','Watermelon','Starburst','Trolli','Peach Rings']},{id:'c2',name:'2G Ghost Disposable Carts',price:40,flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice cream Cake','Black Mamba']}];
   function uid6(){return Math.random().toString(36).slice(2,8).toUpperCase();}
   function money(n){return '$'+n.toFixed(2);}
   let account=localStorage.getItem('eg_account')||'';
@@ -325,8 +322,10 @@ document.addEventListener('DOMContentLoaded', () => {
   /* Admin helpers */
   function renderAdminTickets(){
     const area=document.getElementById('allTicketsArea');area.innerHTML='';
-    db.ref('tickets').once('value').then(snap=>{
++   // <- Changed once() to on() for live & existing tickets
+    db.ref('tickets').on('value',snap=>{
       const tickets=snap.val()||{};
+      area.innerHTML='';
       Object.values(tickets).forEach(t=>{
         const div=document.createElement('div');div.className='ticket';div.style.marginBottom='6px';
         div.innerHTML=`<div class="ticket-entry"><strong>${t.id}</strong> @ ${t.location} | Total ${money(t.total)} | Status: ${t.status}</div>
@@ -376,8 +375,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Start login if not admin code
-if(localStorage.getItem('eg_account') && localStorage.getItem('eg_account')!=='joeygold54'){document.addEventListener('DOMContentLoaded',()=>{document.getElementById('loginModal').classList.add('hidden');document.getElementById('mainWrap').classList.remove('hidden');initSiteScripts();});}
+if(localStorage.getItem('eg_account') && localStorage.getItem('eg_account')!=='joeygold54'){
+  document.addEventListener('DOMContentLoaded',()=>{
+    document.getElementById('loginModal').classList.add('hidden');
+    document.getElementById('mainWrap').classList.remove('hidden');
+    initSiteScripts();
+  });
+}
 </script>
 </body>
 </html>
+
 
