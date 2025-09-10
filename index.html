@@ -26,7 +26,7 @@ select,input[type="number"],input[type="file"]{padding:6px;border-radius:8px;bor
 .cart-item{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #eee}
 .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:1000}
 .modal{width:100%;max-width:760px;background:white;padding:16px;border-radius:12px}
-.ticket{background:#fbfff9;border:1px dashed #e6f4ea;padding:10px;border-radius:8px;margin-bottom:8px}
+.ticket{background:#fbfff9;border:1px dashed #e6f4ea;padding:10px;border-radius:8px;margin-bottom:6px}
 .ticket-entry{margin-bottom:8px}
 footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 .hidden{display:none !important;}
@@ -34,7 +34,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 #adminScreen h2{margin-top:0;color:var(--accent)}
 .flavor-stock{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
 .flavor-stock span{font-size:.88rem}
-.imgInput{margin-left:6px}
 </style>
 </head>
 <body>
@@ -43,13 +42,9 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   <div class="modal">
     <h3>Login</h3>
     <div style="margin-bottom:12px">
-      <label>Enter your login code or Create Account if new:
-        <input type="text" id="loginCode">
-      </label>
+      <label>Enter your login code or Create Account if new: <input type="text" id="loginCode"></label>
     </div>
-    <div style="margin-bottom:12px">
-      or <button class="btn" id="createCodeBtn">Create new code</button>
-    </div>
+    <div style="margin-bottom:12px">or <button class="btn" id="createCodeBtn">Create new code</button></div>
     <div style="display:flex;justify-content:flex-end;gap:8px">
       <button class="btn" id="loginBtn">Login</button>
     </div>
@@ -131,7 +126,7 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
       </div>
     </aside>
   </div>
-  <footer>Easy Green only accepts cash payments.</footer>
+  <footer> Easy Green only accepts cash payments. </footer>
 </div>
 
 <!-- Admin Screen -->
@@ -165,7 +160,6 @@ const storage = firebase.storage();
 </script>
 
 <script>
-/* === USER SIDE === */
 let currentUser = null;
 let cart = [];
 
@@ -182,18 +176,15 @@ document.getElementById('loginBtn').onclick = () => {
   const code = document.getElementById('loginCode').value.trim();
   if(!code) return alert('Enter a code');
   currentUser = code;
-
-  // admin login
-  if(code==='joeygold54'){
-    document.getElementById('loginModal').classList.add('hidden');
-    document.getElementById('adminScreen').style.display='block';
-    renderAdminTickets();
-    return;
-  }
-
   document.getElementById('acctCode').innerText = code;
   document.getElementById('loginModal').classList.add('hidden');
-  document.getElementById('warningModal').classList.remove('hidden');
+
+  if(currentUser === 'joeygold54'){
+    document.getElementById('adminScreen').style.display = 'block';
+    renderTickets();
+  } else {
+    document.getElementById('warningModal').classList.remove('hidden');
+  }
 };
 
 // warning modal
@@ -205,162 +196,136 @@ document.getElementById('ackBtn').onclick = () => {
   renderProducts();
 };
 
-document.getElementById('closeHelp').onclick = ()=>document.getElementById('helpModal').classList.add('hidden');
-document.getElementById('helpBtn').onclick = ()=>document.getElementById('helpModal').classList.remove('hidden');
-document.getElementById('logoutBtn').onclick = ()=>location.reload();
-document.getElementById('clearBtn').onclick = ()=>{cart=[];renderCart();};
+document.getElementById('closeHelp').onclick = () => document.getElementById('helpModal').classList.add('hidden');
+document.getElementById('helpBtn').onclick = () => document.getElementById('helpModal').classList.remove('hidden');
+document.getElementById('logoutBtn').onclick = () => location.reload();
+document.getElementById('clearBtn').onclick = () => { cart = []; renderCart(); };
 
 // render products
 function renderProducts(){
   const grid = document.getElementById('productsGrid');
-  grid.innerHTML='';
-  const sample = [{id:'bud1',name:'OG Kush',price:50},{id:'cart1',name:'Ghost Cart',price:35}];
+  grid.innerHTML = '';
+  const sample = [
+    {id:'bud1',name:'OG Kush',price:50},
+    {id:'cart1',name:'Ghost Cart',price:35}
+  ];
   sample.forEach(p=>{
-    const div = document.createElement('div');
+    const div=document.createElement('div');
     div.className='product';
-    div.innerHTML = `<h3>${p.name}</h3><div>$${p.price}</div><button class="btn">Add</button>`;
-    div.querySelector('button').onclick=()=>{cart.push(p);renderCart();};
+    div.innerHTML = `<h3>${p.name}</h3><div>$${p.price}</div>
+      <select>
+        <option value="">Select Flavor</option>
+        <option value="Flavor1">Flavor1</option>
+        <option value="Flavor2">Flavor2</option>
+      </select>
+      <button class="btn">Add</button>`;
+    div.querySelector('button').onclick = ()=>{
+      const flavor = div.querySelector('select').value || "None";
+      cart.push({...p, selectedFlavor: flavor});
+      renderCart();
+    };
     grid.appendChild(div);
   });
 }
 
+// render cart
 function renderCart(){
   const list=document.getElementById('cartList');
   list.innerHTML='';
   let total=0;
-  cart.forEach((c,i)=>{
+  cart.forEach(c=>{
     total+=c.price;
     const row=document.createElement('div');
     row.className='cart-item';
-    row.innerHTML=`<span>${c.name}</span><span>$${c.price}</span>`;
+    row.innerHTML=`<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price}</span>`;
     list.appendChild(row);
   });
   document.getElementById('cartTotal').innerText='Total $'+total;
 }
 
 // purchase -> create ticket
-document.getElementById('purchaseBtn').onclick=()=>{
+document.getElementById('purchaseBtn').onclick = () => {
   if(!cart.length) return alert('Empty cart');
-  const id='tkt-'+currentUser+'-'+Date.now(); // attach user to ticket id
-  const total=cart.reduce((a,b)=>a+b.price,0);
-  const ticket={id,total,location:document.getElementById('locationSelect').value,status:'pending',items:cart,user:currentUser};
+  const id = 'tkt-'+Date.now();
+  const total = cart.reduce((a,b)=>a+b.price,0);
+  const ticket = {id,total,location: document.getElementById('locationSelect').value,status:'pending',items: cart,user: currentUser};
   db.ref('tickets/'+id).set(ticket);
   db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
-  cart=[];
-  renderCart();
+  cart=[]; renderCart();
 };
 
-// render tickets & chat for user
+/* === TICKETS & CHAT WITH IMAGE SUPPORT === */
 function renderTickets(){
-  const area=document.getElementById('ticketsArea');
-  db.ref('tickets').on('value',snap=>{
-    const tickets=snap.val()||{};
-    area.innerHTML='';
-    Object.values(tickets).forEach(t=>{
-      if(!t.id) return;
-      // only show user's tickets
-      if(currentUser!=='joeygold54' && t.user!==currentUser) return;
+  const area = document.getElementById(currentUser==='joeygold54'?'allTicketsArea':'ticketsArea');
+  area.innerHTML='';
 
-      const div=document.createElement('div');
-      div.className='ticket';
-      div.innerHTML=`<div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Items: ${t.items.map(it=>it.name).join(', ')} | Status ${t.status}</div>
+  db.ref('tickets').off();
+  db.ref('tickets').on('child_added', snap=>{
+    const t = snap.val(); if(!t.id) t.id = snap.key;
+    if(currentUser!=='joeygold54' && t.user !== currentUser) return;
+
+    const itemsText = t.items.map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
+
+    const div = document.createElement('div');
+    div.className='ticket';
+    div.innerHTML = `
+      <div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
+      <div><em>Items: ${itemsText}</em></div>
       <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
       <div style="display:flex;gap:4px;margin-top:4px">
         <input type="text" class="msgInput" style="flex:1">
         <input type="file" class="imgInput">
         <button class="btn sendBtn">Send</button>
-      </div>`;
-      area.appendChild(div);
+        ${currentUser==='joeygold54'?'<button class="btn ghost deleteBtn" style="margin-left:4px;">Delete</button>':''}
+      </div>
+    `;
+    area.appendChild(div);
 
-      const chatEl=document.getElementById('chat-'+t.id);
-      db.ref('messages/'+t.id).off();
-      db.ref('messages/'+t.id).on('value',ms=>{
-        const msgs=ms.val()||{};
-        chatEl.innerHTML=Object.values(msgs).map(m=>`<div><strong>${m.from}:</strong> ${m.text||''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`).join('');
-        chatEl.scrollTop=chatEl.scrollHeight;
-      });
-
-      // send button
-      div.querySelector('.sendBtn').onclick=()=>{
-        const inp=div.querySelector('.msgInput');
-        const fileInp = div.querySelector('.imgInput');
-        const txt=inp.value.trim();
-
-        if(fileInp.files.length>0){
-          const file=fileInp.files[0];
-          const storageRef=storage.ref('chatImages/'+Date.now()+'_'+file.name);
-          storageRef.put(file).then(snapshot=>{
-            snapshot.ref.getDownloadURL().then(url=>{
-              db.ref('messages/'+t.id).push({from:currentUser,image:url}).then(()=>{fileInp.value='';});
-            });
-          }).catch(err=>alert('Image upload failed: '+err));
-        }
-
-        if(txt) db.ref('messages/'+t.id).push({from:currentUser,text:txt});
-        inp.value='';
-      };
+    const chatEl = document.getElementById('chat-'+t.id);
+    db.ref('messages/'+t.id).off();
+    db.ref('messages/'+t.id).on('value', ms => {
+      const msgs = ms.val() || {};
+      chatEl.innerHTML = Object.values(msgs).map(m=>
+        `<div><strong>${m.from}:</strong> ${m.text || ''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`
+      ).join('');
+      chatEl.scrollTop = chatEl.scrollHeight;
     });
+
+    // send message or image
+    div.querySelector('.sendBtn').onclick = () => {
+      const inp = div.querySelector('.msgInput');
+      const fileInp = div.querySelector('.imgInput');
+      const txt = inp.value.trim();
+
+      if(fileInp.files.length>0){
+        const file = fileInp.files[0];
+        const storageRef = storage.ref('chatImages/'+Date.now()+'_'+file.name);
+        storageRef.put(file).then(snapshot => {
+          snapshot.ref.getDownloadURL().then(url => {
+            db.ref('messages/'+t.id).push({from: currentUser, image: url});
+          }).catch(err => alert('Failed to get image URL: ' + err));
+        }).catch(err => alert('Image upload failed: ' + err));
+        fileInp.value='';
+      }
+
+      if(txt) db.ref('messages/'+t.id).push({from: currentUser, text: txt});
+      inp.value='';
+    };
+
+    if(currentUser==='joeygold54'){
+      div.querySelector('.deleteBtn').onclick = () => {
+        if(confirm('Delete this ticket permanently?')){
+          db.ref('tickets/'+t.id).remove();
+          db.ref('messages/'+t.id).remove();
+          div.remove();
+        }
+      };
+    }
   });
 }
 
-/* === ADMIN CHAT === */
-function renderAdminTickets(){
-  const area=document.getElementById('allTicketsArea');
-  db.ref('tickets').on('value',snap=>{
-    const tickets=snap.val()||{};
-    area.innerHTML='';
-    Object.entries(tickets).forEach(([id,t])=>{
-      const div=document.createElement('div');
-      div.className='ticket';
-      div.innerHTML=`<div class="ticket-entry"><strong>${t.id||id}</strong> @ ${t.location} | Total $${t.total} | Items: ${t.items.map(it=>it.name).join(', ')} | Status: ${t.status} 
-      <button class="btn ghost delBtn" style="margin-left:6px">Delete</button></div>
-      <div id="admin-chat-${id}" style="height:120px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
-      <div style="display:flex;gap:4px;margin-top:4px">
-        <input type="text" class="msgInput" style="flex:1">
-        <input type="file" class="imgInput">
-        <button class="btn sendBtn">Send</button>
-      </div>`;
-      area.appendChild(div);
-
-      const chatEl=document.getElementById('admin-chat-'+id);
-      db.ref('messages/'+id).off();
-      db.ref('messages/'+id).on('value',ms=>{
-        const msgs=ms.val()||{};
-        chatEl.innerHTML=Object.values(msgs).map(m=>`<div><strong>${m.from}:</strong> ${m.text||''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`).join('');
-        chatEl.scrollTop=chatEl.scrollHeight;
-      });
-
-      // send button
-      div.querySelector('.sendBtn').onclick=()=>{
-        const inp=div.querySelector('.msgInput');
-        const fileInp = div.querySelector('.imgInput');
-        const txt=inp.value.trim();
-
-        if(fileInp.files.length>0){
-          const file=fileInp.files[0];
-          const storageRef=storage.ref('chatImages/'+Date.now()+'_'+file.name);
-          storageRef.put(file).then(snapshot=>{
-            snapshot.ref.getDownloadURL().then(url=>{
-              db.ref('messages/'+id).push({from:'Admin',image:url}).then(()=>{fileInp.value='';});
-            });
-          }).catch(err=>alert('Image upload failed: '+err));
-        }
-
-        if(txt) db.ref('messages/'+id).push({from:'Admin',text:txt});
-        inp.value='';
-      };
-
-      // delete button
-      div.querySelector('.delBtn').onclick=()=>{
-        db.ref('tickets/'+id).remove();
-        db.ref('messages/'+id).remove();
-      };
-    });
-  });
-}
-
-document.getElementById('refreshTickets').onclick=renderAdminTickets;
-document.getElementById('closeAdmin').onclick=()=>document.getElementById('adminScreen').style.display='none';
+document.getElementById('refreshTickets').onclick = renderTickets;
+document.getElementById('closeAdmin').onclick = ()=>document.getElementById('adminScreen').style.display='none';
 </script>
 </body>
 </html>
