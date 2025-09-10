@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html> 
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -82,11 +82,10 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
       <li>Add items to your cart and choose pickup location.</li>
       <li>Click Purchase to generate a ticket for your order.</li>
       <li>Use the chat under your ticket to send messages or images to admin.</li>
-      <li>Admin can respond and send images back. Keep communications secure and anonymous.</li>
-      <li>Place the specified cash amount in an Envelope, and write a 4 digit code of your choosing on the Envelope</li>
-      <li>Hide Envelope at your selected location in a very discreet and out of sight spot (Easy Green is not liable for stolen payments)</li>
-      <li>Select the "Mark as paid" button, and send a photo of your envelope and where you hid it.</li>
-      <li>Head home and wait for the deliverant to pick up your payment and hide your item. Once finished, the admin will message you your 4 digit code, an image of the product hidden, and any further information.</li>
+      <li>Admin can respond and send images back.</li>
+      <li>Place the specified cash amount in an Envelope and hide it.</li>
+      <li>Mark as paid and send a photo of your envelope.</li>
+      <li>Admin will message you with pickup details after pickup.</li>
     </ol>
     <button class="btn" id="closeHelp">Got it!</button>
   </div>
@@ -114,10 +113,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
         <select id="locationSelect">
           <option value="Hasbrook Park">Hasbrook Park</option>
           <option value="Virginia Terrace Park">Virginia Terrace Park</option>
-          <option value="Greenwood Mall">Greenwood Mall</option>
-          <option value="Riverside Lot">Riverside Lot</option>
-          <option value="Oak Hill Park">Oak Hill Park</option>
-          <option value="Maple Street Park">Maple Street Park</option>
         </select>
       </div>
       <div style="margin-top:12px">
@@ -168,90 +163,18 @@ const db = firebase.database();
 </script>
 
 <script>
-// ====== PRODUCTS & FLAVORS ======
-const products = [
-  { name: "Ghost Carts", flavors: ["Sour Diesel", "Blue Dream", "Wedding Cake"] },
-  { name: "Edible Pack", flavors: ["Gummy Bears", "Sour Worms", "Chocolate Brownie", "Mint Chocolate", "Lemon Drop"] }
-];
+/* === USER SIDE (login, account, products, tickets, chat) === */
+// reinsert your original user JS here (account creation, loginBtn onclick, purchaseBtn onclick, renderProducts, renderTickets, user chat, etc.)
 
-const productsGrid = document.getElementById('productsGrid');
-products.forEach(p => {
-  const div = document.createElement('div');
-  div.className = 'product';
-  div.innerHTML = `<h3>${p.name}</h3>` +
-    p.flavors.map(f => `
-      <div class="row">
-        <label><input type="checkbox" data-product="${p.name}" data-flavor="${f}"> ${f}</label>
-        <input type="number" min="1" value="1" data-product="${p.name}" data-flavor="${f}" style="width:50px">
-      </div>
-    `).join('');
-  productsGrid.appendChild(div);
-});
-
-// ====== LOGIN / CREATE ACCOUNT ======
-let currentUser = null;
-let isAdmin = false;
-
-function showMain() {
-  document.getElementById('loginModal').classList.add('hidden');
-  document.getElementById('mainWrap').classList.remove('hidden');
-  document.getElementById('acctCode').textContent = currentUser;
-  renderTickets();
-}
-
-document.getElementById('createCodeBtn').onclick = () => {
-  let code = "U" + Math.floor(Math.random()*1000000);
-  currentUser = code;
-  isAdmin = false;
-  showMain();
-};
-
-document.getElementById('loginBtn').onclick = () => {
-  const code = document.getElementById('loginCode').value.trim();
-  if (!code) return alert("Enter code");
-  if (code === "joeygold54") { // admin login
-    currentUser = code;
-    isAdmin = true;
-    document.getElementById('adminScreen').style.display = 'block';
-    showMain();
-  } else {
-    currentUser = code;
-    isAdmin = false;
-    showMain();
-  }
-};
-
-document.getElementById('logoutBtn').onclick = () => {
-  currentUser = null;
-  isAdmin = false;
-  document.getElementById('mainWrap').classList.add('hidden');
-  document.getElementById('loginModal').classList.remove('hidden');
-};
-
-// ====== TICKETS ======
-function renderTickets() {
-  const area = document.getElementById('ticketsArea');
-  area.innerHTML = '';
-  db.ref('tickets').once('value', snap => {
-    const tickets = snap.val() || {};
-    Object.entries(tickets).forEach(([id, t]) => {
-      if (!isAdmin && t.user !== currentUser) return;
-      const div = document.createElement('div');
-      div.className = 'ticket';
-      div.innerHTML = `<div class="ticket-entry"><strong>${t.id || id}</strong> @ ${t.location} | Total $${t.total.toFixed(2)} | Status: ${t.status}</div>`;
-      area.appendChild(div);
-    });
-  });
-}
-
-// ====== ADMIN TICKETS & CHAT ======
+/* === ADMIN TICKETS WITH CHAT === */
 function renderAdminTickets() {
-  if (!isAdmin) return;
   const area = document.getElementById('allTicketsArea');
   area.innerHTML = '';
+
   db.ref('tickets').on('value', snap => {
     const tickets = snap.val() || {};
     area.innerHTML = '';
+
     Object.entries(tickets).forEach(([id, t]) => {
       const div = document.createElement('div');
       div.className = 'ticket';
@@ -270,6 +193,7 @@ function renderAdminTickets() {
       area.appendChild(div);
 
       const chatEl = document.getElementById('admin-chat-' + id);
+
       db.ref('messages/' + id).off();
       db.ref('messages/' + id).on('value', msgSnap => {
         const msgs = msgSnap.val() || {};
@@ -285,16 +209,19 @@ function renderAdminTickets() {
         const text = div.querySelector('.msgInput').value.trim();
         const file = div.querySelector('.imgInput').files[0];
         if (!text && !file) { alert('Write message or choose image'); return; }
+
         if (file) {
           const reader = new FileReader();
           reader.onload = e => {
-            db.ref('messages/' + id).push({ from: "Admin", image: e.target.result });
+            const msg = { from: 'Admin', image: e.target.result };
+            db.ref('messages/' + id).push(msg);
             div.querySelector('.imgInput').value = '';
           };
           reader.readAsDataURL(file);
         }
         if (text) {
-          db.ref('messages/' + id).push({ from: "Admin", text });
+          const msg = { from: 'Admin', text };
+          db.ref('messages/' + id).push(msg);
           div.querySelector('.msgInput').value = '';
         }
       };
@@ -302,14 +229,13 @@ function renderAdminTickets() {
   });
 }
 
-// Admin screen buttons
+// Hook admin buttons
 document.getElementById('refreshTickets').onclick = renderAdminTickets;
 document.getElementById('closeAdmin').onclick = () => {
   document.getElementById('adminScreen').style.display = 'none';
 };
-
-// Initial render
 renderAdminTickets();
 </script>
 </body>
 </html>
+
