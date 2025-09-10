@@ -292,7 +292,7 @@ function renderTickets(){
     });
 
     // send message or image
-    div.querySelector('.sendBtn').onclick = () => {
+    div.querySelector('.sendBtn').onclick = async () => {
       const inp = div.querySelector('.msgInput');
       const fileInp = div.querySelector('.imgInput');
       const txt = inp.value.trim();
@@ -301,11 +301,13 @@ function renderTickets(){
       if(fileInp.files.length > 0){
         const file = fileInp.files[0];
         const storageRef = storage.ref('chatImages/' + Date.now() + '_' + file.name);
-        storageRef.put(file).then(() => {
-          storageRef.getDownloadURL().then(url => {
-            db.ref('messages/' + t.id).push({from: sender, image: url});
-          });
-        });
+        try {
+          const snapshot = await storageRef.put(file);
+          const url = await snapshot.ref.getDownloadURL();
+          await db.ref('messages/' + t.id).push({from: sender, image: url});
+        } catch(err){
+          alert('Image upload failed: ' + err);
+        }
         fileInp.value='';
       }
 
