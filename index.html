@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html> 
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -163,77 +163,150 @@ const db = firebase.database();
 </script>
 
 <script>
-// === ADMIN TICKETS WITH CHAT ===
-function renderAdminTickets() {
-  const area = document.getElementById('allTicketsArea');
-  area.innerHTML = '';
+/* === USER SIDE === */
+let currentUser = null;
+let cart = [];
 
-  db.ref('tickets').on('value', snap => {
-    const tickets = snap.val() || {};
-    area.innerHTML = '';
+// create new account
+document.getElementById('createCodeBtn').onclick = () => {
+  const code = 'user-' + Math.random().toString(36).substr(2,6);
+  db.ref('users/' + code).set({created:Date.now()});
+  alert('Your code: ' + code);
+  document.getElementById('loginCode').value = code;
+};
 
-    Object.entries(tickets).forEach(([id, t]) => {
-      const div = document.createElement('div');
-      div.className = 'ticket';
-      div.style.marginBottom = '6px';
-      div.innerHTML = `
-        <div class="ticket-entry">
-          <strong>${t.id || id}</strong> @ ${t.location} | Total $${t.total.toFixed(2)} | Status: ${t.status}
-        </div>
-        <div id="admin-chat-${id}" style="margin-top:4px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
-        <div style="margin-top:4px;display:flex;gap:4px">
-          <input type="text" placeholder="Message" class="msgInput" style="flex:1">
-          <input type="file" class="imgInput" style="flex:1">
-          <button class="btn sendBtn">Send</button>
-        </div>
-      `;
+// login
+document.getElementById('loginBtn').onclick = () => {
+  const code = document.getElementById('loginCode').value.trim();
+  if (!code) return alert('Enter a code');
+  currentUser = code;
+  document.getElementById('acctCode').innerText = code;
+  document.getElementById('loginModal').classList.add('hidden');
+  document.getElementById('warningModal').classList.remove('hidden');
+};
+
+// warning modal
+document.getElementById('ackBtn').onclick = () => {
+  if (!document.getElementById('ackCheck').checked) return alert('Check agree');
+  document.getElementById('warningModal').classList.add('hidden');
+  document.getElementById('mainWrap').classList.remove('hidden');
+  renderTickets();
+  renderProducts();
+};
+
+document.getElementById('closeHelp').onclick = () => document.getElementById('helpModal').classList.add('hidden');
+document.getElementById('helpBtn').onclick = () => document.getElementById('helpModal').classList.remove('hidden');
+document.getElementById('logoutBtn').onclick = () => location.reload();
+document.getElementById('clearBtn').onclick = () => { cart = []; renderCart(); };
+
+// render products (stub)
+function renderProducts() {
+  const grid = document.getElementById('productsGrid');
+  grid.innerHTML = '';
+  const sample = [{id:'bud1',name:'OG Kush',price:50},{id:'cart1',name:'Ghost Cart',price:35}];
+  sample.forEach(p=>{
+    const div=document.createElement('div');
+    div.className='product';
+    div.innerHTML=`<h3>${p.name}</h3><div>$${p.price}</div><button class="btn">Add</button>`;
+    div.querySelector('button').onclick=()=>{cart.push(p);renderCart();};
+    grid.appendChild(div);
+  });
+}
+
+function renderCart() {
+  const list=document.getElementById('cartList');
+  list.innerHTML='';
+  let total=0;
+  cart.forEach((c,i)=>{
+    total+=c.price;
+    const row=document.createElement('div');
+    row.className='cart-item';
+    row.innerHTML=`<span>${c.name}</span><span>$${c.price}</span>`;
+    list.appendChild(row);
+  });
+  document.getElementById('cartTotal').innerText='Total $'+total;
+}
+
+// purchase -> create ticket
+document.getElementById('purchaseBtn').onclick=()=>{
+  if(!cart.length)return alert('Empty cart');
+  const id='tkt-'+Date.now();
+  const total=cart.reduce((a,b)=>a+b.price,0);
+  const ticket={id,total,location:document.getElementById('locationSelect').value,status:'pending'};
+  db.ref('tickets/'+id).set(ticket);
+  db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
+  cart=[];renderCart();
+};
+
+// render tickets & chat for user
+function renderTickets() {
+  const area=document.getElementById('ticketsArea');
+  db.ref('tickets').on('value',snap=>{
+    const tickets=snap.val()||{};
+    area.innerHTML='';
+    Object.values(tickets).forEach(t=>{
+      if(!t.id)return;
+      const div=document.createElement('div');
+      div.className='ticket';
+      div.innerHTML=`<div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
+      <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
+      <div style="display:flex;gap:4px;margin-top:4px"><input type="text" class="msgInput" style="flex:1"><button class="btn sendBtn">Send</button></div>`;
       area.appendChild(div);
 
-      const chatEl = document.getElementById('admin-chat-' + id);
-
-      // listen to messages for this ticket
-      db.ref('messages/' + id).off(); // remove old listener if any
-      db.ref('messages/' + id).on('value', msgSnap => {
-        const msgs = msgSnap.val() || {};
-        chatEl.innerHTML = Object.values(msgs).map(m =>
-          m.image
-            ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`
-            : `<div><strong>${m.from}:</strong> ${m.text}</div>`
-        ).join('');
-        chatEl.scrollTop = chatEl.scrollHeight;
+      const chatEl=document.getElementById('chat-'+t.id);
+      db.ref('messages/'+t.id).off();
+      db.ref('messages/'+t.id).on('value',ms=>{
+        const msgs=ms.val()||{};
+        chatEl.innerHTML=Object.values(msgs).map(m=>`<div><strong>${m.from}:</strong> ${m.text||''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`).join('');
+        chatEl.scrollTop=chatEl.scrollHeight;
       });
 
-      div.querySelector('.sendBtn').onclick = () => {
-        const text = div.querySelector('.msgInput').value.trim();
-        const file = div.querySelector('.imgInput').files[0];
-        if (!text && !file) { alert('Write message or choose image'); return; }
-
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = e => {
-            const msg = { from: 'Admin', image: e.target.result };
-            db.ref('messages/' + id).push(msg);
-            div.querySelector('.imgInput').value = '';
-          };
-          reader.readAsDataURL(file);
-        }
-        if (text) {
-          const msg = { from: 'Admin', text };
-          db.ref('messages/' + id).push(msg);
-          div.querySelector('.msgInput').value = '';
-        }
+      div.querySelector('.sendBtn').onclick=()=>{
+        const inp=div.querySelector('.msgInput');
+        const txt=inp.value.trim();
+        if(!txt)return;
+        db.ref('messages/'+t.id).push({from:currentUser,text:txt});
+        inp.value='';
       };
     });
   });
 }
 
-// Hook admin buttons
-document.getElementById('refreshTickets').onclick = renderAdminTickets;
-document.getElementById('closeAdmin').onclick = () => {
-  document.getElementById('adminScreen').style.display = 'none';
-};
+/* === ADMIN CHAT === */
+function renderAdminTickets() {
+  const area=document.getElementById('allTicketsArea');
+  area.innerHTML='';
+  db.ref('tickets').on('value',snap=>{
+    const tickets=snap.val()||{};
+    area.innerHTML='';
+    Object.entries(tickets).forEach(([id,t])=>{
+      const div=document.createElement('div');
+      div.className='ticket';
+      div.innerHTML=`<div class="ticket-entry"><strong>${t.id||id}</strong> @ ${t.location} | Total $${t.total} | Status: ${t.status}</div>
+      <div id="admin-chat-${id}" style="height:120px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
+      <div style="display:flex;gap:4px;margin-top:4px"><input type="text" class="msgInput" style="flex:1"><button class="btn sendBtn">Send</button></div>`;
+      area.appendChild(div);
 
-// Call on load
+      const chatEl=document.getElementById('admin-chat-'+id);
+      db.ref('messages/'+id).off();
+      db.ref('messages/'+id).on('value',ms=>{
+        const msgs=ms.val()||{};
+        chatEl.innerHTML=Object.values(msgs).map(m=>`<div><strong>${m.from}:</strong> ${m.text||''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`).join('');
+        chatEl.scrollTop=chatEl.scrollHeight;
+      });
+
+      div.querySelector('.sendBtn').onclick=()=>{
+        const inp=div.querySelector('.msgInput');
+        const txt=inp.value.trim();
+        if(!txt)return;
+        db.ref('messages/'+id).push({from:'Admin',text:txt});
+        inp.value='';
+      };
+    });
+  });
+}
+document.getElementById('refreshTickets').onclick=renderAdminTickets;
+document.getElementById('closeAdmin').onclick=()=>document.getElementById('adminScreen').style.display='none';
 renderAdminTickets();
 </script>
 </body>
