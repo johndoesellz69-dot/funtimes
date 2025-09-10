@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html> 
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -292,24 +292,28 @@ function renderTickets(){
     });
 
     // send message or image
-    div.querySelector('.sendBtn').onclick = () => {
+    div.querySelector('.sendBtn').onclick = async () => {
       const inp = div.querySelector('.msgInput');
       const fileInp = div.querySelector('.imgInput');
       const txt = inp.value.trim();
 
-      if(fileInp.files.length>0){
+      // handle image
+      if(fileInp.files.length > 0){
         const file = fileInp.files[0];
-        const storageRef = storage.ref('chatImages/'+Date.now()+'_'+file.name);
-        storageRef.put(file).then(snapshot => {
-          snapshot.ref.getDownloadURL().then(url => {
-            db.ref('messages/'+t.id).push({from: currentUser, image: url});
-          }).catch(err => alert('Failed to get image URL: ' + err));
-        }).catch(err => alert('Image upload failed: ' + err));
-        fileInp.value='';
+        const storageRef = storage.ref('chatImages/' + Date.now() + '_' + file.name);
+        try {
+          const snapshot = await storageRef.put(file);  // wait for upload
+          const url = await snapshot.ref.getDownloadURL();  // get URL
+          await db.ref('messages/' + t.id).push({from: currentUser, image: url}); // push to DB
+        } catch(err) {
+          alert('Image upload failed: ' + err);
+        }
+        fileInp.value = '';
       }
 
-      if(txt) db.ref('messages/'+t.id).push({from: currentUser, text: txt});
-      inp.value='';
+      // handle text
+      if(txt) db.ref('messages/' + t.id).push({from: currentUser, text: txt});
+      inp.value = '';
     };
 
     if(currentUser==='joeygold54'){
