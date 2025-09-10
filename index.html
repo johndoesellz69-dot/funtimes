@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html> 
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -141,20 +141,15 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 <script>
 const firebaseConfig = {
   apiKey: "<YOUR_API_KEY>",
   authDomain: "easy-green-website.firebaseapp.com",
   databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com/",
   projectId: "easy-green-website",
-  storageBucket: "easy-green-website.appspot.com",
-  messagingSenderId: "<YOUR_SENDER_ID>",
-  appId: "<YOUR_APP_ID>"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const storage = firebase.storage();
 </script>
 
 <script>
@@ -252,7 +247,7 @@ document.getElementById('purchaseBtn').onclick = () => {
   cart=[]; renderCart();
 };
 
-/* === TICKETS & CHAT WITH IMAGE SUPPORT === */
+/* === TICKETS & CHAT WITH BASE64 IMAGE SUPPORT === */
 function renderTickets(){
   const area = document.getElementById(currentUser==='joeygold54'?'allTicketsArea':'ticketsArea');
   area.innerHTML='';
@@ -289,7 +284,7 @@ function renderTickets(){
       chatEl.scrollTop = chatEl.scrollHeight;
     });
 
-    // send message or image
+    // send message or image as base64
     div.querySelector('.sendBtn').onclick = ()=>{
       const inp = div.querySelector('.msgInput');
       const fileInp = div.querySelector('.imgInput');
@@ -297,20 +292,15 @@ function renderTickets(){
 
       if(fileInp.files.length>0){
         const file = fileInp.files[0];
-        const storageRef = storage.ref('chat_images/' + Date.now() + '_' + file.name);
-        const uploadTask = storageRef.put(file);
-
-        uploadTask.on('state_changed', 
-          ()=>{}, 
-          (err)=>{alert('Upload failed: '+err.message)}, 
-          ()=>{
-            uploadTask.snapshot.ref.getDownloadURL().then(url=>{
-              db.ref('messages/'+t.id).push({from: currentUser, image: url});
-            });
-          }
-        );
+        const reader = new FileReader();
+        reader.onload = function(e){
+          const base64 = e.target.result;
+          db.ref('messages/'+t.id).push({from: currentUser, image: base64});
+        };
+        reader.readAsDataURL(file);
         fileInp.value='';
       }
+
       if(txt) db.ref('messages/'+t.id).push({from: currentUser, text: txt});
       inp.value='';
     };
