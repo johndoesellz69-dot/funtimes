@@ -182,7 +182,6 @@ document.getElementById('loginBtn').onclick = () => {
   const code = document.getElementById('loginCode').value.trim();
   if(!code) return alert('Enter a code');
   currentUser = code;
-  document.getElementById('acctCode').innerText = code;
 
   // admin login
   if(code==='joeygold54'){
@@ -192,6 +191,7 @@ document.getElementById('loginBtn').onclick = () => {
     return;
   }
 
+  document.getElementById('acctCode').innerText = code;
   document.getElementById('loginModal').classList.add('hidden');
   document.getElementById('warningModal').classList.remove('hidden');
 };
@@ -241,9 +241,9 @@ function renderCart(){
 // purchase -> create ticket
 document.getElementById('purchaseBtn').onclick=()=>{
   if(!cart.length) return alert('Empty cart');
-  const id='tkt-'+Date.now();
+  const id='tkt-'+currentUser+'-'+Date.now(); // attach user to ticket id
   const total=cart.reduce((a,b)=>a+b.price,0);
-  const ticket={id,total,location:document.getElementById('locationSelect').value,status:'pending',items:cart};
+  const ticket={id,total,location:document.getElementById('locationSelect').value,status:'pending',items:cart,user:currentUser};
   db.ref('tickets/'+id).set(ticket);
   db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
   cart=[];
@@ -259,7 +259,7 @@ function renderTickets(){
     Object.values(tickets).forEach(t=>{
       if(!t.id) return;
       // only show user's tickets
-      if(currentUser!=='joeygold54' && !t.id.includes(currentUser)) return;
+      if(currentUser!=='joeygold54' && t.user!==currentUser) return;
 
       const div=document.createElement('div');
       div.className='ticket';
@@ -291,9 +291,7 @@ function renderTickets(){
           const storageRef=storage.ref('chatImages/'+Date.now()+'_'+file.name);
           storageRef.put(file).then(snapshot=>{
             snapshot.ref.getDownloadURL().then(url=>{
-              db.ref('messages/'+t.id).push({from:currentUser,image:url}).then(()=>{
-                fileInp.value='';
-              });
+              db.ref('messages/'+t.id).push({from:currentUser,image:url}).then(()=>{fileInp.value='';});
             });
           }).catch(err=>alert('Image upload failed: '+err));
         }
@@ -353,7 +351,10 @@ function renderAdminTickets(){
       };
 
       // delete button
-      div.querySelector('.delBtn').onclick=()=>{div.remove();}
+      div.querySelector('.delBtn').onclick=()=>{
+        db.ref('tickets/'+id).remove();
+        db.ref('messages/'+id).remove();
+      };
     });
   });
 }
@@ -363,3 +364,4 @@ document.getElementById('closeAdmin').onclick=()=>document.getElementById('admin
 </script>
 </body>
 </html>
+
