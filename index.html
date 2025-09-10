@@ -82,9 +82,8 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
       <li>Use the chat under your ticket to send messages or images to admin.</li>
       <li>Admin can respond and send images back.</li>
       <li>Place the specified cash amount in an Envelope and hide it.</li>
-      <li>Mark as paid and send a photo of your envelope and the cash inside.</li>
-      <li>Admin will message you with item retrieval details after your payment is collected.</li>
-      <li>TIPS: It is recommended to hide payments out of the publics view and way, and ensure nobody sees you hiding your payment.</li>
+      <li>Mark as paid and send a photo of your envelope.</li>
+      <li>Admin will message you with pickup details after pickup.</li>
     </ol>
     <button class="btn" id="closeHelp">Got it!</button>
   </div>
@@ -102,7 +101,7 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
       We are based in Arlington Heights and proudly serve anyone in or near the area.  
       Take advantage of our exceptional deals and competitive pricing, as we believe everyone should have access to quality cannabis regardless of budget.  
       We are continually expanding our product selection and pickup locations, and will soon offer additional items beyond cannabis.  
-      Enjoy Easy Green, and feel free to share our website! You may also submit proof of referral codes after a purchase to enter your friends in our monthly raffle. Your referral code to share with friends, is displayed next to your account code (Do NOT share your actual account code though.)
+      Enjoy Easy Green, and feel free to share our website! You may also submit proof of referral codes after a purchase to enter your friends in our monthly raffle. Your referral code to share with friends is displayed next to your account code (Do NOT share your actual account code though.)
     </p>
     <button class="btn" id="closeAbout">Close</button>
   </div>
@@ -115,7 +114,7 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
     <button class="btn ghost" id="logoutBtn" style="margin-left:auto">Log Out</button>
   </header>
   <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
-    <div class="small">(Write this down) Your account code: <span id="acctCode"></span> | Referral: <span id="refCode"></span></div>
+    <div class="small">(Write this down) Your account code: <span id="acctCode"></span></div>
     <button class="btn" id="helpBtn" style="margin-left:auto">First time help</button>
     <button class="btn ghost" id="aboutUserBtn">About Easy Green</button>
   </div>
@@ -166,10 +165,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   </div>
   <h3>All Tickets</h3>
   <div id="allTicketsArea"></div>
-  
-  <!-- Stock Management -->
-  <h3>Stock Management</h3>
-  <div id="stockManager"></div>
 </div>
 
 <!-- Firebase -->
@@ -188,6 +183,7 @@ const db = firebase.database();
 
 <script>
 let currentUser = null;
+let currentUserReferral = null;
 let cart = [];
 
 // Create account
@@ -202,23 +198,20 @@ document.getElementById('createCodeBtn').onclick = () => {
 document.getElementById('loginBtn').onclick = () => {
   const code = document.getElementById('loginCode').value.trim();
   if(!code) return alert('Enter a code');
-  currentUser = code;
-  document.getElementById('acctCode').innerText = code;
 
-  // Fixed referral: generate a referral code once per user
-  const refCodeEl = document.getElementById('refCode');
-  db.ref('users/'+currentUser+'/referral').get().then(snap=>{
-    let ref = snap.val();
-    if(!ref) { ref = 'ref-'+Math.random().toString(36).substr(2,6); db.ref('users/'+currentUser+'/referral').set(ref);}
-    refCodeEl.innerText = ref;
-  });
+  currentUser = code;
+
+  // Generate random 5-letter referral code for user
+  const referralCode = Array.from({length:5},()=>String.fromCharCode(65+Math.floor(Math.random()*26))).join('');
+  currentUserReferral = referralCode; // save globally
+
+  document.getElementById('acctCode').innerText = code + ' | Referral Code: ' + referralCode;
 
   document.getElementById('loginModal').classList.add('hidden');
 
   if(currentUser === 'joeygold54'){
     document.getElementById('adminScreen').style.display = 'block';
     renderTickets();
-    renderStockManager();
   } else {
     document.getElementById('warningModal').classList.remove('hidden');
   }
@@ -257,7 +250,7 @@ function renderProducts(){
     div.innerHTML = `<h3>${p.name}</h3><div>$${p.price}</div>
       <select>
         <option value="">Select Flavor</option>
-        ${p.flavors.map(f=>`<option value="${f}" data-product="${p.id}">${f}</option>`).join('')}
+        ${p.flavors.map(f=>`<option value="${f}">${f}</option>`).join('')}
       </select>
       <button class="btn">Add</button>`;
     div.querySelector('button').onclick = ()=>{
@@ -281,13 +274,16 @@ function renderCart(){
     let price = c.price;
     if(c.name.includes('Edibles')) ediblesCount++;
     if(c.name.includes('Ghost Cart')) cartCount++;
-
     total += price;
   });
 
-  // Apply discounts
-  total -= Math.floor(ediblesCount/4)*20;
-  total -= Math.floor(cartCount/2)*10;
+  // Apply Buy 3 Get 1 Free for edibles
+  let ediblesDiscount = Math.floor(ediblesCount/4)*20;
+  total -= ediblesDiscount;
+
+  // Apply Buy 1 Get 1 $10 off for ghost carts
+  let ghostDiscount = Math.floor(cartCount/2)*10;
+  total -= ghostDiscount;
 
   cart.forEach(c=>{
     const row=document.createElement('div');
@@ -315,9 +311,17 @@ document.getElementById('purchaseBtn').onclick = () => {
   total -= Math.floor(ediblesCount/4)*20; // edibles discount
   total -= Math.floor(cartCount/2)*10; // ghost cart discount
 
-  const ticket = {id,total,location: document.getElementById('locationSelect').value,status:'pending',items: cart,user: currentUser};
+  const ticket = {
+    id,
+    total,
+    location: document.getElementById('locationSelect').value,
+    status:'pending',
+    items: cart,
+    user: currentUser,
+    referral: currentUserReferral // <-- attach referral code
+  };
   db.ref('tickets/'+id).set(ticket);
-  db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
+  db.ref('messages/'+id).push({from:currentUser,text:'Ticket created. Referral Code: ' + currentUserReferral});
   cart=[]; renderCart();
 };
 
@@ -336,7 +340,7 @@ function renderTickets(){
     const div = document.createElement('div');
     div.className='ticket';
     div.innerHTML = `
-      <div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
+      <div><strong>${t.id}</strong> | Referral: ${t.referral || 'N/A'} @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
       <div><em>Items: ${itemsText}</em></div>
       <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
       <div style="display:flex;gap:4px;margin-top:4px">
@@ -407,34 +411,6 @@ function renderTickets(){
 
 document.getElementById('refreshTickets').onclick = renderTickets;
 document.getElementById('closeAdmin').onclick = ()=>document.getElementById('adminScreen').style.display='none';
-
-/* === ADMIN STOCK MANAGEMENT === */
-function renderStockManager(){
-  const stockEl = document.getElementById('stockManager');
-  stockEl.innerHTML='';
-  const products = [
-    {id:'bud1',name:'Edibles',flavors:['Sour Patch','Skittles','Swedish fish','Watermelon Sour Patch','Starburst','Trolli','Peach Rings']},
-    {id:'cart1',name:'2g Ghost Cart',flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice Cream Cake','Black Mamba']}
-  ];
-
-  products.forEach(p=>{
-    const div = document.createElement('div');
-    div.innerHTML = `<strong>${p.name}</strong>`;
-    p.flavors.forEach(f=>{
-      const lbl = document.createElement('label');
-      lbl.style.display='block';
-      lbl.innerHTML = `<input type="checkbox" data-product="${p.id}" data-flavor="${f}" checked> ${f}`;
-      lbl.querySelector('input').onchange = (e)=>{
-        const sel = e.target.checked;
-        document.querySelectorAll(`.product select[data-product="${p.id}"] option`).forEach(opt=>{
-          if(opt.value===f) opt.disabled = !sel;
-        });
-      };
-      div.appendChild(lbl);
-    });
-    stockEl.appendChild(div);
-  });
-}
 </script>
 </body>
 </html>
