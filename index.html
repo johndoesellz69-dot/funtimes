@@ -169,7 +169,6 @@ const db = firebase.database();
 </script>
 
 <script>
-/* === USER SIDE === */
 let currentUser = null;
 let cart = [];
 
@@ -189,6 +188,11 @@ document.getElementById('loginBtn').onclick = () => {
   document.getElementById('acctCode').innerText = code;
   document.getElementById('loginModal').classList.add('hidden');
   document.getElementById('warningModal').classList.remove('hidden');
+
+  // if admin code, open admin screen
+  if(currentUser === 'joeygold54'){
+    document.getElementById('adminScreen').style.display='block';
+  }
 };
 
 // warning modal
@@ -262,14 +266,15 @@ document.getElementById('purchaseBtn').onclick = () => {
   renderCart();
 };
 
-// render tickets & chat for user (only their own tickets)
+// render tickets & chat for user (only their own tickets, unless admin)
 function renderTickets() {
   const area = document.getElementById('ticketsArea');
   db.ref('tickets').on('value', snap => {
     const tickets = snap.val() || {};
     area.innerHTML = '';
     Object.values(tickets).forEach(t => {
-      if (!t.id || t.user !== currentUser) return;
+      if (!t.id) return;
+      if(currentUser !== 'joeygold54' && t.user !== currentUser) return;
 
       const div = document.createElement('div');
       div.className = 'ticket';
@@ -340,8 +345,6 @@ function renderAdminTickets() {
 document.getElementById('refreshTickets').onclick = renderAdminTickets;
 document.getElementById('closeAdmin').onclick = () => document.getElementById('adminScreen').style.display='none';
 renderAdminTickets();
-
 </script>
 </body>
 </html>
-
