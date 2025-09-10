@@ -30,8 +30,6 @@ select,input[type="number"],input[type="file"]{padding:6px;border-radius:8px;bor
 .ticket-entry{margin-bottom:8px}
 footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 .hidden{display:none !important;}
-#adminScreen{position:fixed;inset:0;background:rgba(0,0,0,.95);color:#111;padding:16px;overflow:auto;display:none;z-index:3000}
-#adminScreen h2{margin-top:0;color:var(--accent)}
 .flavor-stock{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
 .flavor-stock span{font-size:.88rem}
 </style>
@@ -138,19 +136,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   </footer>
 </div>
 
-<!-- Admin Screen -->
-<div id="adminScreen">
-  <h2>Admin Console</h2>
-  <div style="margin-bottom:12px">
-    <button class="btn" id="refreshTickets">Refresh Tickets</button>
-    <button class="btn ghost" id="closeAdmin">Close Admin</button>
-  </div>
-  <h3>Stock Control</h3>
-  <div id="adminStockArea"></div>
-  <h3>All Tickets</h3>
-  <div id="allTicketsArea"></div>
-</div>
-
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -188,11 +173,6 @@ document.getElementById('loginBtn').onclick = () => {
   document.getElementById('acctCode').innerText = code;
   document.getElementById('loginModal').classList.add('hidden');
   document.getElementById('warningModal').classList.remove('hidden');
-
-  // if admin code, open admin screen
-  if(currentUser === 'joeygold54'){
-    document.getElementById('adminScreen').style.display='block';
-  }
 };
 
 // warning modal
@@ -266,7 +246,7 @@ document.getElementById('purchaseBtn').onclick = () => {
   renderCart();
 };
 
-// render tickets & chat for user (only their own tickets, unless admin)
+// render tickets & chat (users see their own, admin sees all)
 function renderTickets() {
   const area = document.getElementById('ticketsArea');
   db.ref('tickets').on('value', snap => {
@@ -283,7 +263,8 @@ function renderTickets() {
       div.innerHTML = `<div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
         <div><em>Items: ${itemsText}</em></div>
         <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
-        <div style="display:flex;gap:4px;margin-top:4px"><input type="text" class="msgInput" style="flex:1"><button class="btn sendBtn">Send</button></div>`;
+        <div style="display:flex;gap:4px;margin-top:4px"><input type="text" class="msgInput" style="flex:1"><button class="btn sendBtn">Send</button>
+        ${currentUser==='joeygold54'?'<button class="btn ghost deleteBtn" style="margin-left:4px;">Delete</button>':''}</div>`;
 
       area.appendChild(div);
 
@@ -304,61 +285,18 @@ function renderTickets() {
         db.ref('messages/'+t.id).push({from: currentUser, text: txt});
         inp.value = '';
       };
+
+      if(currentUser==='joeygold54'){
+        div.querySelector('.deleteBtn').onclick = () => {
+          if(confirm('Delete this ticket permanently?')){
+            db.ref('tickets/'+t.id).remove();
+            db.ref('messages/'+t.id).remove();
+          }
+        };
+      }
     });
   });
 }
-
-/* === ADMIN CHAT === */
-function renderAdminTickets() {
-  const area = document.getElementById('allTicketsArea');
-  area.innerHTML = '';
-  db.ref('tickets').on('value', snap => {
-    const tickets = snap.val() || {};
-    area.innerHTML = '';
-    Object.entries(tickets).forEach(([id,t]) => {
-      const itemsText = t.items.map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
-
-      const div = document.createElement('div');
-      div.className = 'ticket';
-      div.innerHTML = `<div class="ticket-entry"><strong>${t.id||id}</strong> @ ${t.location} | Total $${t.total} | Status: ${t.status}</div>
-        <div><em>Items: ${itemsText}</em></div>
-        <div id="admin-chat-${id}" style="height:120px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
-        <div style="display:flex;gap:4px;margin-top:4px"><input type="text" class="msgInput" style="flex:1"><button class="btn sendBtn">Send</button>
-        <button class="btn ghost deleteBtn" style="margin-left:4px;">Delete</button></div>`;
-
-      area.appendChild(div);
-
-      const chatEl = document.getElementById('admin-chat-'+id);
-      db.ref('messages/'+id).off();
-      db.ref('messages/'+id).on('value', ms => {
-        const msgs = ms.val() || {};
-        chatEl.innerHTML = Object.values(msgs).map(m =>
-          `<div><strong>${m.from}:</strong> ${m.text || ''}${m.image ? '<br><img src="'+m.image+'" style="max-width:100px">' : ''}</div>`
-        ).join('');
-        chatEl.scrollTop = chatEl.scrollHeight;
-      });
-
-      div.querySelector('.sendBtn').onclick = () => {
-        const inp = div.querySelector('.msgInput');
-        const txt = inp.value.trim();
-        if (!txt) return;
-        db.ref('messages/'+id).push({from:'Admin',text:txt});
-        inp.value='';
-      };
-
-      div.querySelector('.deleteBtn').onclick = () => {
-        if(confirm('Delete this ticket permanently?')){
-          db.ref('tickets/'+id).remove();
-          db.ref('messages/'+id).remove();
-        }
-      };
-    });
-  });
-}
-
-document.getElementById('refreshTickets').onclick = renderAdminTickets;
-document.getElementById('closeAdmin').onclick = () => document.getElementById('adminScreen').style.display='none';
-renderAdminTickets();
 </script>
 </body>
 </html>
