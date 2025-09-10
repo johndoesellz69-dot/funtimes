@@ -101,7 +101,7 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
       We are based in Arlington Heights and proudly serve anyone in or near the area.  
       Take advantage of our exceptional deals and competitive pricing, as we believe everyone should have access to quality cannabis regardless of budget.  
       We are continually expanding our product selection and pickup locations, and will soon offer additional items beyond cannabis.  
-      Enjoy Easy Green, and feel free to share our website! You may also submit proof of referral codes after a purchase to enter your friends in our monthly raffle. Your referral code to share with friends is displayed next to your account code (Do NOT share your actual account code though.)
+      Enjoy Easy Green, and feel free to share our website! You may also submit proof of referral codes after a purchase to enter your friends in our monthly raffle. Your refferal code to share with friends, is displayed next to your account code (Do NOT share your actual account code though.)
     </p>
     <button class="btn" id="closeAbout">Close</button>
   </div>
@@ -183,7 +183,6 @@ const db = firebase.database();
 
 <script>
 let currentUser = null;
-let currentUserReferral = null;
 let cart = [];
 
 // Create account
@@ -198,15 +197,8 @@ document.getElementById('createCodeBtn').onclick = () => {
 document.getElementById('loginBtn').onclick = () => {
   const code = document.getElementById('loginCode').value.trim();
   if(!code) return alert('Enter a code');
-
   currentUser = code;
-
-  // Generate random 5-letter referral code for user
-  const referralCode = Array.from({length:5},()=>String.fromCharCode(65+Math.floor(Math.random()*26))).join('');
-  currentUserReferral = referralCode; // save globally
-
-  document.getElementById('acctCode').innerText = code + ' | Referral Code: ' + referralCode;
-
+  document.getElementById('acctCode').innerText = code;
   document.getElementById('loginModal').classList.add('hidden');
 
   if(currentUser === 'joeygold54'){
@@ -247,12 +239,12 @@ function renderProducts(){
   sample.forEach(p=>{
     const div=document.createElement('div');
     div.className='product';
-    div.innerHTML = `<h3>${p.name}</h3><div>$${p.price}</div>
+    div.innerHTML = <h3>${p.name}</h3><div>$${p.price}</div>
       <select>
         <option value="">Select Flavor</option>
-        ${p.flavors.map(f=>`<option value="${f}">${f}</option>`).join('')}
+        ${p.flavors.map(f=><option value="${f}">${f}</option>).join('')}
       </select>
-      <button class="btn">Add</button>`;
+      <button class="btn">Add</button>;
     div.querySelector('button').onclick = ()=>{
       const flavor = div.querySelector('select').value || "None";
       cart.push({...p, selectedFlavor: flavor});
@@ -274,6 +266,7 @@ function renderCart(){
     let price = c.price;
     if(c.name.includes('Edibles')) ediblesCount++;
     if(c.name.includes('Ghost Cart')) cartCount++;
+
     total += price;
   });
 
@@ -288,7 +281,7 @@ function renderCart(){
   cart.forEach(c=>{
     const row=document.createElement('div');
     row.className='cart-item';
-    row.innerHTML=`<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price}</span>`;
+    row.innerHTML=<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price}</span>;
     list.appendChild(row);
   });
   document.getElementById('cartTotal').innerText='Total $'+total;
@@ -311,17 +304,9 @@ document.getElementById('purchaseBtn').onclick = () => {
   total -= Math.floor(ediblesCount/4)*20; // edibles discount
   total -= Math.floor(cartCount/2)*10; // ghost cart discount
 
-  const ticket = {
-    id,
-    total,
-    location: document.getElementById('locationSelect').value,
-    status:'pending',
-    items: cart,
-    user: currentUser,
-    referral: currentUserReferral // <-- attach referral code
-  };
+  const ticket = {id,total,location: document.getElementById('locationSelect').value,status:'pending',items: cart,user: currentUser};
   db.ref('tickets/'+id).set(ticket);
-  db.ref('messages/'+id).push({from:currentUser,text:'Ticket created. Referral Code: ' + currentUserReferral});
+  db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
   cart=[]; renderCart();
 };
 
@@ -335,12 +320,12 @@ function renderTickets(){
     const t = snap.val(); if(!t.id) t.id = snap.key;
     if(currentUser!=='joeygold54' && t.user !== currentUser) return;
 
-    const itemsText = t.items.map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
+    const itemsText = t.items.map(i=>${i.name} (${i.selectedFlavor})).join(', ');
 
     const div = document.createElement('div');
     div.className='ticket';
-    div.innerHTML = `
-      <div><strong>${t.id}</strong> | Referral: ${t.referral || 'N/A'} @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
+    div.innerHTML = 
+      <div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
       <div><em>Items: ${itemsText}</em></div>
       <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
       <div style="display:flex;gap:4px;margin-top:4px">
@@ -351,7 +336,7 @@ function renderTickets(){
         <button class="btn ghost markPaidBtn">Mark Paid</button>
         ${currentUser==='joeygold54'?'<button class="btn ghost itemHiddenBtn">Item Hidden</button>':''}
       </div>
-    `;
+    ;
     area.appendChild(div);
 
     const chatEl = document.getElementById('chat-'+t.id);
@@ -359,7 +344,7 @@ function renderTickets(){
     db.ref('messages/'+t.id).on('value', ms => {
       const msgs = ms.val() || {};
       chatEl.innerHTML = Object.values(msgs).map(m=>
-        `<div><strong>${m.from==='joeygold54'?'admin':m.from}:</strong> ${m.text || ''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`
+        <div><strong>${m.from==='joeygold54'?'admin':m.from}:</strong> ${m.text || ''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>
       ).join('');
       chatEl.scrollTop = chatEl.scrollHeight;
     });
