@@ -1,4 +1,4 @@
-<!doctype html> 
+<!doctype html>  
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -180,24 +180,20 @@ const db = firebase.database();
 
 <!-- App Script -->
 <script>
-// ================= USER DATA =================
 let currentUser = null;
 let cart = [];
 
-// Example products/flavors
 const products = [
   { id:'flower', name:'Flower', flavors:['OG Kush','Blue Dream','Sour Diesel'], price:25 },
   { id:'edibles', name:'Edibles', flavors:['Gummy Bears','Chocolate Bar'], price:15 },
   { id:'carts', name:'Carts', flavors:['Mint','Strawberry'], price:40 }
 ];
 
-// ============== UTILITY =================
 function renderProducts(){
-  const grid = document.getElementById('productsGrid');
+  const grid=document.getElementById('productsGrid');
   grid.innerHTML='';
   products.forEach(p=>{
-    const div = document.createElement('div');
-    div.className='product';
+    const div=document.createElement('div'); div.className='product';
     div.innerHTML=`<h3>${p.name} - $${p.price}</h3>`;
     p.flavors.forEach(f=>{
       const row=document.createElement('div'); row.className='row';
@@ -208,9 +204,9 @@ function renderProducts(){
   });
 }
 
-// ============== CART =================
+// Cart rendering and update
 function renderCart(){
-  const list = document.getElementById('cartList');
+  const list=document.getElementById('cartList');
   list.innerHTML='';
   let total=0;
   const grid=document.getElementById('productsGrid');
@@ -228,18 +224,18 @@ function renderCart(){
   document.getElementById('cartTotal').textContent=`Total: $${total.toFixed(2)}`;
 }
 
-// ============== TICKETS =================
+// Tickets & chat rendering
 function renderTickets(){
   const area=document.getElementById('ticketsArea');
   area.innerHTML='';
   db.ref('tickets').once('value',snap=>{
-    const tickets = snap.val()||{};
+    const tickets=snap.val()||{};
     Object.values(tickets).forEach(t=>{
       if(t.user===currentUser){
         const div=document.createElement('div'); div.className='ticket';
-        div.innerHTML=`<div class="ticket-entry"><strong>${t.id}</strong> | Total $${t.total.toFixed(2)} | Status: ${t.status}</div>
-          <div id="chat-${t.id}" style="margin-top:4px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
-          <div style="margin-top:4px;display:flex;gap:4px">
+        div.innerHTML=`<div class="ticket-entry"><strong>${t.id}</strong> | $${t.total.toFixed(2)} | ${t.status}</div>
+          <div id="chat-${t.id}" style="height:120px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
+          <div style="display:flex;gap:4px;margin-top:4px">
             <input type="text" placeholder="Message" class="msgInput" style="flex:1">
             <input type="file" class="imgInput" style="flex:1">
             <button class="btn sendBtn">Send</button>
@@ -250,7 +246,7 @@ function renderTickets(){
           const msgs=msgSnap.val()||{};
           chatEl.innerHTML=Object.values(msgs).map(m=>{
             return m.image ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>` :
-              `<div><strong>${m.from}:</strong> ${m.text}</div>`;
+            `<div><strong>${m.from}:</strong> ${m.text}</div>`;
           }).join('');
           chatEl.scrollTop=chatEl.scrollHeight;
         });
@@ -275,18 +271,17 @@ function renderTickets(){
   });
 }
 
-// ============== ADMIN =================
+// Admin tickets rendering
 function renderAdminTickets(){
   const area=document.getElementById('allTicketsArea');
-  area.innerHTML='';
   db.ref('tickets').on('value',snap=>{
     const tickets=snap.val()||{};
     area.innerHTML='';
     Object.entries(tickets).forEach(([id,t])=>{
       const div=document.createElement('div'); div.className='ticket'; div.style.marginBottom='6px';
-      div.innerHTML=`<div class="ticket-entry"><strong>${t.id || id}</strong> @ ${t.location} | Total $${t.total.toFixed(2)} | Status: ${t.status}</div>
-        <div id="admin-chat-${id}" style="margin-top:4px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
-        <div style="margin-top:4px;display:flex;gap:4px">
+      div.innerHTML=`<div class="ticket-entry"><strong>${t.id}</strong> @ ${t.location} | $${t.total.toFixed(2)} | ${t.status}</div>
+        <div id="admin-chat-${id}" style="height:120px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
+        <div style="display:flex;gap:4px;margin-top:4px">
           <input type="text" placeholder="Message" class="msgInput" style="flex:1">
           <input type="file" class="imgInput" style="flex:1">
           <button class="btn sendBtn">Send</button>
@@ -297,7 +292,7 @@ function renderAdminTickets(){
         const msgs=msgSnap.val()||{};
         chatEl.innerHTML=Object.values(msgs).map(m=>{
           return m.image ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>` :
-            `<div><strong>${m.from}:</strong> ${m.text}</div>`;
+          `<div><strong>${m.from}:</strong> ${m.text}</div>`;
         }).join('');
         chatEl.scrollTop=chatEl.scrollHeight;
       });
@@ -321,23 +316,29 @@ function renderAdminTickets(){
   });
 }
 
-// ================= BUTTONS =================
+// Buttons
 document.getElementById('helpBtn').onclick=()=>document.getElementById('helpModal').classList.remove('hidden');
 document.getElementById('closeHelp').onclick=()=>document.getElementById('helpModal').classList.add('hidden');
 document.getElementById('logoutBtn').onclick=()=>{
-  currentUser=null; document.getElementById('mainWrap').classList.add('hidden'); document.getElementById('loginModal').classList.remove('hidden');
+  currentUser=null;
+  document.getElementById('mainWrap').classList.add('hidden');
+  document.getElementById('loginModal').classList.remove('hidden');
 };
 
-// ================= LOGIN / CREATE =================
 document.getElementById('createCodeBtn').onclick=()=>{
   const code=Math.random().toString(36).slice(2,8);
   db.ref('users/'+code).set({created:Date.now()});
   alert('Your new code: '+code);
 };
+
 document.getElementById('loginBtn').onclick=()=>{
   const code=document.getElementById('loginCode').value.trim();
   if(!code){alert('Enter code'); return;}
-  if(code==='joeygold54'){document.getElementById('loginModal').classList.add('hidden'); document.getElementById('adminScreen').style.display='block'; renderAdminTickets(); return;}
+  if(code==='joeygold54'){
+    document.getElementById('loginModal').classList.add('hidden');
+    document.getElementById('adminScreen').style.display='block';
+    renderAdminTickets(); return;
+  }
   db.ref('users/'+code).get().then(snap=>{
     if(!snap.exists()){alert('Code not found'); return;}
     currentUser=code;
@@ -348,7 +349,7 @@ document.getElementById('loginBtn').onclick=()=>{
   });
 };
 
-// ================= CART BUTTONS =================
+// Cart buttons
 document.getElementById('purchaseBtn').onclick=()=>{
   const location=document.getElementById('locationSelect').value;
   let total=0; const items=[];
@@ -365,6 +366,7 @@ document.getElementById('purchaseBtn').onclick=()=>{
   alert('Ticket created: '+ticketId);
   renderTickets();
 };
+
 document.getElementById('clearBtn').onclick=()=>{
   const grid=document.getElementById('productsGrid');
   products.forEach((p,pi)=>p.flavors.forEach((f,fi)=>grid.children[pi].children[fi+1].querySelector('input').value=0));
@@ -372,7 +374,7 @@ document.getElementById('clearBtn').onclick=()=>{
 };
 document.getElementById('productsGrid').addEventListener('input',renderCart);
 
-// ================= ADMIN BUTTONS =================
+// Admin buttons
 document.getElementById('refreshTickets').onclick=renderAdminTickets;
 document.getElementById('closeAdmin').onclick=()=>document.getElementById('adminScreen').style.display='none';
 </script>
