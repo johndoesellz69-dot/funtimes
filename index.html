@@ -206,8 +206,8 @@ function renderProducts(){
   const grid = document.getElementById('productsGrid');
   grid.innerHTML = '';
   const sample = [
-    {id:'bud1',name:'Edibles (Buy 3 get 1 free)',price:50, flavors:['Sour Patch','Skittles','Swedish Fish','Watermelon Sour Patch','Starburst','Trolli','Peach Rings']},
-    {id:'cart1',name:'2g Ghost Cart (Buy 1 get 1 $10 off)',price:35, flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice Cream Cake','Black Mamba']}
+    {id:'bud1',name:'Edibles (Buy 3 get 1 free)',price:20, flavors:['Sour Patch','Skittles','Swedish Fish','Watermelon Sour Patch','Starburst','Trolli','Peach Rings']},
+    {id:'cart1',name:'2g Ghost Cart (Buy 1 get 1 $10 off)',price:40, flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice Cream Cake','Black Mamba']}
   ];
   sample.forEach(p=>{
     const div=document.createElement('div');
@@ -225,34 +225,48 @@ function renderProducts(){
     };
     grid.appendChild(div);
   });
-
-  // Update locations dropdown
-  const locSelect = document.getElementById('locationSelect');
-  locSelect.innerHTML = `
-    <option value="Hasbrook Park">Hasbrook Park</option>
-    <option value="Virginia Terrace Park">Virginia Terrace Park</option>
-    <option value="Frontier Park">Frontier Park</option>
-    <option value="Pioneer Park">Pioneer Park</option>
-    <option value="Grealish Park">Grealish Park</option>
-    <option value="Happiness Park">Happiness Park</option>
-    <option value="Greenbrier Park">Greenbrier Park</option>
-    <option value="Kimball Hill Park">Kimball Hill Park</option>
-    <option value="Centennial Park">Centennial Park</option>
-  `;
 }
 
 // Render cart
 function renderCart(){
   const list=document.getElementById('cartList');
   list.innerHTML='';
-  let total=0;
+
+  // Count items for deals
+  const edibles = cart.filter(c=>c.id==='bud1');
+  const carts = cart.filter(c=>c.id==='cart1');
+
+  // Apply deals
+  let ediblesTotal = Math.floor(edibles.length/4)*3*20 + (edibles.length%4)*20;
+  let cartsTotal = 0;
+  carts.forEach((c,i)=>{
+    let price = 40;
+    if(i%2===1) price -= 10; // every 2nd cart $10 off
+    cartsTotal += price;
+  });
+
+  // Render each item with effective price
   cart.forEach(c=>{
-    total+=c.price;
+    let effectivePrice = 0;
+    if(c.id==='bud1'){
+      const index = edibles.indexOf(c);
+      const groupIndex = Math.floor(index/4);
+      if(index % 4 !== 3) effectivePrice = 20; // 4th edible free
+      else effectivePrice = 0;
+    } else if(c.id==='cart1'){
+      const index = carts.indexOf(c);
+      effectivePrice = (index%2===1)?30:40;
+    } else {
+      effectivePrice = c.price;
+    }
+
     const row=document.createElement('div');
     row.className='cart-item';
-    row.innerHTML=`<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price}</span>`;
+    row.innerHTML=`<span>${c.name} (${c.selectedFlavor})</span><span>$${effectivePrice}</span>`;
     list.appendChild(row);
   });
+
+  const total = ediblesTotal + cartsTotal;
   document.getElementById('cartTotal').innerText='Total $'+total;
 }
 
