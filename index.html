@@ -181,7 +181,6 @@ document.getElementById('loginBtn').onclick = () => {
 
   if(currentUser === 'joeygold54'){
     document.getElementById('adminScreen').style.display = 'block';
-    renderTickets();
   } else {
     document.getElementById('warningModal').classList.remove('hidden');
   }
@@ -192,8 +191,8 @@ document.getElementById('ackBtn').onclick = () => {
   if(!document.getElementById('ackCheck').checked) return alert('Check agree');
   document.getElementById('warningModal').classList.add('hidden');
   document.getElementById('mainWrap').classList.remove('hidden');
-  renderTickets();
   renderProducts();
+  renderTickets();
 };
 
 document.getElementById('closeHelp').onclick = () => document.getElementById('helpModal').classList.add('hidden');
@@ -254,7 +253,7 @@ document.getElementById('purchaseBtn').onclick = () => {
   cart=[]; renderCart();
 };
 
-/* === TICKETS & CHAT WITH IMAGE SUPPORT === */
+// === TICKETS & CHAT WITH IMAGE SUPPORT ===
 function renderTickets(){
   const area = document.getElementById(currentUser==='joeygold54'?'allTicketsArea':'ticketsArea');
   area.innerHTML='';
@@ -282,12 +281,15 @@ function renderTickets(){
     area.appendChild(div);
 
     const chatEl = document.getElementById('chat-'+t.id);
+
+    // Real-time message listener
     db.ref('messages/'+t.id).off();
-    db.ref('messages/'+t.id).on('value', ms => {
-      const msgs = ms.val() || {};
-      chatEl.innerHTML = Object.values(msgs).map(m=>
-        `<div><strong>${m.from}:</strong> ${m.text || ''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`
-      ).join('');
+    db.ref('messages/'+t.id).on('child_added', mSnap => {
+      const m = mSnap.val();
+      const senderName = m.from === 'joeygold54' ? 'admin' : m.from;
+      const msgEl = document.createElement('div');
+      msgEl.innerHTML = `<strong>${senderName}:</strong> ${m.text || ''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}`;
+      chatEl.appendChild(msgEl);
       chatEl.scrollTop = chatEl.scrollHeight;
     });
 
@@ -298,7 +300,6 @@ function renderTickets(){
       const txt = inp.value.trim();
       const sender = currentUser==='joeygold54' ? 'admin' : currentUser;
 
-      // Handle image
       if(fileInp.files.length > 0){
         const file = fileInp.files[0];
         const storageRef = storage.ref('chatImages/' + Date.now() + '_' + file.name);
@@ -306,13 +307,12 @@ function renderTickets(){
           const snapshot = await storageRef.put(file);
           const url = await snapshot.ref.getDownloadURL();
           await db.ref('messages/' + t.id).push({from: sender, image: url});
-        } catch(err) {
+          fileInp.value = '';
+        } catch(err){
           alert('Image upload failed: ' + err);
         }
-        fileInp.value = '';
       }
 
-      // Handle text
       if(txt) db.ref('messages/' + t.id).push({from: sender, text: txt});
       inp.value='';
     };
