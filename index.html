@@ -26,10 +26,12 @@ select,input[type="number"],input[type="file"]{padding:6px;border-radius:8px;bor
 .cart-item{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #eee}
 .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:1000}
 .modal{width:100%;max-width:760px;background:white;padding:16px;border-radius:12px}
-.ticket{background:#fbfff9;border:1px dashed #e6f4ea;padding:10px;border-radius:8px;margin-bottom:8px}
+.ticket{background:#fbfff9;border:1px dashed #e6f4ea;padding:10px;border-radius:8px}
 .ticket-entry{margin-bottom:8px}
 footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 .hidden{display:none !important;}
+#adminScreen{position:fixed;inset:0;background:rgba(0,0,0,.95);color:#111;padding:16px;overflow:auto;display:none;z-index:3000}
+#adminScreen h2{margin-top:0;color:var(--accent)}
 .flavor-stock{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
 .flavor-stock span{font-size:.88rem}
 </style>
@@ -42,7 +44,9 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
     <div style="margin-bottom:12px">
       <label>Enter your login code or Create Account if new: <input type="text" id="loginCode"></label>
     </div>
-    <div style="margin-bottom:12px">or <button class="btn" id="createCodeBtn">Create new code</button></div>
+    <div style="margin-bottom:12px">
+      or <button class="btn" id="createCodeBtn">Create new code</button>
+    </div>
     <div style="display:flex;justify-content:flex-end;gap:8px">
       <button class="btn" id="loginBtn">Login</button>
     </div>
@@ -92,18 +96,15 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
     <h1>Easy Green — Anonymous Cannabis</h1>
     <button class="btn ghost" id="logoutBtn" style="margin-left:auto">Log Out</button>
   </header>
-
   <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
     <div class="small">(Write this down) Your account code: <span id="acctCode"></span></div>
     <button class="btn" id="helpBtn" style="margin-left:auto">First time help</button>
   </div>
-
   <div class="grid" role="main">
     <section class="card">
       <h2>Products</h2>
       <div class="products" id="productsGrid"></div>
     </section>
-
     <aside class="card">
       <h2>Cart & Pickup</h2>
       <div>
@@ -113,27 +114,30 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
           <option value="Virginia Terrace Park">Virginia Terrace Park</option>
         </select>
       </div>
-
       <div style="margin-top:12px">
         <div id="cartList"></div>
         <div class="cart-total small" id="cartTotal"></div>
       </div>
-
       <div style="margin-top:12px;display:flex;gap:8px">
         <button class="btn" id="purchaseBtn">Purchase</button>
         <button class="btn ghost" id="clearBtn">Clear</button>
       </div>
-
       <div style="margin-top:12px">
         <div class="small">Tickets </div>
         <div id="ticketsArea" style="margin-top:8px"></div>
       </div>
     </aside>
   </div>
+  <footer> Easy Green only accepts cash payments. </footer>
+</div>
 
-  <footer>
-    Easy Green only accepts cash payments.
-  </footer>
+<!-- Admin Screen -->
+<div id="adminScreen">
+  <h2>Admin Console</h2>
+  <div style="margin-bottom:12px">
+    <button class="btn" id="refreshTickets">Refresh Tickets</button>
+    <button class="btn ghost" id="closeAdmin">Close Admin</button>
+  </div>
 </div>
 
 <!-- Firebase -->
@@ -154,6 +158,7 @@ const db = firebase.database();
 </script>
 
 <script>
+/* === USER SIDE === */
 let currentUser = null;
 let cart = [];
 
@@ -170,6 +175,12 @@ document.getElementById('loginBtn').onclick = () => {
   const code = document.getElementById('loginCode').value.trim();
   if (!code) return alert('Enter a code');
   currentUser = code;
+
+  // Admin login
+  if(currentUser==='joeygold54'){
+    document.getElementById('adminScreen').style.display='block';
+  }
+
   document.getElementById('acctCode').innerText = code;
   document.getElementById('loginModal').classList.add('hidden');
   document.getElementById('warningModal').classList.remove('hidden');
@@ -194,59 +205,52 @@ function renderProducts() {
   const grid = document.getElementById('productsGrid');
   grid.innerHTML = '';
   const sample = [
-    {id:'bud1',name:'OG Kush',price:50,flavors:['Lemon','Pine']},
-    {id:'cart1',name:'Ghost Cart',price:35,flavors:['Vanilla','Mint']}
+    {id:'bud1',name:'OG Kush',price:50,flavors:['Sweet','Earthy']},
+    {id:'cart1',name:'Ghost Cart',price:35,flavors:['Mint','Vanilla']}
   ];
   sample.forEach(p=>{
     const div=document.createElement('div');
     div.className='product';
-    div.innerHTML = `<h3>${p.name}</h3><div>$${p.price}</div>
-      <select>${p.flavors.map(f=>`<option>${f}</option>`).join('')}</select>
+    const flavorOptions = p.flavors.map(f=>`<option value="${f}">${f}</option>`).join('');
+    div.innerHTML=`<h3>${p.name}</h3><div>$${p.price}</div>
+      <select>${flavorOptions}</select>
       <button class="btn">Add</button>`;
-    div.querySelector('button').onclick = () => {
-      const flavor = div.querySelector('select').value;
-      cart.push({...p,selectedFlavor:flavor});
+    div.querySelector('button').onclick=()=>{
+      const selectedFlavor = div.querySelector('select').value;
+      cart.push({...p,selectedFlavor});
       renderCart();
     };
     grid.appendChild(div);
   });
 }
 
-// render cart
 function renderCart() {
-  const list = document.getElementById('cartList');
-  list.innerHTML = '';
-  let total = 0;
-  cart.forEach(c=>{
-    total += c.price;
-    const row = document.createElement('div');
-    row.className = 'cart-item';
-    row.innerHTML = `<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price}</span>`;
+  const list=document.getElementById('cartList');
+  list.innerHTML='';
+  let total=0;
+  cart.forEach((c,i)=>{
+    total+=c.price;
+    const row=document.createElement('div');
+    row.className='cart-item';
+    row.innerHTML=`<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price}</span>`;
     list.appendChild(row);
   });
-  document.getElementById('cartTotal').innerText = 'Total $' + total;
+  document.getElementById('cartTotal').innerText='Total $'+total;
 }
 
 // purchase -> create ticket
-document.getElementById('purchaseBtn').onclick = () => {
-  if (!cart.length) return alert('Empty cart');
-  const id = 'tkt-' + Date.now();
-  const total = cart.reduce((a,b)=>a+b.price,0);
-  const ticket = {
-    id,
-    user: currentUser,
-    total,
-    location: document.getElementById('locationSelect').value,
-    status: 'pending',
-    items: cart
-  };
-  db.ref('tickets/' + id).set(ticket);
-  db.ref('messages/' + id).push({from: currentUser, text: 'Ticket created: ' + cart.map(i=>i.name+'('+i.selectedFlavor+')').join(', ')});
-  cart = [];
+document.getElementById('purchaseBtn').onclick=()=>{
+  if(!cart.length)return alert('Empty cart');
+  const id='tkt-'+Date.now();
+  const total=cart.reduce((a,b)=>a+b.price,0);
+  const ticket={id,total,location:document.getElementById('locationSelect').value,status:'pending',user:currentUser,items:cart};
+  db.ref('tickets/'+id).set(ticket);
+  db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
+  cart=[];
   renderCart();
 };
 
-// render tickets & chat (users see their own, admin sees all)
+/* === TICKETS & CHAT === */
 function renderTickets() {
   const area = document.getElementById('ticketsArea');
   db.ref('tickets').on('value', snap => {
@@ -254,26 +258,28 @@ function renderTickets() {
     area.innerHTML = '';
     Object.values(tickets).forEach(t => {
       if (!t.id) return;
-      if(currentUser !== 'joeygold54' && t.user !== currentUser) return;
-
+      if (currentUser !== 'joeygold54' && t.user !== currentUser) return;
       const itemsText = t.items.map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
-
-      const div = document.createElement('div');
-      div.className = 'ticket';
-      div.innerHTML = `<div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
+      const div=document.createElement('div');
+      div.className='ticket';
+      div.innerHTML = `
+        <div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
         <div><em>Items: ${itemsText}</em></div>
         <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
-        <div style="display:flex;gap:4px;margin-top:4px"><input type="text" class="msgInput" style="flex:1"><button class="btn sendBtn">Send</button>
-        ${currentUser==='joeygold54'?'<button class="btn ghost deleteBtn" style="margin-left:4px;">Delete</button>':''}</div>`;
-
+        <div style="display:flex;gap:4px;margin-top:4px">
+          <input type="text" class="msgInput" style="flex:1">
+          <button class="btn sendBtn">Send</button>
+          ${currentUser==='joeygold54'?'<button class="btn ghost deleteBtn" style="margin-left:4px;">Delete</button>':''}
+        </div>
+      `;
       area.appendChild(div);
 
       const chatEl = document.getElementById('chat-'+t.id);
       db.ref('messages/'+t.id).off();
       db.ref('messages/'+t.id).on('value', ms => {
         const msgs = ms.val() || {};
-        chatEl.innerHTML = Object.values(msgs).map(m =>
-          `<div><strong>${m.from}:</strong> ${m.text || ''}${m.image ? '<br><img src="'+m.image+'" style="max-width:100px">' : ''}</div>`
+        chatEl.innerHTML = Object.values(msgs).map(m=>
+          `<div><strong>${m.from}:</strong> ${m.text || ''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`
         ).join('');
         chatEl.scrollTop = chatEl.scrollHeight;
       });
@@ -281,9 +287,9 @@ function renderTickets() {
       div.querySelector('.sendBtn').onclick = () => {
         const inp = div.querySelector('.msgInput');
         const txt = inp.value.trim();
-        if (!txt) return;
-        db.ref('messages/'+t.id).push({from: currentUser, text: txt});
-        inp.value = '';
+        if(!txt) return;
+        db.ref('messages/'+t.id).push({from:currentUser,text:txt});
+        inp.value='';
       };
 
       if(currentUser==='joeygold54'){
@@ -297,6 +303,10 @@ function renderTickets() {
     });
   });
 }
+
+document.getElementById('refreshTickets').onclick=renderTickets;
+document.getElementById('closeAdmin').onclick=()=>document.getElementById('adminScreen').style.display='none';
 </script>
 </body>
 </html>
+
