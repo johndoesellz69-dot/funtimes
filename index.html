@@ -1,4 +1,4 @@
-<!doctype html>  
+<!doctype html> 
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -82,8 +82,9 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
       <li>Use the chat under your ticket to send messages or images to admin.</li>
       <li>Admin can respond and send images back.</li>
       <li>Place the specified cash amount in an Envelope and hide it.</li>
-      <li>Mark as paid and send a photo of your envelope.</li>
-      <li>Admin will message you with pickup details after pickup.</li>
+      <li>Mark as paid and send a photo of your envelope and the cash inside.</li>
+      <li>Admin will message you with item retrieval details after your payment is collected.</li>
+      <li>TIPS: It is recommended to hide payments out of the publics view and way, and ensure nobody sees you hiding your payment.</li>
     </ol>
     <button class="btn" id="closeHelp">Got it!</button>
   </div>
@@ -239,12 +240,12 @@ function renderProducts(){
   sample.forEach(p=>{
     const div=document.createElement('div');
     div.className='product';
-    div.innerHTML = <h3>${p.name}</h3><div>$${p.price}</div>
+    div.innerHTML = `<h3>${p.name}</h3><div>$${p.price}</div>
       <select>
         <option value="">Select Flavor</option>
-        ${p.flavors.map(f=><option value="${f}">${f}</option>).join('')}
+        ${p.flavors.map(f=>`<option value="${f}">${f}</option>`).join('')}
       </select>
-      <button class="btn">Add</button>;
+      <button class="btn">Add</button>`;
     div.querySelector('button').onclick = ()=>{
       const flavor = div.querySelector('select').value || "None";
       cart.push({...p, selectedFlavor: flavor});
@@ -281,7 +282,7 @@ function renderCart(){
   cart.forEach(c=>{
     const row=document.createElement('div');
     row.className='cart-item';
-    row.innerHTML=<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price}</span>;
+    row.innerHTML=`<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price}</span>`;
     list.appendChild(row);
   });
   document.getElementById('cartTotal').innerText='Total $'+total;
@@ -320,11 +321,11 @@ function renderTickets(){
     const t = snap.val(); if(!t.id) t.id = snap.key;
     if(currentUser!=='joeygold54' && t.user !== currentUser) return;
 
-    const itemsText = t.items.map(i=>${i.name} (${i.selectedFlavor})).join(', ');
+    const itemsText = t.items.map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
 
     const div = document.createElement('div');
     div.className='ticket';
-    div.innerHTML = 
+    div.innerHTML = `
       <div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
       <div><em>Items: ${itemsText}</em></div>
       <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
@@ -336,7 +337,7 @@ function renderTickets(){
         <button class="btn ghost markPaidBtn">Mark Paid</button>
         ${currentUser==='joeygold54'?'<button class="btn ghost itemHiddenBtn">Item Hidden</button>':''}
       </div>
-    ;
+    `;
     area.appendChild(div);
 
     const chatEl = document.getElementById('chat-'+t.id);
@@ -344,7 +345,7 @@ function renderTickets(){
     db.ref('messages/'+t.id).on('value', ms => {
       const msgs = ms.val() || {};
       chatEl.innerHTML = Object.values(msgs).map(m=>
-        <div><strong>${m.from==='joeygold54'?'admin':m.from}:</strong> ${m.text || ''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>
+        `<div><strong>${m.from==='joeygold54'?'admin':m.from}:</strong> ${m.text || ''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`
       ).join('');
       chatEl.scrollTop = chatEl.scrollHeight;
     });
