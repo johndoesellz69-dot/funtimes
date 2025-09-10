@@ -38,6 +38,7 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 </head>
 <body>
 
+<!-- Login Modal -->
 <div id="loginModal" class="modal-back">
   <div class="modal">
     <h3>Login</h3>
@@ -53,6 +54,7 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   </div>
 </div>
 
+<!-- Warning Modal -->
 <div id="warningModal" class="modal-back hidden">
   <div class="modal">
     <h3>Warnings & Rules</h3>
@@ -70,6 +72,7 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   </div>
 </div>
 
+<!-- Help Modal -->
 <div id="helpModal" class="modal-back hidden">
   <div class="modal">
     <h3>First Time Help</h3>
@@ -79,16 +82,16 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
       <li>Add items to your cart and choose pickup location.</li>
       <li>Click Purchase to generate a ticket for your order.</li>
       <li>Use the chat under your ticket to send messages or images to admin.</li>
-      <li>Admin can respond and send images back. Keep communications secure and anonymous.</li>
-      <li>Place the specified cash amount in an Envelope, and write a 4 digit code of your choosing on the Envelope</li>
-      <li>Hide Envelope at your selected location in a very discreet and out of sight spot (Easy Green is not liable for stolen payments)</li>
-      <li>Select the "Mark as paid" button, and send a photo of your envelope and where you hid it.</li>
-      <li>Head home and wait for the deliverant to pick up your payment and hide your item. Once finished, the admin will message you your 4 digit code, an image of the product hidden, and any further information.</li>
+      <li>Admin can respond and send images back.</li>
+      <li>Place the specified cash amount in an Envelope and hide it.</li>
+      <li>Mark as paid and send a photo of your envelope.</li>
+      <li>Admin will message you with pickup details after pickup.</li>
     </ol>
     <button class="btn" id="closeHelp">Got it!</button>
   </div>
 </div>
 
+<!-- Main -->
 <div class="wrap hidden" id="mainWrap">
   <header>
     <h1>Easy Green — Anonymous Cannabis</h1>
@@ -129,6 +132,7 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   <footer> Easy Green only accepts cash payments. </footer>
 </div>
 
+<!-- Admin Screen -->
 <div id="adminScreen">
   <h2>Admin Console</h2>
   <div style="margin-bottom:12px">
@@ -141,6 +145,7 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   <div id="allTicketsArea"></div>
 </div>
 
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 <script>
@@ -159,21 +164,6 @@ const db = firebase.database();
 
 <script>
 // === ADMIN TICKETS WITH CHAT ===
-function renderAdminChat(ticketId) {
-    const chatEl = document.getElementById('admin-chat-' + ticketId);
-    if (!chatEl) return;
-
-    db.ref('messages/' + ticketId).on('value', msgSnap => {
-        const msgs = msgSnap.val() || {};
-        chatEl.innerHTML = Object.values(msgs).map(m =>
-            m.image
-                ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`
-                : `<div><strong>${m.from}:</strong> ${m.text}</div>`
-        ).join('');
-        chatEl.scrollTop = chatEl.scrollHeight;
-    });
-}
-
 function renderAdminTickets() {
   const area = document.getElementById('allTicketsArea');
   area.innerHTML = '';
@@ -181,16 +171,16 @@ function renderAdminTickets() {
   db.ref('tickets').on('value', snap => {
     const tickets = snap.val() || {};
     area.innerHTML = '';
-    
-    Object.values(tickets).forEach(t => {
+
+    Object.entries(tickets).forEach(([id, t]) => {
       const div = document.createElement('div');
       div.className = 'ticket';
       div.style.marginBottom = '6px';
       div.innerHTML = `
         <div class="ticket-entry">
-          <strong>${t.id}</strong> @ ${t.location} | Total $${t.total.toFixed(2)} | Status: ${t.status}
+          <strong>${t.id || id}</strong> @ ${t.location} | Total $${t.total.toFixed(2)} | Status: ${t.status}
         </div>
-        <div id="admin-chat-${t.id}" style="margin-top:4px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
+        <div id="admin-chat-${id}" style="margin-top:4px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
         <div style="margin-top:4px;display:flex;gap:4px">
           <input type="text" placeholder="Message" class="msgInput" style="flex:1">
           <input type="file" class="imgInput" style="flex:1">
@@ -199,7 +189,19 @@ function renderAdminTickets() {
       `;
       area.appendChild(div);
 
-      renderAdminChat(t.id);
+      const chatEl = document.getElementById('admin-chat-' + id);
+
+      // listen to messages for this ticket
+      db.ref('messages/' + id).off(); // remove old listener if any
+      db.ref('messages/' + id).on('value', msgSnap => {
+        const msgs = msgSnap.val() || {};
+        chatEl.innerHTML = Object.values(msgs).map(m =>
+          m.image
+            ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`
+            : `<div><strong>${m.from}:</strong> ${m.text}</div>`
+        ).join('');
+        chatEl.scrollTop = chatEl.scrollHeight;
+      });
 
       div.querySelector('.sendBtn').onclick = () => {
         const text = div.querySelector('.msgInput').value.trim();
@@ -210,15 +212,14 @@ function renderAdminTickets() {
           const reader = new FileReader();
           reader.onload = e => {
             const msg = { from: 'Admin', image: e.target.result };
-            db.ref('messages/' + t.id).push(msg);
+            db.ref('messages/' + id).push(msg);
             div.querySelector('.imgInput').value = '';
           };
           reader.readAsDataURL(file);
         }
-
         if (text) {
           const msg = { from: 'Admin', text };
-          db.ref('messages/' + t.id).push(msg);
+          db.ref('messages/' + id).push(msg);
           div.querySelector('.msgInput').value = '';
         }
       };
@@ -226,21 +227,14 @@ function renderAdminTickets() {
   });
 }
 
-// Hook up admin screen
+// Hook admin buttons
 document.getElementById('refreshTickets').onclick = renderAdminTickets;
 document.getElementById('closeAdmin').onclick = () => {
   document.getElementById('adminScreen').style.display = 'none';
 };
 
 // Call on load
-document.addEventListener('DOMContentLoaded', () => {
-    // This part of the code is not shown in the snippet,
-    // but the assumption is that the admin screen is
-    // shown on some login or event.
-    // Call renderAdminTickets when the admin screen is first displayed.
-    // For now, it's called on page load to demonstrate the fix.
-    renderAdminTickets();
-});
+renderAdminTickets();
 </script>
 </body>
 </html>
