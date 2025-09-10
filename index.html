@@ -1,238 +1,290 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Easy Green</title>
-<style>
-:root{--accent:#2f9c4a;--muted:#6b7280;--card:#fff;--bg:#f6fff6;--maxw:980px}
-*{box-sizing:border-box}
-body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0;background:linear-gradient(#f6fff6,#eefef0);color:#111}
-.wrap{max-width:var(--maxw);margin:18px auto;padding:16px}
-header{display:flex;gap:12px;align-items:center}
-header h1{margin:0;color:var(--accent);font-size:1.3rem}
-.grid{display:grid;grid-template-columns:1fr 320px;gap:14px;margin-top:12px}
-@media (max-width:900px){.grid{grid-template-columns:1fr}}
-.card{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 8px 20px rgba(20,60,20,.06)}
-.products{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
-.product{border:1px solid #eee;padding:10px;border-radius:10px}
-.product h3{margin:6px 0 4px}
-.row{display:flex;gap:8px;align-items:center}
-label{font-size:.92rem}
-select,input[type="number"],input[type="file"]{padding:6px;border-radius:8px;border:1px solid #ddd}
-.btn{background:var(--accent);color:white;padding:8px 12px;border-radius:8px;border:0;cursor:pointer}
-.btn.ghost{background:#f3f3f3;color:#111}
-.small{font-size:.88rem;color:var(--muted)}
-.cart-item{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #eee}
-.modal-back{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:1000}
-.modal{width:100%;max-width:760px;background:white;padding:16px;border-radius:12px}
-.ticket{background:#fbfff9;border:1px dashed #e6f4ea;padding:10px;border-radius:8px}
-.ticket-entry{margin-bottom:8px}
-footer{margin-top:12px;color:var(--muted);font-size:.82rem}
-.hidden{display:none !important;}
-#adminScreen{position:fixed;inset:0;background:rgba(0,0,0,.95);color:#111;padding:16px;overflow:auto;display:none;z-index:3000}
-#adminScreen h2{margin-top:0;color:var(--accent)}
-.flavor-stock{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-.flavor-stock span{font-size:.88rem}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Easy Green</title>
+  <style>
+    :root{--accent:#2f9c4a;--muted:#6b7280;--card:#fff;--bg:#f6fff6;--maxw:980px}
+    *{box-sizing:border-box}
+    body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0;background:linear-gradient(#f6fff6,#eefef0);color:#111}
+    .wrap{max-width:var(--maxw);margin:18px auto;padding:16px}
+    header{display:flex;gap:12px;align-items:center}
+    header h1{margin:0;color:var(--accent);font-size:1.3rem}
+    .grid{display:grid;grid-template-columns:1fr 320px;gap:14px;margin-top:12px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+    .card{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 8px 20px rgba(20,60,20,.06)}
+    .products{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+    .product{border:1px solid #eee;padding:10px;border-radius:10px}
+    .product h3{margin:6px 0 4px}
+    .row{display:flex;gap:8px;align-items:center}
+    label{font-size:.92rem}
+    select,input[type="number"],input[type="file"],input[type="text"]{padding:6px;border-radius:8px;border:1px solid #ddd}
+    .btn{background:var(--accent);color:white;padding:8px 12px;border-radius:8px;border:0;cursor:pointer}
+    .btn.ghost{background:#f3f3f3;color:#111}
+    .small{font-size:.88rem;color:var(--muted)}
+    .cart-item{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #eee}
+    .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:1000}
+    .modal{width:100%;max-width:760px;background:white;padding:16px;border-radius:12px}
+    .ticket{background:#fbfff9;border:1px dashed #e6f4ea;padding:10px;border-radius:8px}
+    .ticket-entry{margin-bottom:8px}
+    footer{margin-top:12px;color:var(--muted);font-size:.82rem}
+    .hidden{display:none !important;}
+    #adminScreen{position:fixed;inset:0;background:rgba(0,0,0,.95);color:#111;padding:16px;overflow:auto;display:none;z-index:3000}
+    #adminScreen h2{margin-top:0;color:var(--accent)}
+    .flavor-stock{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+    .flavor-stock span{font-size:.88rem}
+  </style>
 </head>
 <body>
+  <!-- Login Modal -->
+  <div id="loginModal" class="modal-back">
+    <div class="modal">
+      <h3>Login</h3>
+      <div style="margin-bottom:12px">
+        <label>Enter your login code or Create Account if new:
+          <input type="text" id="loginCode">
+        </label>
+      </div>
+      <div style="margin-bottom:12px">or <button class="btn" id="createCodeBtn">Create new code</button></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn" id="loginBtn">Login</button>
+      </div>
+    </div>
+  </div>
 
-<!-- Login Modal -->
-<div id="loginModal" class="modal-back">
-  <div class="modal">
-    <h3>Login</h3>
+  <!-- Warning Modal -->
+  <div id="warningModal" class="modal-back hidden">
+    <div class="modal">
+      <h3>Warnings & Rules</h3>
+      <ul>
+        <li>Easy Green is not liable for any stolen Product/Payments.</li>
+        <li>Use products safely.</li>
+        <li>Respect site anonymity.</li>
+      </ul>
+      <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+        <label style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="ackCheck"> I agree
+        </label>
+        <button class="btn" id="ackBtn">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help Modal -->
+  <div id="helpModal" class="modal-back hidden">
+    <div class="modal">
+      <h3>First Time Help</h3>
+      <p>Welcome to Easy Green! Here's how it works:</p>
+      <ol>
+        <li>Select products and flavors you want.</li>
+        <li>Add items to your cart and choose pickup location.</li>
+        <li>Click Purchase to generate a ticket for your order.</li>
+        <li>Use the chat under your ticket to send messages or images to admin.</li>
+        <li>Admin can respond and send images back.</li>
+        <li>Place the specified cash amount in an Envelope and hide it.</li>
+        <li>Mark as paid and send a photo of your envelope.</li>
+        <li>Admin will message you with pickup details after pickup.</li>
+      </ol>
+      <button class="btn" id="closeHelp">Got it!</button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="wrap hidden" id="mainWrap">
+    <header>
+      <h1>Easy Green — Anonymous Cannabis</h1>
+      <button class="btn ghost" id="logoutBtn" style="margin-left:auto">Log Out</button>
+    </header>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+      <div class="small">(Write this down) Your account code: <span id="acctCode"></span></div>
+      <button class="btn" id="helpBtn" style="margin-left:auto">First time help</button>
+    </div>
+    <div class="grid" role="main">
+      <section class="card">
+        <h2>Products</h2>
+        <div class="products" id="productsGrid"></div>
+      </section>
+      <aside class="card">
+        <h2>Cart & Pickup</h2>
+        <div>
+          <label class="small">Pickup Location</label>
+          <select id="locationSelect">
+            <option value="Hasbrook Park">Hasbrook Park</option>
+            <option value="Virginia Terrace Park">Virginia Terrace Park</option>
+          </select>
+        </div>
+        <div style="margin-top:12px">
+          <div id="cartList"></div>
+          <div class="cart-total small" id="cartTotal"></div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="btn" id="purchaseBtn">Purchase</button>
+          <button class="btn ghost" id="clearBtn">Clear</button>
+        </div>
+        <div style="margin-top:12px">
+          <div class="small">Tickets </div>
+          <div id="ticketsArea" style="margin-top:8px"></div>
+        </div>
+      </aside>
+    </div>
+    <footer> Easy Green only accepts cash payments. </footer>
+  </div>
+
+  <!-- Admin Screen -->
+  <div id="adminScreen">
+    <h2>Admin Console</h2>
     <div style="margin-bottom:12px">
-      <label>Enter your login code or Create Account if new:
-        <input type="text" id="loginCode">
-      </label>
+      <button class="btn" id="refreshTickets">Refresh Tickets</button>
+      <button class="btn ghost" id="closeAdmin">Close Admin</button>
     </div>
-    <div style="margin-bottom:12px">or <button class="btn" id="createCodeBtn">Create new code</button></div>
-    <div style="display:flex;justify-content:flex-end;gap:8px">
-      <button class="btn" id="loginBtn">Login</button>
-    </div>
+    <h3>Stock Control</h3>
+    <div id="adminStockArea"></div>
+    <h3>All Tickets</h3>
+    <div id="allTicketsArea"></div>
   </div>
-</div>
 
-<!-- Warning Modal -->
-<div id="warningModal" class="modal-back hidden">
-  <div class="modal">
-    <h3>Warnings & Rules</h3>
-    <ul>
-      <li>Easy Green is not liable for any stolen Product/Payments.</li>
-      <li>Use products safely.</li>
-      <li>Respect site anonymity.</li>
-    </ul>
-    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
-      <label style="display:flex;align-items:center;gap:8px">
-        <input type="checkbox" id="ackCheck"> I agree
-      </label>
-      <button class="btn" id="ackBtn">Confirm</button>
-    </div>
-  </div>
-</div>
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "<YOUR_API_KEY>",
+      authDomain: "<YOUR_PROJECT_ID>.firebaseapp.com",
+      databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com/",
+      projectId: "<YOUR_PROJECT_ID>",
+      storageBucket: "<YOUR_PROJECT_ID>.appspot.com",
+      messagingSenderId: "<YOUR_SENDER_ID>",
+      appId: "<YOUR_APP_ID>"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+  </script>
 
-<!-- Help Modal -->
-<div id="helpModal" class="modal-back hidden">
-  <div class="modal">
-    <h3>First Time Help</h3>
-    <p>Welcome to Easy Green! Here's how it works:</p>
-    <ol>
-      <li>Select products and flavors you want.</li>
-      <li>Add items to your cart and choose pickup location.</li>
-      <li>Click Purchase to generate a ticket for your order.</li>
-      <li>Use the chat under your ticket to send messages or images to admin.</li>
-      <li>Admin can respond and send images back.</li>
-      <li>Place the specified cash amount in an Envelope and hide it.</li>
-      <li>Mark as paid and send a photo of your envelope.</li>
-      <li>Admin will message you with pickup details after pickup.</li>
-    </ol>
-    <button class="btn" id="closeHelp">Got it!</button>
-  </div>
-</div>
+  <script>
+    let currentUser = null;
 
-<!-- Main -->
-<div class="wrap hidden" id="mainWrap">
-  <header>
-    <h1>Easy Green — Anonymous Cannabis</h1>
-    <button class="btn ghost" id="logoutBtn" style="margin-left:auto">Log Out</button>
-  </header>
-  <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
-    <div class="small">(Write this down) Your account code: <span id="acctCode"></span></div>
-    <button class="btn" id="helpBtn" style="margin-left:auto">First time help</button>
-  </div>
-  <div class="grid" role="main">
-    <section class="card">
-      <h2>Products</h2>
-      <div class="products" id="productsGrid"></div>
-    </section>
-    <aside class="card">
-      <h2>Cart & Pickup</h2>
-      <div>
-        <label class="small">Pickup Location</label>
-        <select id="locationSelect">
-          <option value="Hasbrook Park">Hasbrook Park</option>
-          <option value="Virginia Terrace Park">Virginia Terrace Park</option>
-        </select>
-      </div>
-      <div style="margin-top:12px">
-        <div id="cartList"></div>
-        <div class="cart-total small" id="cartTotal"></div>
-      </div>
-      <div style="margin-top:12px;display:flex;gap:8px">
-        <button class="btn" id="purchaseBtn">Purchase</button>
-        <button class="btn ghost" id="clearBtn">Clear</button>
-      </div>
-      <div style="margin-top:12px">
-        <div class="small">Tickets </div>
-        <div id="ticketsArea" style="margin-top:8px"></div>
-      </div>
-    </aside>
-  </div>
-  <footer> Easy Green only accepts cash payments. </footer>
-</div>
+    // === LOGIN ===
+    document.getElementById('loginBtn').onclick = () => {
+      const code = document.getElementById('loginCode').value.trim();
+      if (!code) return alert("Enter a code first");
 
-<!-- Admin Screen -->
-<div id="adminScreen">
-  <h2>Admin Console</h2>
-  <div style="margin-bottom:12px">
-    <button class="btn" id="refreshTickets">Refresh Tickets</button>
-    <button class="btn ghost" id="closeAdmin">Close Admin</button>
-  </div>
-  <h3>Stock Control</h3>
-  <div id="adminStockArea"></div>
-  <h3>All Tickets</h3>
-  <div id="allTicketsArea"></div>
-</div>
+      if (code === "joeygold54") {
+        currentUser = { id: "admin", code: "admin" };
+        document.getElementById('loginModal').style.display = 'none';
+        document.getElementById('adminScreen').style.display = 'block';
+      } else {
+        db.ref("accounts/" + code).once("value").then(snap => {
+          if (snap.exists()) {
+            currentUser = { id: code, code: code };
+            document.getElementById('loginModal').style.display = 'none';
+            document.getElementById('warningModal').classList.remove("hidden");
+            document.getElementById('acctCode').innerText = code;
+          } else {
+            alert("Invalid code");
+          }
+        });
+      }
+    };
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-<script>
-const firebaseConfig = {
-  apiKey: "<YOUR_API_KEY>",
-  authDomain: "<YOUR_PROJECT_ID>.firebaseapp.com",
-  databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com/",
-  projectId: "<YOUR_PROJECT_ID>",
-  storageBucket: "<YOUR_PROJECT_ID>.appspot.com",
-  messagingSenderId: "<YOUR_SENDER_ID>",
-  appId: "<YOUR_APP_ID>"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-</script>
+    // === CREATE ACCOUNT ===
+    document.getElementById('createCodeBtn').onclick = () => {
+      const newCode = "user" + Math.floor(Math.random() * 100000);
+      db.ref("accounts/" + newCode).set({ created: Date.now() });
+      alert("Your account code: " + newCode);
+      document.getElementById('loginCode').value = newCode;
+    };
 
-<script>
-/* === ADMIN TICKETS WITH CHAT === */
-function renderAdminTickets() {
-  const area = document.getElementById('allTicketsArea');
-  area.innerHTML = '';
-  db.ref('tickets').on('value', snap => {
-    const tickets = snap.val() || {};
-    area.innerHTML = '';
-    Object.entries(tickets).forEach(([id, t]) => {
-      const div = document.createElement('div');
-      div.className = 'ticket';
-      div.style.marginBottom = '6px';
-      div.innerHTML = `
-        <div class="ticket-entry">
-          <strong>${t.id || id}</strong> @ ${t.location} | Total $${t.total.toFixed(2)} | Status: ${t.status}
-        </div>
-        <div id="admin-chat-${id}" style="margin-top:4px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
-        <div style="margin-top:4px;display:flex;gap:4px">
-          <input type="text" placeholder="Message" class="msgInput" style="flex:1">
-          <input type="file" class="imgInput" style="flex:1">
-          <button class="btn sendBtn">Send</button>
-        </div>
-      `;
-      area.appendChild(div);
+    // === WARNING ACKNOWLEDGE ===
+    document.getElementById('ackBtn').onclick = () => {
+      if (!document.getElementById('ackCheck').checked) {
+        alert("You must agree first");
+        return;
+      }
+      document.getElementById('warningModal').classList.add("hidden");
+      document.getElementById('mainWrap').classList.remove("hidden");
+    };
 
-      const chatEl = document.getElementById('admin-chat-' + id);
+    // === HELP MODAL ===
+    document.getElementById('helpBtn').onclick = () => {
+      document.getElementById('helpModal').classList.remove("hidden");
+    };
+    document.getElementById('closeHelp').onclick = () => {
+      document.getElementById('helpModal').classList.add("hidden");
+    };
+    document.getElementById('logoutBtn').onclick = () => {
+      location.reload();
+    };
+  </script>
 
-      // Messages listener
-      db.ref('messages/' + id).off();
-      db.ref('messages/' + id).on('value', msgSnap => {
-        const msgs = msgSnap.val() || {};
-        chatEl.innerHTML = Object.values(msgs).map(m =>
-          m.image
-            ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`
-            : `<div><strong>${m.from}:</strong> ${m.text}</div>`
-        ).join('');
-        chatEl.scrollTop = chatEl.scrollHeight;
-      });
+  <script>
+    /* === ADMIN TICKETS WITH CHAT === */
+    function renderAdminTickets() {
+      const area = document.getElementById('allTicketsArea');
+      area.innerHTML = '';
+      db.ref('tickets').on('value', snap => {
+        const tickets = snap.val() || {};
+        area.innerHTML = '';
+        Object.entries(tickets).forEach(([id, t]) => {
+          const div = document.createElement('div');
+          div.className = 'ticket';
+          div.style.marginBottom = '6px';
+          div.innerHTML = `
+            <div class="ticket-entry">
+              <strong>${t.id || id}</strong> @ ${t.location} | Total $${t.total.toFixed(2)} | Status: ${t.status}
+            </div>
+            <div id="admin-chat-${id}" style="margin-top:4px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
+            <div style="margin-top:4px;display:flex;gap:4px">
+              <input type="text" placeholder="Message" class="msgInput" style="flex:1">
+              <input type="file" class="imgInput" style="flex:1">
+              <button class="btn sendBtn">Send</button>
+            </div>
+          `;
+          area.appendChild(div);
 
-      // Admin sending messages
-      div.querySelector('.sendBtn').onclick = () => {
-        const text = div.querySelector('.msgInput').value.trim();
-        const file = div.querySelector('.imgInput').files[0];
-        if (!text && !file) { alert('Write message or choose image'); return; }
+          const chatEl = document.getElementById('admin-chat-' + id);
+          db.ref('messages/' + id).off();
+          db.ref('messages/' + id).on('value', msgSnap => {
+            const msgs = msgSnap.val() || {};
+            chatEl.innerHTML = Object.values(msgs).map(m => m.image
+              ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`
+              : `<div><strong>${m.from}:</strong> ${m.text}</div>`
+            ).join('');
+            chatEl.scrollTop = chatEl.scrollHeight;
+          });
 
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = e => {
-            const msg = { from: 'Admin', image: e.target.result };
-            db.ref('messages/' + id).push(msg);
-            div.querySelector('.imgInput').value = '';
+          div.querySelector('.sendBtn').onclick = () => {
+            const text = div.querySelector('.msgInput').value.trim();
+            const file = div.querySelector('.imgInput').files[0];
+            if (!text && !file) { alert('Write message or choose image'); return; }
+
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = e => {
+                const msg = { from: 'Admin', image: e.target.result };
+                db.ref('messages/' + id).push(msg);
+                div.querySelector('.imgInput').value = '';
+              };
+              reader.readAsDataURL(file);
+            }
+            if (text) {
+              const msg = { from: 'Admin', text };
+              db.ref('messages/' + id).push(msg);
+              div.querySelector('.msgInput').value = '';
+            }
           };
-          reader.readAsDataURL(file);
-        }
+        });
+      });
+    }
 
-        if (text) {
-          const msg = { from: 'Admin', text };
-          db.ref('messages/' + id).push(msg);
-          div.querySelector('.msgInput').value = '';
-        }
-      };
-    });
-  });
-}
+    document.getElementById('refreshTickets').onclick = renderAdminTickets;
+    document.getElementById('closeAdmin').onclick = () => {
+      document.getElementById('adminScreen').style.display = 'none';
+    };
 
-// Hook admin buttons
-document.getElementById('refreshTickets').onclick = renderAdminTickets;
-document.getElementById('closeAdmin').onclick = () => {
-  document.getElementById('adminScreen').style.display = 'none';
-};
-</script>
+    renderAdminTickets();
+  </script>
 </body>
 </html>
+
 
