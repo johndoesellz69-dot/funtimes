@@ -276,9 +276,12 @@ function renderTickets() {
       if (!t.id) return;
       if(currentUser !== 'joeygold54' && t.user !== currentUser) return;
 
+      const itemsText = t.items.map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
+
       const div = document.createElement('div');
       div.className = 'ticket';
       div.innerHTML = `<div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
+        <div><em>Items: ${itemsText}</em></div>
         <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
         <div style="display:flex;gap:4px;margin-top:4px"><input type="text" class="msgInput" style="flex:1"><button class="btn sendBtn">Send</button></div>`;
 
@@ -313,11 +316,15 @@ function renderAdminTickets() {
     const tickets = snap.val() || {};
     area.innerHTML = '';
     Object.entries(tickets).forEach(([id,t]) => {
+      const itemsText = t.items.map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
+
       const div = document.createElement('div');
       div.className = 'ticket';
       div.innerHTML = `<div class="ticket-entry"><strong>${t.id||id}</strong> @ ${t.location} | Total $${t.total} | Status: ${t.status}</div>
+        <div><em>Items: ${itemsText}</em></div>
         <div id="admin-chat-${id}" style="height:120px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
-        <div style="display:flex;gap:4px;margin-top:4px"><input type="text" class="msgInput" style="flex:1"><button class="btn sendBtn">Send</button></div>`;
+        <div style="display:flex;gap:4px;margin-top:4px"><input type="text" class="msgInput" style="flex:1"><button class="btn sendBtn">Send</button>
+        <button class="btn ghost deleteBtn" style="margin-left:4px;">Delete</button></div>`;
 
       area.appendChild(div);
 
@@ -337,6 +344,13 @@ function renderAdminTickets() {
         if (!txt) return;
         db.ref('messages/'+id).push({from:'Admin',text:txt});
         inp.value='';
+      };
+
+      div.querySelector('.deleteBtn').onclick = () => {
+        if(confirm('Delete this ticket permanently?')){
+          db.ref('tickets/'+id).remove();
+          db.ref('messages/'+id).remove();
+        }
       };
     });
   });
