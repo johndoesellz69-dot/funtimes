@@ -32,8 +32,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 .hidden{display:none !important;}
 #adminScreen{position:fixed;inset:0;background:rgba(0,0,0,.95);color:#111;padding:16px;overflow:auto;display:none;z-index:3000}
 #adminScreen h2{margin-top:0;color:var(--accent)}
-.flavor-stock{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-.flavor-stock span{font-size:.88rem}
 </style>
 </head>
 <body>
@@ -181,6 +179,7 @@ document.getElementById('loginBtn').onclick = () => {
 
   if(currentUser === 'joeygold54'){
     document.getElementById('adminScreen').style.display = 'block';
+    renderTickets();
   } else {
     document.getElementById('warningModal').classList.remove('hidden');
   }
@@ -191,8 +190,8 @@ document.getElementById('ackBtn').onclick = () => {
   if(!document.getElementById('ackCheck').checked) return alert('Check agree');
   document.getElementById('warningModal').classList.add('hidden');
   document.getElementById('mainWrap').classList.remove('hidden');
-  renderProducts();
   renderTickets();
+  renderProducts();
 };
 
 document.getElementById('closeHelp').onclick = () => document.getElementById('helpModal').classList.add('hidden');
@@ -253,7 +252,7 @@ document.getElementById('purchaseBtn').onclick = () => {
   cart=[]; renderCart();
 };
 
-// === TICKETS & CHAT WITH IMAGE SUPPORT ===
+/* === TICKETS & CHAT WITH IMAGE SUPPORT === */
 function renderTickets(){
   const area = document.getElementById(currentUser==='joeygold54'?'allTicketsArea':'ticketsArea');
   area.innerHTML='';
@@ -281,15 +280,12 @@ function renderTickets(){
     area.appendChild(div);
 
     const chatEl = document.getElementById('chat-'+t.id);
-
-    // Real-time message listener
     db.ref('messages/'+t.id).off();
-    db.ref('messages/'+t.id).on('child_added', mSnap => {
-      const m = mSnap.val();
-      const senderName = m.from === 'joeygold54' ? 'admin' : m.from;
-      const msgEl = document.createElement('div');
-      msgEl.innerHTML = `<strong>${senderName}:</strong> ${m.text || ''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}`;
-      chatEl.appendChild(msgEl);
+    db.ref('messages/'+t.id).on('value', ms => {
+      const msgs = ms.val() || {};
+      chatEl.innerHTML = Object.values(msgs).map(m=>
+        `<div><strong>${m.from}:</strong> ${m.text || ''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`
+      ).join('');
       chatEl.scrollTop = chatEl.scrollHeight;
     });
 
@@ -298,22 +294,26 @@ function renderTickets(){
       const inp = div.querySelector('.msgInput');
       const fileInp = div.querySelector('.imgInput');
       const txt = inp.value.trim();
-      const sender = currentUser==='joeygold54' ? 'admin' : currentUser;
+      const fromName = currentUser==='joeygold54' ? 'admin' : currentUser;
 
-      if(fileInp.files.length > 0){
+      if(fileInp.files.length>0){
         const file = fileInp.files[0];
-        const storageRef = storage.ref('chatImages/' + Date.now() + '_' + file.name);
-        try {
-          const snapshot = await storageRef.put(file);
-          const url = await snapshot.ref.getDownloadURL();
-          await db.ref('messages/' + t.id).push({from: sender, image: url});
-          fileInp.value = '';
-        } catch(err){
-          alert('Image upload failed: ' + err);
+        const placeholder = chatEl.appendChild(document.createElement('div'));
+        placeholder.innerHTML = `<strong>${fromName}:</strong> <em>Uploading image...</em>`;
+        fileInp.value='';
+
+        const storageRef = storage.ref('chatImages/'+Date.now()+'_'+file.name);
+        try{
+          await storageRef.put(file);
+          const url = await storageRef.getDownloadURL();
+          db.ref('messages/'+t.id).push({from: fromName, image: url});
+        } catch(e){
+          placeholder.innerHTML = `<strong>${fromName}:</strong> <em>Image upload failed</em>`;
+        } finally{
+          placeholder.remove();
         }
       }
-
-      if(txt) db.ref('messages/' + t.id).push({from: sender, text: txt});
+      if(txt) db.ref('messages/'+t.id).push({from: fromName, text: txt});
       inp.value='';
     };
 
