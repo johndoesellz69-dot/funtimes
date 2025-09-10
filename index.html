@@ -209,21 +209,16 @@ function renderProducts(){
     {id:'bud1',name:'Edibles (Buy 3 get 1 free)',price:20},
     {id:'cart1',name:'2g Ghost Cart (Buy 1 get 1 $10 off)',price:40}
   ];
+  const flavors = {
+    'Edibles (Buy 3 get 1 free)':['Sour Patch','Skittles','Swedish fish','Watermelon Sour Patch','Starburst','Trolli','Peach Rings'],
+    '2g Ghost Cart (Buy 1 get 1 $10 off)':['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice Cream Cake','Black Mamba']
+  };
   sample.forEach(p=>{
     const div=document.createElement('div');
     div.className='product';
-    let flavors = [];
-    if(p.id==='bud1'){
-      flavors = ['Sour Patch','Skittles','Swedish fish','Watermelon Sour Patch','Starburst','Trolli','Peach Rings'];
-    } else if(p.id==='cart1'){
-      flavors = ['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice Cream Cake','Black Mamba'];
-    }
-    const flavorOptions = flavors.map(f=>`<option value="${f}">${f}</option>`).join('');
+    const options = flavors[p.name].map(f=>`<option value="${f}">${f}</option>`).join('');
     div.innerHTML = `<h3>${p.name}</h3><div>$${p.price}</div>
-      <select>
-        <option value="">Select Flavor</option>
-        ${flavorOptions}
-      </select>
+      <select><option value="">Select Flavor</option>${options}</select>
       <button class="btn">Add</button>`;
     div.querySelector('button').onclick = ()=>{
       const flavor = div.querySelector('select').value || "None";
@@ -234,32 +229,33 @@ function renderProducts(){
   });
 }
 
-// Render cart
+// Render cart with deal logic
 function renderCart(){
   const list=document.getElementById('cartList');
   list.innerHTML='';
   let total=0;
-  // count items for deals
-  const edibleCount = cart.filter(c=>c.id==='bud1').length;
-  const cartCount = cart.filter(c=>c.id==='cart1').length;
-  let edibleTotal = edibleCount * 20;
-  let freeEdibles = Math.floor(edibleCount/4);
-  edibleTotal -= freeEdibles * 20;
-  let cartTotalPrice = cartCount * 40;
-  let freeCartPairs = Math.floor(cartCount/2);
-  cartTotalPrice -= freeCartPairs * 10;
-  total = edibleTotal + cartTotalPrice;
+  let ediblesCount=0;
+  let cartsCount=0;
 
   cart.forEach(c=>{
-    let price = c.price;
-    if(c.id==='bud1'){
-      const index = cart.filter(x=>x.id==='bud1').indexOf(c);
-      const freeIndex = (index+1)%4===0; // every 4th edible is free
-      if(freeIndex) price = 0;
-    } else if(c.id==='cart1'){
-      const index = cart.filter(x=>x.id==='cart1').indexOf(c);
-      if(index%2===1) price = price-10; // second cart in pair $10 off
+    if(c.name.includes('Edibles')) ediblesCount++;
+    if(c.name.includes('Ghost Cart')) cartsCount++;
+  });
+
+  cart.forEach(c=>{
+    let price=c.price;
+    if(c.name.includes('Edibles')){
+      const free=Math.floor(ediblesCount/4);
+      if(free>0){
+        const ediblesAdded=cart.filter(i=>i.name.includes('Edibles')).indexOf(c);
+        if(ediblesAdded<free) price=0;
+      }
+    } else if(c.name.includes('Ghost Cart')){
+      const free=Math.floor(cartsCount/2);
+      const cartIndex=cart.filter(i=>i.name.includes('Ghost Cart')).indexOf(c);
+      if(cartIndex<free) price=c.price-10;
     }
+    total+=price;
     const row=document.createElement('div');
     row.className='cart-item';
     row.innerHTML=`<span>${c.name} (${c.selectedFlavor})</span><span>$${price}</span>`;
@@ -272,14 +268,26 @@ function renderCart(){
 document.getElementById('purchaseBtn').onclick = () => {
   if(!cart.length) return alert('Empty cart');
   const id = 'tkt-'+Date.now();
-  const total = parseInt(document.getElementById('cartTotal').innerText.replace('Total $',''));
+  const total = cart.reduce((a,b)=>{
+    let price=b.price;
+    if(b.name.includes('Edibles')){
+      const free=Math.floor(cart.filter(i=>i.name.includes('Edibles')).length/4);
+      const ediblesIndex=cart.filter(i=>i.name.includes('Edibles')).indexOf(b);
+      if(ediblesIndex<free) price=0;
+    } else if(b.name.includes('Ghost Cart')){
+      const free=Math.floor(cart.filter(i=>i.name.includes('Ghost Cart')).length/2);
+      const cartsIndex=cart.filter(i=>i.name.includes('Ghost Cart')).indexOf(b);
+      if(cartsIndex<free) price=b.price-10;
+    }
+    return a+price;
+  },0);
   const ticket = {id,total,location: document.getElementById('locationSelect').value,status:'pending',items: cart,user: currentUser};
   db.ref('tickets/'+id).set(ticket);
   db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
   cart=[]; renderCart();
 };
 
-/* === TICKETS & CHAT WITH BASE64 IMAGE SUPPORT, CANCEL & MARK PAID === */
+/* === TICKETS & CHAT WITH BASE64 IMAGE SUPPORT + CANCEL / MARK PAID / ITEM HIDDEN === */
 function renderTickets(){
   const area = document.getElementById(currentUser==='joeygold54'?'allTicketsArea':'ticketsArea');
   area.innerHTML='';
@@ -301,25 +309,10 @@ function renderTickets(){
         <input type="text" class="msgInput" style="flex:1">
         <input type="file" class="imgInput">
         <button class="btn sendBtn">Send</button>
-        ${currentUser==='joeygold54'?'<button class="btn ghost deleteBtn" style="margin-left:4px;">Delete</button>':''}
       </div>
+      <div style="display:flex;gap:4px;margin-top:4px" class="ticketButtons"></div>
     `;
-
-    // Cancel button for user
-    if(currentUser!=='joeygold54'){
-      const cancelBtn = document.createElement('button');
-      cancelBtn.className='btn ghost';
-      cancelBtn.style.marginLeft='4px';
-      cancelBtn.innerText='Cancel Ticket';
-      cancelBtn.onclick = ()=>{
-        if(confirm('Cancel this ticket?')){
-          db.ref('tickets/'+t.id).remove();
-          db.ref('messages/'+t.id).remove();
-          div.remove();
-        }
-      };
-      div.querySelector('.sendBtn').parentElement.appendChild(cancelBtn);
-    }
+    area.appendChild(div);
 
     const chatEl = document.getElementById('chat-'+t.id);
     db.ref('messages/'+t.id).off();
@@ -352,11 +345,26 @@ function renderTickets(){
       inp.value='';
     };
 
-    // Buyer Mark Paid button
+    // Buttons container
+    const btnContainer = div.querySelector('.ticketButtons');
+
+    // Cancel button for user
     if(currentUser!=='joeygold54'){
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className='btn ghost';
+      cancelBtn.innerText='Cancel Ticket';
+      cancelBtn.onclick = ()=>{
+        if(confirm('Cancel this ticket?')){
+          db.ref('tickets/'+t.id).remove();
+          db.ref('messages/'+t.id).remove();
+          div.remove();
+        }
+      };
+      btnContainer.appendChild(cancelBtn);
+
+      // Buyer Mark Paid
       const markPaidBtn = document.createElement('button');
       markPaidBtn.className='btn';
-      markPaidBtn.style.marginLeft='4px';
       markPaidBtn.innerText='Mark Paid';
       markPaidBtn.onclick = ()=>{
         if(confirm('Mark this ticket as paid?')){
@@ -365,33 +373,35 @@ function renderTickets(){
           alert('Ticket marked as paid and message sent.');
         }
       };
-      div.querySelector('.sendBtn').parentElement.appendChild(markPaidBtn);
+      btnContainer.appendChild(markPaidBtn);
     }
 
     // Admin buttons
     if(currentUser==='joeygold54'){
-      div.querySelector('.deleteBtn').onclick = () => {
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className='btn ghost';
+      deleteBtn.innerText='Delete';
+      deleteBtn.onclick = ()=>{
         if(confirm('Delete this ticket permanently?')){
           db.ref('tickets/'+t.id).remove();
           db.ref('messages/'+t.id).remove();
           div.remove();
         }
       };
+      btnContainer.appendChild(deleteBtn);
+
       const itemHiddenBtn = document.createElement('button');
-      itemHiddenBtn.className = 'btn ghost';
-      itemHiddenBtn.style.marginLeft = '4px';
-      itemHiddenBtn.innerText = 'Item Hidden';
-      itemHiddenBtn.onclick = () => {
+      itemHiddenBtn.className='btn ghost';
+      itemHiddenBtn.innerText='Item Hidden';
+      itemHiddenBtn.onclick = ()=>{
         if(confirm('Mark this ticket as complete and send hidden message?')){
           db.ref('tickets/'+t.id).update({status:'complete'});
           db.ref('messages/'+t.id).push({from:'joeygold54',text:'Item has been hidden. Refer to photos below for location of item. Have fun and practice safe usage.'});
           alert('Ticket marked as complete and message sent.');
         }
       };
-      div.querySelector('.sendBtn').parentElement.appendChild(itemHiddenBtn);
+      btnContainer.appendChild(itemHiddenBtn);
     }
-
-    area.appendChild(div);
   });
 }
 
