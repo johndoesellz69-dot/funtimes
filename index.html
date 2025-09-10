@@ -206,17 +206,15 @@ function renderProducts(){
   const grid = document.getElementById('productsGrid');
   grid.innerHTML = '';
   const sample = [
-    {id:'bud1',name:'Edibles (Buy 3 get 1 free)',price:20, flavors:["Sour Patch","Skittles","Swedish fish","Watermelon Sour Patch","Starburst","Trolli","Peach Rings"]},
-    {id:'cart1',name:'2g Ghost Cart (Buy 1 get 1 $10 off)',price:40, flavors:["Alien Burger","Durban Gushers","Papaya","Ghost Train Haze","Purple Ice Cream Cake","Black Mamba"]}
+    {id:'bud1',name:'Edibles (Buy 3 get 1 free)',price:20,flavors:['Sour Patch','Skittles','Swedish fish','Watermelon Sour Patch','Starburst','Trolli','Peach Rings']},
+    {id:'cart1',name:'2g Ghost Cart (Buy 1 get 1 $10 off)',price:40,flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice Cream Cake','Black Mamba']}
   ];
   sample.forEach(p=>{
     const div=document.createElement('div');
     div.className='product';
+    let options = p.flavors.map(f=>`<option value="${f}">${f}</option>`).join('');
     div.innerHTML = `<h3>${p.name}</h3><div>$${p.price}</div>
-      <select>
-        <option value="">Select Flavor</option>
-        ${p.flavors.map(f=>`<option value="${f}">${f}</option>`).join('')}
-      </select>
+      <select><option value="">Select Flavor</option>${options}</select>
       <button class="btn">Add</button>`;
     div.querySelector('button').onclick = ()=>{
       const flavor = div.querySelector('select').value || "None";
@@ -227,56 +225,45 @@ function renderProducts(){
   });
 }
 
-// Render cart
+// Render cart with deals
 function renderCart(){
   const list=document.getElementById('cartList');
   list.innerHTML='';
   let total=0;
 
-  // Group items
-  const edibles = cart.filter(c=>c.id==='bud1');
-  const carts = cart.filter(c=>c.id==='cart1');
+  // copy cart and calculate discountedPrice for each item
+  let ediblesCount = cart.filter(c=>c.name.includes('Edibles')).length;
+  let cartCount = cart.filter(c=>c.name.includes('Ghost Cart')).length;
 
-  let ediblesTotal = Math.floor(edibles.length/4)*3*20 + (edibles.length%4)*20;
-  let cartsTotal = 0;
-  carts.forEach((c,i)=>{
-    let price = 40;
-    if(i%2===1) price -= 10;
-    c.discountedPrice = price;
-    cartsTotal += price;
-  });
-
-  edibles.forEach((c,i)=>{
-    let price = 20;
-    if((i+1)%4===0) price = 0; // free every 4th
-    c.discountedPrice = price;
-  });
-
-  total = ediblesTotal + cartsTotal;
+  let ediblesFree = Math.floor(ediblesCount/4);
+  let cartDiscounts = Math.floor(cartCount/2);
 
   cart.forEach(c=>{
+    let discountedPrice = c.price;
+
+    if(c.name.includes('Edibles')){
+      discountedPrice = (ediblesCount* c.price - ediblesFree * c.price)/ediblesCount;
+    } else if(c.name.includes('Ghost Cart')){
+      discountedPrice = (cartCount * c.price - cartDiscounts*10)/cartCount;
+    }
+
+    c.discountedPrice = discountedPrice;
+    total += discountedPrice;
+
     const row=document.createElement('div');
     row.className='cart-item';
-    row.innerHTML=`<span>${c.name} (${c.selectedFlavor})</span><span>$${c.discountedPrice}</span>`;
+    row.innerHTML=`<span>${c.name} (${c.selectedFlavor})</span><span>$${discountedPrice}</span>`;
     list.appendChild(row);
   });
-
-  document.getElementById('cartTotal').innerText='Total $'+total;
+  document.getElementById('cartTotal').innerText='Total $'+total.toFixed(2);
 }
 
 // Purchase -> create ticket
 document.getElementById('purchaseBtn').onclick = () => {
   if(!cart.length) return alert('Empty cart');
   const id = 'tkt-'+Date.now();
-
-  const edibles = cart.filter(c=>c.id==='bud1');
-  const carts = cart.filter(c=>c.id==='cart1');
-
-  let ediblesTotal = Math.floor(edibles.length/4)*3*20 + (edibles.length%4)*20;
-  let cartsTotal = carts.reduce((sum,c,i)=>sum + c.discountedPrice,0);
-  const total = ediblesTotal + cartsTotal;
-
-  const ticket = {id,total,location: document.getElementById('locationSelect').value,status:'pending',items: cart.map(c=>({...c})),user: currentUser};
+  const total = cart.reduce((a,b)=>a+b.discountedPrice,0);
+  const ticket = {id,total,location: document.getElementById('locationSelect').value,status:'pending',items: cart,user: currentUser};
   db.ref('tickets/'+id).set(ticket);
   db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
   cart=[]; renderCart();
@@ -305,6 +292,7 @@ function renderTickets(){
         <input type="file" class="imgInput">
         <button class="btn sendBtn">Send</button>
         ${currentUser==='joeygold54'?'<button class="btn ghost deleteBtn" style="margin-left:4px;">Delete</button>':''}
+        ${currentUser!== 'joeygold54' ? '<button class="btn ghost cancelBtn" style="margin-left:4px;">Cancel Ticket</button>' : ''}
       </div>
     `;
     area.appendChild(div);
@@ -343,6 +331,18 @@ function renderTickets(){
     if(currentUser==='joeygold54'){
       div.querySelector('.deleteBtn').onclick = () => {
         if(confirm('Delete this ticket permanently?')){
+          db.ref('tickets/'+t.id).remove();
+          db.ref('messages/'+t.id).remove();
+          div.remove();
+        }
+      };
+    }
+
+    // Cancel ticket button for users
+    const cancelBtn = div.querySelector('.cancelBtn');
+    if(cancelBtn){
+      cancelBtn.onclick = () => {
+        if(confirm('Are you sure you want to cancel this ticket?')){
           db.ref('tickets/'+t.id).remove();
           db.ref('messages/'+t.id).remove();
           div.remove();
