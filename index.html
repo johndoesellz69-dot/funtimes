@@ -26,7 +26,7 @@ select,input[type="number"],input[type="file"]{padding:6px;border-radius:8px;bor
 .cart-item{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #eee}
 .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:1000}
 .modal{width:100%;max-width:760px;background:white;padding:16px;border-radius:12px}
-.ticket{background:#fbfff9;border:1px dashed #e6f4ea;padding:10px;border-radius:8px}
+.ticket{background:#fbfff9;border:1px dashed #e6f4ea;padding:10px;border-radius:8px;margin-bottom:6px}
 .ticket-entry{margin-bottom:8px}
 footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 .hidden{display:none !important;}
@@ -44,9 +44,7 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
     <div style="margin-bottom:12px">
       <label>Enter your login code or Create Account if new: <input type="text" id="loginCode"></label>
     </div>
-    <div style="margin-bottom:12px">
-      or <button class="btn" id="createCodeBtn">Create new code</button>
-    </div>
+    <div style="margin-bottom:12px">or <button class="btn" id="createCodeBtn">Create new code</button></div>
     <div style="display:flex;justify-content:flex-end;gap:8px">
       <button class="btn" id="loginBtn">Login</button>
     </div>
@@ -138,6 +136,8 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
     <button class="btn" id="refreshTickets">Refresh Tickets</button>
     <button class="btn ghost" id="closeAdmin">Close Admin</button>
   </div>
+  <h3>All Tickets</h3>
+  <div id="allTicketsArea"></div>
 </div>
 
 <!-- Firebase -->
@@ -173,22 +173,23 @@ document.getElementById('createCodeBtn').onclick = () => {
 // login
 document.getElementById('loginBtn').onclick = () => {
   const code = document.getElementById('loginCode').value.trim();
-  if (!code) return alert('Enter a code');
+  if(!code) return alert('Enter a code');
   currentUser = code;
-
-  // Admin login
-  if(currentUser==='joeygold54'){
-    document.getElementById('adminScreen').style.display='block';
-  }
-
   document.getElementById('acctCode').innerText = code;
   document.getElementById('loginModal').classList.add('hidden');
-  document.getElementById('warningModal').classList.remove('hidden');
+
+  // check if admin
+  if(currentUser === 'joeygold54'){
+    document.getElementById('adminScreen').style.display = 'block';
+    renderTickets(); // admin view
+  } else {
+    document.getElementById('warningModal').classList.remove('hidden');
+  }
 };
 
 // warning modal
 document.getElementById('ackBtn').onclick = () => {
-  if (!document.getElementById('ackCheck').checked) return alert('Check agree');
+  if(!document.getElementById('ackCheck').checked) return alert('Check agree');
   document.getElementById('warningModal').classList.add('hidden');
   document.getElementById('mainWrap').classList.remove('hidden');
   renderTickets();
@@ -201,34 +202,38 @@ document.getElementById('logoutBtn').onclick = () => location.reload();
 document.getElementById('clearBtn').onclick = () => { cart = []; renderCart(); };
 
 // render products
-function renderProducts() {
+function renderProducts(){
   const grid = document.getElementById('productsGrid');
   grid.innerHTML = '';
   const sample = [
-    {id:'bud1',name:'OG Kush',price:50,flavors:['Sweet','Earthy']},
-    {id:'cart1',name:'Ghost Cart',price:35,flavors:['Mint','Vanilla']}
+    {id:'bud1',name:'OG Kush',price:50},
+    {id:'cart1',name:'Ghost Cart',price:35}
   ];
   sample.forEach(p=>{
     const div=document.createElement('div');
     div.className='product';
-    const flavorOptions = p.flavors.map(f=>`<option value="${f}">${f}</option>`).join('');
-    div.innerHTML=`<h3>${p.name}</h3><div>$${p.price}</div>
-      <select>${flavorOptions}</select>
+    div.innerHTML = `<h3>${p.name}</h3><div>$${p.price}</div>
+      <select>
+        <option value="">Select Flavor</option>
+        <option value="Flavor1">Flavor1</option>
+        <option value="Flavor2">Flavor2</option>
+      </select>
       <button class="btn">Add</button>`;
-    div.querySelector('button').onclick=()=>{
-      const selectedFlavor = div.querySelector('select').value;
-      cart.push({...p,selectedFlavor});
+    div.querySelector('button').onclick = ()=>{
+      const flavor = div.querySelector('select').value || "None";
+      cart.push({...p, selectedFlavor: flavor});
       renderCart();
     };
     grid.appendChild(div);
   });
 }
 
-function renderCart() {
+// render cart
+function renderCart(){
   const list=document.getElementById('cartList');
   list.innerHTML='';
   let total=0;
-  cart.forEach((c,i)=>{
+  cart.forEach(c=>{
     total+=c.price;
     const row=document.createElement('div');
     row.className='cart-item';
@@ -239,74 +244,85 @@ function renderCart() {
 }
 
 // purchase -> create ticket
-document.getElementById('purchaseBtn').onclick=()=>{
-  if(!cart.length)return alert('Empty cart');
-  const id='tkt-'+Date.now();
-  const total=cart.reduce((a,b)=>a+b.price,0);
-  const ticket={id,total,location:document.getElementById('locationSelect').value,status:'pending',user:currentUser,items:cart};
+document.getElementById('purchaseBtn').onclick = () => {
+  if(!cart.length) return alert('Empty cart');
+  const id = 'tkt-'+Date.now();
+  const total = cart.reduce((a,b)=>a+b.price,0);
+  const ticket = {
+    id,
+    total,
+    location: document.getElementById('locationSelect').value,
+    status:'pending',
+    items: cart,
+    user: currentUser
+  };
   db.ref('tickets/'+id).set(ticket);
   db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
-  cart=[];
-  renderCart();
+  cart=[]; renderCart();
 };
 
 /* === TICKETS & CHAT === */
-function renderTickets() {
-  const area = document.getElementById('ticketsArea');
-  db.ref('tickets').on('value', snap => {
-    const tickets = snap.val() || {};
-    area.innerHTML = '';
-    Object.values(tickets).forEach(t => {
-      if (!t.id) return;
-      if (currentUser !== 'joeygold54' && t.user !== currentUser) return;
-      const itemsText = t.items.map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
-      const div=document.createElement('div');
-      div.className='ticket';
-      div.innerHTML = `
-        <div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
-        <div><em>Items: ${itemsText}</em></div>
-        <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
-        <div style="display:flex;gap:4px;margin-top:4px">
-          <input type="text" class="msgInput" style="flex:1">
-          <button class="btn sendBtn">Send</button>
-          ${currentUser==='joeygold54'?'<button class="btn ghost deleteBtn" style="margin-left:4px;">Delete</button>':''}
-        </div>
-      `;
-      area.appendChild(div);
+function renderTickets(){
+  const area = document.getElementById(currentUser==='joeygold54'?'allTicketsArea':'ticketsArea');
+  area.innerHTML='';
 
-      const chatEl = document.getElementById('chat-'+t.id);
-      db.ref('messages/'+t.id).off();
-      db.ref('messages/'+t.id).on('value', ms => {
-        const msgs = ms.val() || {};
-        chatEl.innerHTML = Object.values(msgs).map(m=>
-          `<div><strong>${m.from}:</strong> ${m.text || ''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`
-        ).join('');
-        chatEl.scrollTop = chatEl.scrollHeight;
-      });
+  db.ref('tickets').off();
+  db.ref('tickets').on('child_added', snap=>{
+    const t = snap.val();
+    if(!t.id) t.id = snap.key;
 
-      div.querySelector('.sendBtn').onclick = () => {
-        const inp = div.querySelector('.msgInput');
-        const txt = inp.value.trim();
-        if(!txt) return;
-        db.ref('messages/'+t.id).push({from:currentUser,text:txt});
-        inp.value='';
-      };
+    if(currentUser !== 'joeygold54' && t.user !== currentUser) return;
 
-      if(currentUser==='joeygold54'){
-        div.querySelector('.deleteBtn').onclick = () => {
-          if(confirm('Delete this ticket permanently?')){
-            db.ref('tickets/'+t.id).remove();
-            db.ref('messages/'+t.id).remove();
-          }
-        };
-      }
+    const itemsText = t.items.map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
+
+    const div = document.createElement('div');
+    div.className='ticket';
+    div.innerHTML = `
+      <div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
+      <div><em>Items: ${itemsText}</em></div>
+      <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
+      <div style="display:flex;gap:4px;margin-top:4px">
+        <input type="text" class="msgInput" style="flex:1">
+        <button class="btn sendBtn">Send</button>
+        ${currentUser==='joeygold54'?'<button class="btn ghost deleteBtn" style="margin-left:4px;">Delete</button>':''}
+      </div>
+    `;
+    area.appendChild(div);
+
+    const chatEl = document.getElementById('chat-'+t.id);
+    db.ref('messages/'+t.id).off();
+    db.ref('messages/'+t.id).on('value', ms => {
+      const msgs = ms.val() || {};
+      chatEl.innerHTML = Object.values(msgs).map(m=>
+        `<div><strong>${m.from}:</strong> ${m.text || ''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`
+      ).join('');
+      chatEl.scrollTop = chatEl.scrollHeight;
     });
+
+    div.querySelector('.sendBtn').onclick = () => {
+      const inp = div.querySelector('.msgInput');
+      const txt = inp.value.trim();
+      if(!txt) return;
+      db.ref('messages/'+t.id).push({from:currentUser,text:txt});
+      inp.value='';
+    };
+
+    if(currentUser==='joeygold54'){
+      div.querySelector('.deleteBtn').onclick = () => {
+        if(confirm('Delete this ticket permanently?')){
+          db.ref('tickets/'+t.id).remove();
+          db.ref('messages/'+t.id).remove();
+          div.remove();
+        }
+      };
+    }
   });
 }
 
-document.getElementById('refreshTickets').onclick=renderTickets;
-document.getElementById('closeAdmin').onclick=()=>document.getElementById('adminScreen').style.display='none';
+document.getElementById('refreshTickets').onclick = renderTickets;
+document.getElementById('closeAdmin').onclick = ()=>document.getElementById('adminScreen').style.display='none';
 </script>
 </body>
 </html>
+
 
