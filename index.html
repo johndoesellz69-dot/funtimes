@@ -46,6 +46,9 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
     <div style="display:flex;justify-content:flex-end;gap:8px">
       <button class="btn" id="loginBtn">Login</button>
     </div>
+    <div style="margin-top:8px;display:flex;justify-content:flex-end">
+      <button class="btn ghost" id="aboutLoginBtn">About Easy Green</button>
+    </div>
   </div>
 </div>
 
@@ -86,6 +89,24 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   </div>
 </div>
 
+<!-- About Modal -->
+<div id="aboutModal" class="modal-back hidden">
+  <div class="modal">
+    <h3>About Easy Green</h3>
+    <p>
+      Welcome to Easy Green! We are proud to be the only local service that is fully anonymous. 
+      If you wish to obtain cannabis discreetly—without meeting a random seller in person, or if you 
+      do not have access to a nearby dispensary—Easy Green is here for you. Simply select a pickup location 
+      nearest to you and enjoy our secure and simple exchange process.  
+      We are based in Arlington Heights and proudly serve anyone in or near the area.  
+      Take advantage of our exceptional deals and competitive pricing, as we believe everyone should have access to quality cannabis regardless of budget.  
+      We are continually expanding our product selection and pickup locations, and will soon offer additional items beyond cannabis.  
+      Enjoy Easy Green, and feel free to share our website! You may also submit proof of referral codes after a purchase to enter your friends in our monthly raffle. Your personal code is displayed next to your username.
+    </p>
+    <button class="btn" id="closeAbout">Close</button>
+  </div>
+</div>
+
 <!-- Main -->
 <div class="wrap hidden" id="mainWrap">
   <header>
@@ -95,6 +116,7 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
     <div class="small">(Write this down) Your account code: <span id="acctCode"></span></div>
     <button class="btn" id="helpBtn" style="margin-left:auto">First time help</button>
+    <button class="btn ghost" id="aboutUserBtn">About Easy Green</button>
   </div>
   <div class="grid" role="main">
     <section class="card">
@@ -201,24 +223,27 @@ document.getElementById('helpBtn').onclick = () => document.getElementById('help
 document.getElementById('logoutBtn').onclick = () => location.reload();
 document.getElementById('clearBtn').onclick = () => { cart=[]; renderCart(); };
 
+// About Modal buttons
+document.getElementById('aboutLoginBtn').onclick = () => document.getElementById('aboutModal').classList.remove('hidden');
+document.getElementById('aboutUserBtn').onclick = () => document.getElementById('aboutModal').classList.remove('hidden');
+document.getElementById('closeAbout').onclick = () => document.getElementById('aboutModal').classList.add('hidden');
+
 // Render products
 function renderProducts(){
   const grid = document.getElementById('productsGrid');
   grid.innerHTML = '';
   const sample = [
-    {id:'bud1',name:'Edibles (Buy 3 get 1 free)',price:20},
-    {id:'cart1',name:'2g Ghost Cart (Buy 1 get 1 $10 off)',price:40}
+    {id:'bud1',name:'Edibles (Buy 3 get 1 free)',price:20,flavors:['Sour Patch','Skittles','Swedish fish','Watermelon Sour Patch','Starburst','Trolli','Peach Rings']},
+    {id:'cart1',name:'2g Ghost Cart (Buy 1 get 1 $10 off)',price:40,flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice Cream Cake','Black Mamba']}
   ];
-  const flavors = {
-    'Edibles (Buy 3 get 1 free)':['Sour Patch','Skittles','Swedish fish','Watermelon Sour Patch','Starburst','Trolli','Peach Rings'],
-    '2g Ghost Cart (Buy 1 get 1 $10 off)':['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice Cream Cake','Black Mamba']
-  };
   sample.forEach(p=>{
     const div=document.createElement('div');
     div.className='product';
-    const options = flavors[p.name].map(f=>`<option value="${f}">${f}</option>`).join('');
     div.innerHTML = `<h3>${p.name}</h3><div>$${p.price}</div>
-      <select><option value="">Select Flavor</option>${options}</select>
+      <select>
+        <option value="">Select Flavor</option>
+        ${p.flavors.map(f=>`<option value="${f}">${f}</option>`).join('')}
+      </select>
       <button class="btn">Add</button>`;
     div.querySelector('button').onclick = ()=>{
       const flavor = div.querySelector('select').value || "None";
@@ -229,36 +254,34 @@ function renderProducts(){
   });
 }
 
-// Render cart with deal logic
+// Render cart
 function renderCart(){
   const list=document.getElementById('cartList');
   list.innerHTML='';
   let total=0;
-  let ediblesCount=0;
-  let cartsCount=0;
+  let ediblesCount = 0;
+  let cartCount = 0;
 
   cart.forEach(c=>{
+    let price = c.price;
     if(c.name.includes('Edibles')) ediblesCount++;
-    if(c.name.includes('Ghost Cart')) cartsCount++;
+    if(c.name.includes('Ghost Cart')) cartCount++;
+
+    total += price;
   });
 
+  // Apply Buy 3 Get 1 Free for edibles
+  let ediblesDiscount = Math.floor(ediblesCount/4)*20;
+  total -= ediblesDiscount;
+
+  // Apply Buy 1 Get 1 $10 off for ghost carts
+  let ghostDiscount = Math.floor(cartCount/2)*10;
+  total -= ghostDiscount;
+
   cart.forEach(c=>{
-    let price=c.price;
-    if(c.name.includes('Edibles')){
-      const free=Math.floor(ediblesCount/4);
-      if(free>0){
-        const ediblesAdded=cart.filter(i=>i.name.includes('Edibles')).indexOf(c);
-        if(ediblesAdded<free) price=0;
-      }
-    } else if(c.name.includes('Ghost Cart')){
-      const free=Math.floor(cartsCount/2);
-      const cartIndex=cart.filter(i=>i.name.includes('Ghost Cart')).indexOf(c);
-      if(cartIndex<free) price=c.price-10;
-    }
-    total+=price;
     const row=document.createElement('div');
     row.className='cart-item';
-    row.innerHTML=`<span>${c.name} (${c.selectedFlavor})</span><span>$${price}</span>`;
+    row.innerHTML=`<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price}</span>`;
     list.appendChild(row);
   });
   document.getElementById('cartTotal').innerText='Total $'+total;
@@ -268,26 +291,26 @@ function renderCart(){
 document.getElementById('purchaseBtn').onclick = () => {
   if(!cart.length) return alert('Empty cart');
   const id = 'tkt-'+Date.now();
-  const total = cart.reduce((a,b)=>{
-    let price=b.price;
-    if(b.name.includes('Edibles')){
-      const free=Math.floor(cart.filter(i=>i.name.includes('Edibles')).length/4);
-      const ediblesIndex=cart.filter(i=>i.name.includes('Edibles')).indexOf(b);
-      if(ediblesIndex<free) price=0;
-    } else if(b.name.includes('Ghost Cart')){
-      const free=Math.floor(cart.filter(i=>i.name.includes('Ghost Cart')).length/2);
-      const cartsIndex=cart.filter(i=>i.name.includes('Ghost Cart')).indexOf(b);
-      if(cartsIndex<free) price=b.price-10;
-    }
-    return a+price;
-  },0);
+  let total=0;
+  let ediblesCount=0;
+  let cartCount=0;
+
+  cart.forEach(c=>{
+    total+=c.price;
+    if(c.name.includes('Edibles')) ediblesCount++;
+    if(c.name.includes('Ghost Cart')) cartCount++;
+  });
+
+  total -= Math.floor(ediblesCount/4)*20; // edibles discount
+  total -= Math.floor(cartCount/2)*10; // ghost cart discount
+
   const ticket = {id,total,location: document.getElementById('locationSelect').value,status:'pending',items: cart,user: currentUser};
   db.ref('tickets/'+id).set(ticket);
   db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
   cart=[]; renderCart();
 };
 
-/* === TICKETS & CHAT WITH BASE64 IMAGE SUPPORT + CANCEL / MARK PAID / ITEM HIDDEN === */
+/* === TICKETS & CHAT WITH BASE64 IMAGE SUPPORT === */
 function renderTickets(){
   const area = document.getElementById(currentUser==='joeygold54'?'allTicketsArea':'ticketsArea');
   area.innerHTML='';
@@ -309,8 +332,10 @@ function renderTickets(){
         <input type="text" class="msgInput" style="flex:1">
         <input type="file" class="imgInput">
         <button class="btn sendBtn">Send</button>
+        <button class="btn ghost cancelTicketBtn">Cancel Ticket</button>
+        <button class="btn ghost markPaidBtn">Mark Paid</button>
+        ${currentUser==='joeygold54'?'<button class="btn ghost itemHiddenBtn">Item Hidden</button>':''}
       </div>
-      <div style="display:flex;gap:4px;margin-top:4px" class="ticketButtons"></div>
     `;
     area.appendChild(div);
 
@@ -345,62 +370,26 @@ function renderTickets(){
       inp.value='';
     };
 
-    // Buttons container
-    const btnContainer = div.querySelector('.ticketButtons');
+    // Cancel ticket
+    div.querySelector('.cancelTicketBtn').onclick = () => {
+      if(confirm('Are you sure you want to cancel this ticket?')){
+        db.ref('tickets/'+t.id).remove();
+        db.ref('messages/'+t.id).remove();
+        div.remove();
+      }
+    };
 
-    // Cancel button for user
-    if(currentUser!=='joeygold54'){
-      const cancelBtn = document.createElement('button');
-      cancelBtn.className='btn ghost';
-      cancelBtn.innerText='Cancel Ticket';
-      cancelBtn.onclick = ()=>{
-        if(confirm('Cancel this ticket?')){
-          db.ref('tickets/'+t.id).remove();
-          db.ref('messages/'+t.id).remove();
-          div.remove();
-        }
-      };
-      btnContainer.appendChild(cancelBtn);
+    // Mark Paid
+    div.querySelector('.markPaidBtn').onclick = () => {
+      db.ref('messages/'+t.id).push({from:currentUser,text:'Payment hidden. Your product will be securely hidden and ready for pickup within 24 hours, please also provide photo of hidden payment and any location information.'});
+    };
 
-      // Buyer Mark Paid
-      const markPaidBtn = document.createElement('button');
-      markPaidBtn.className='btn';
-      markPaidBtn.innerText='Mark Paid';
-      markPaidBtn.onclick = ()=>{
-        if(confirm('Mark this ticket as paid?')){
-          db.ref('tickets/'+t.id).update({status:'paid'});
-          db.ref('messages/'+t.id).push({from:currentUser,text:'Payment hidden. Your product will be securely hidden and ready for pickup within 24 hours, please also provide photo of hidden payment and any location information.'});
-          alert('Ticket marked as paid and message sent.');
-        }
-      };
-      btnContainer.appendChild(markPaidBtn);
-    }
-
-    // Admin buttons
+    // Admin Item Hidden
     if(currentUser==='joeygold54'){
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className='btn ghost';
-      deleteBtn.innerText='Delete';
-      deleteBtn.onclick = ()=>{
-        if(confirm('Delete this ticket permanently?')){
-          db.ref('tickets/'+t.id).remove();
-          db.ref('messages/'+t.id).remove();
-          div.remove();
-        }
+      div.querySelector('.itemHiddenBtn').onclick = () => {
+        db.ref('messages/'+t.id).push({from:'joeygold54',text:'Item has been hidden. Refer to photos below for location of item. Have fun and practice safe usage.'});
+        db.ref('tickets/'+t.id+'/status').set('complete');
       };
-      btnContainer.appendChild(deleteBtn);
-
-      const itemHiddenBtn = document.createElement('button');
-      itemHiddenBtn.className='btn ghost';
-      itemHiddenBtn.innerText='Item Hidden';
-      itemHiddenBtn.onclick = ()=>{
-        if(confirm('Mark this ticket as complete and send hidden message?')){
-          db.ref('tickets/'+t.id).update({status:'complete'});
-          db.ref('messages/'+t.id).push({from:'joeygold54',text:'Item has been hidden. Refer to photos below for location of item. Have fun and practice safe usage.'});
-          alert('Ticket marked as complete and message sent.');
-        }
-      };
-      btnContainer.appendChild(itemHiddenBtn);
     }
   });
 }
@@ -410,4 +399,3 @@ document.getElementById('closeAdmin').onclick = ()=>document.getElementById('adm
 </script>
 </body>
 </html>
-
