@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html> 
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -178,10 +178,204 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 </script>
 
-<!-- App Script (unchanged, includes admin ticket/chat rendering) -->
+<!-- App Script -->
 <script>
-// Full script with admin tickets & chat fix
-// [ ... your full JS logic continues here ... ]
+// ================= USER DATA =================
+let currentUser = null;
+let cart = [];
+
+// Example products/flavors
+const products = [
+  { id:'flower', name:'Flower', flavors:['OG Kush','Blue Dream','Sour Diesel'], price:25 },
+  { id:'edibles', name:'Edibles', flavors:['Gummy Bears','Chocolate Bar'], price:15 },
+  { id:'carts', name:'Carts', flavors:['Mint','Strawberry'], price:40 }
+];
+
+// ============== UTILITY =================
+function renderProducts(){
+  const grid = document.getElementById('productsGrid');
+  grid.innerHTML='';
+  products.forEach(p=>{
+    const div = document.createElement('div');
+    div.className='product';
+    div.innerHTML=`<h3>${p.name} - $${p.price}</h3>`;
+    p.flavors.forEach(f=>{
+      const row=document.createElement('div'); row.className='row';
+      row.innerHTML=`<span>${f}</span><input type="number" min="0" value="0" style="width:50px">`;
+      div.appendChild(row);
+    });
+    grid.appendChild(div);
+  });
+}
+
+// ============== CART =================
+function renderCart(){
+  const list = document.getElementById('cartList');
+  list.innerHTML='';
+  let total=0;
+  const grid=document.getElementById('productsGrid');
+  products.forEach((p,pi)=>{
+    p.flavors.forEach((f,fi)=>{
+      const qty=parseInt(grid.children[pi].children[fi+1].querySelector('input').value);
+      if(qty>0){
+        const div=document.createElement('div'); div.className='cart-item';
+        div.textContent=`${p.name} - ${f} x${qty} = $${(qty*p.price).toFixed(2)}`;
+        list.appendChild(div);
+        total+=qty*p.price;
+      }
+    });
+  });
+  document.getElementById('cartTotal').textContent=`Total: $${total.toFixed(2)}`;
+}
+
+// ============== TICKETS =================
+function renderTickets(){
+  const area=document.getElementById('ticketsArea');
+  area.innerHTML='';
+  db.ref('tickets').once('value',snap=>{
+    const tickets = snap.val()||{};
+    Object.values(tickets).forEach(t=>{
+      if(t.user===currentUser){
+        const div=document.createElement('div'); div.className='ticket';
+        div.innerHTML=`<div class="ticket-entry"><strong>${t.id}</strong> | Total $${t.total.toFixed(2)} | Status: ${t.status}</div>
+          <div id="chat-${t.id}" style="margin-top:4px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
+          <div style="margin-top:4px;display:flex;gap:4px">
+            <input type="text" placeholder="Message" class="msgInput" style="flex:1">
+            <input type="file" class="imgInput" style="flex:1">
+            <button class="btn sendBtn">Send</button>
+          </div>`;
+        area.appendChild(div);
+        const chatEl=document.getElementById('chat-'+t.id);
+        db.ref('messages/'+t.id).on('value',msgSnap=>{
+          const msgs=msgSnap.val()||{};
+          chatEl.innerHTML=Object.values(msgs).map(m=>{
+            return m.image ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>` :
+              `<div><strong>${m.from}:</strong> ${m.text}</div>`;
+          }).join('');
+          chatEl.scrollTop=chatEl.scrollHeight;
+        });
+        div.querySelector('.sendBtn').onclick=()=>{
+          const text=div.querySelector('.msgInput').value.trim();
+          const file=div.querySelector('.imgInput').files[0];
+          if(!text && !file){alert('Write message or choose image');return;}
+          if(file){
+            const reader=new FileReader();
+            reader.onload=e=>{
+              db.ref('messages/'+t.id).push({from:'User', image:e.target.result});
+              div.querySelector('.imgInput').value='';
+            }; reader.readAsDataURL(file);
+          }
+          if(text){
+            db.ref('messages/'+t.id).push({from:'User', text});
+            div.querySelector('.msgInput').value='';
+          }
+        };
+      }
+    });
+  });
+}
+
+// ============== ADMIN =================
+function renderAdminTickets(){
+  const area=document.getElementById('allTicketsArea');
+  area.innerHTML='';
+  db.ref('tickets').on('value',snap=>{
+    const tickets=snap.val()||{};
+    area.innerHTML='';
+    Object.entries(tickets).forEach(([id,t])=>{
+      const div=document.createElement('div'); div.className='ticket'; div.style.marginBottom='6px';
+      div.innerHTML=`<div class="ticket-entry"><strong>${t.id || id}</strong> @ ${t.location} | Total $${t.total.toFixed(2)} | Status: ${t.status}</div>
+        <div id="admin-chat-${id}" style="margin-top:4px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
+        <div style="margin-top:4px;display:flex;gap:4px">
+          <input type="text" placeholder="Message" class="msgInput" style="flex:1">
+          <input type="file" class="imgInput" style="flex:1">
+          <button class="btn sendBtn">Send</button>
+        </div>`;
+      area.appendChild(div);
+      const chatEl=document.getElementById('admin-chat-'+id);
+      db.ref('messages/'+id).on('value',msgSnap=>{
+        const msgs=msgSnap.val()||{};
+        chatEl.innerHTML=Object.values(msgs).map(m=>{
+          return m.image ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>` :
+            `<div><strong>${m.from}:</strong> ${m.text}</div>`;
+        }).join('');
+        chatEl.scrollTop=chatEl.scrollHeight;
+      });
+      div.querySelector('.sendBtn').onclick=()=>{
+        const text=div.querySelector('.msgInput').value.trim();
+        const file=div.querySelector('.imgInput').files[0];
+        if(!text && !file){alert('Write message or choose image');return;}
+        if(file){
+          const reader=new FileReader();
+          reader.onload=e=>{
+            db.ref('messages/'+id).push({from:'Admin', image:e.target.result});
+            div.querySelector('.imgInput').value='';
+          }; reader.readAsDataURL(file);
+        }
+        if(text){
+          db.ref('messages/'+id).push({from:'Admin', text});
+          div.querySelector('.msgInput').value='';
+        }
+      };
+    });
+  });
+}
+
+// ================= BUTTONS =================
+document.getElementById('helpBtn').onclick=()=>document.getElementById('helpModal').classList.remove('hidden');
+document.getElementById('closeHelp').onclick=()=>document.getElementById('helpModal').classList.add('hidden');
+document.getElementById('logoutBtn').onclick=()=>{
+  currentUser=null; document.getElementById('mainWrap').classList.add('hidden'); document.getElementById('loginModal').classList.remove('hidden');
+};
+
+// ================= LOGIN / CREATE =================
+document.getElementById('createCodeBtn').onclick=()=>{
+  const code=Math.random().toString(36).slice(2,8);
+  db.ref('users/'+code).set({created:Date.now()});
+  alert('Your new code: '+code);
+};
+document.getElementById('loginBtn').onclick=()=>{
+  const code=document.getElementById('loginCode').value.trim();
+  if(!code){alert('Enter code'); return;}
+  if(code==='joeygold54'){document.getElementById('loginModal').classList.add('hidden'); document.getElementById('adminScreen').style.display='block'; renderAdminTickets(); return;}
+  db.ref('users/'+code).get().then(snap=>{
+    if(!snap.exists()){alert('Code not found'); return;}
+    currentUser=code;
+    document.getElementById('acctCode').textContent=currentUser;
+    document.getElementById('loginModal').classList.add('hidden');
+    document.getElementById('mainWrap').classList.remove('hidden');
+    renderProducts();
+  });
+};
+
+// ================= CART BUTTONS =================
+document.getElementById('purchaseBtn').onclick=()=>{
+  const location=document.getElementById('locationSelect').value;
+  let total=0; const items=[];
+  const grid=document.getElementById('productsGrid');
+  products.forEach((p,pi)=>{
+    p.flavors.forEach((f,fi)=>{
+      const qty=parseInt(grid.children[pi].children[fi+1].querySelector('input').value);
+      if(qty>0){items.push({product:p.name,flavor:f,qty,price:p.price}); total+=qty*p.price;}
+    });
+  });
+  if(items.length===0){alert('Add items'); return;}
+  const ticketId='T'+Date.now();
+  db.ref('tickets/'+ticketId).set({id:ticketId,user:currentUser,items,location,total,status:'Pending'});
+  alert('Ticket created: '+ticketId);
+  renderTickets();
+};
+document.getElementById('clearBtn').onclick=()=>{
+  const grid=document.getElementById('productsGrid');
+  products.forEach((p,pi)=>p.flavors.forEach((f,fi)=>grid.children[pi].children[fi+1].querySelector('input').value=0));
+  renderCart();
+};
+document.getElementById('productsGrid').addEventListener('input',renderCart);
+
+// ================= ADMIN BUTTONS =================
+document.getElementById('refreshTickets').onclick=renderAdminTickets;
+document.getElementById('closeAdmin').onclick=()=>document.getElementById('adminScreen').style.display='none';
 </script>
 </body>
 </html>
+
