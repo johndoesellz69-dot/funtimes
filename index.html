@@ -1,4 +1,4 @@
-<!doctype html>  
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -26,7 +26,7 @@ select,input[type="number"],input[type="file"]{padding:6px;border-radius:8px;bor
 .cart-item{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #eee}
 .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:1000}
 .modal{width:100%;max-width:760px;background:white;padding:16px;border-radius:12px}
-.ticket{background:#fbfff9;border:1px dashed #e6f4ea;padding:10px;border-radius:8px;height:260px;overflow:auto}
+.ticket{background:#fbfff9;border:1px dashed #e6f4ea;padding:10px;border-radius:8px}
 .ticket-entry{margin-bottom:8px}
 footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 .hidden{display:none !important;}
@@ -34,19 +34,16 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 #adminScreen h2{margin-top:0;color:var(--accent)}
 .flavor-stock{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
 .flavor-stock span{font-size:.88rem}
-.option-disabled{color:#aaa !important}
 </style>
 </head>
 <body>
 
-<!-- Login / Create Code Modal -->
+<!-- Login Modal -->
 <div id="loginModal" class="modal-back">
   <div class="modal">
     <h3>Login</h3>
     <div style="margin-bottom:12px">
-      <label>Enter your login code or Create Account if new:
-        <input type="text" id="loginCode">
-      </label>
+      <label>Enter your login code or Create Account if new: <input type="text" id="loginCode"></label>
     </div>
     <div style="margin-bottom:12px">or <button class="btn" id="createCodeBtn">Create new code</button></div>
     <div style="display:flex;justify-content:flex-end;gap:8px">
@@ -55,7 +52,7 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   </div>
 </div>
 
-<!-- Warning modal -->
+<!-- Warning Modal -->
 <div id="warningModal" class="modal-back hidden">
   <div class="modal">
     <h3>Warnings & Rules</h3>
@@ -73,7 +70,7 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   </div>
 </div>
 
-<!-- First Time Help Modal -->
+<!-- Help Modal -->
 <div id="helpModal" class="modal-back hidden">
   <div class="modal">
     <h3>First Time Help</h3>
@@ -83,25 +80,19 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
       <li>Add items to your cart and choose pickup location.</li>
       <li>Click Purchase to generate a ticket for your order.</li>
       <li>Use the chat under your ticket to send messages or images to admin.</li>
-      <li>Admin can respond and send images back. Keep communications secure and anonymous.</li>
-      <li>Place the specified cash amount in an Envelope, and write a 4 digit code of your choosing on the Envelope</li>
-      <li>Hide Envelope at your selected location in a very discreet and out of sight spot (Easy Green is not liable for stolen payments)</li>
-      <li>Select the "Mark as paid" button, and send a photo of your envelope and where you hid it. (Make sure to not send a picture that shows your 4 digit code)</li>
-      <li>Head home and wait for the deliverant to pick up your payment and hide your item. Once finished, the admin will message you your 4 digit code, an image of the product hidden, and any further information.</li>
-      <li>Go pickup your product and have fun!</li>
+      <li>Admin can respond and send images back.</li>
+      <li>Place the specified cash amount in an Envelope and hide it.</li>
+      <li>Mark as paid and send a photo of your envelope.</li>
+      <li>Admin will message you with pickup details after pickup.</li>
     </ol>
     <button class="btn" id="closeHelp">Got it!</button>
   </div>
 </div>
 
-<!-- Main site -->
+<!-- Main -->
 <div class="wrap hidden" id="mainWrap">
   <header>
-    <svg width="44" height="44" viewBox="0 0 24 24" aria-hidden>
-      <rect rx="6" width="24" height="24" fill="#2f9c4a"/>
-      <text x="50%" y="60%" font-size="10" text-anchor="middle" fill="white" font-family="sans-serif">EG</text>
-    </svg>
-    <div><h1>Easy Green — Anonymous Cannabis </h1></div>
+    <h1>Easy Green — Anonymous Cannabis</h1>
     <button class="btn ghost" id="logoutBtn" style="margin-left:auto">Log Out</button>
   </header>
   <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
@@ -109,29 +100,21 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
     <button class="btn" id="helpBtn" style="margin-left:auto">First time help</button>
   </div>
   <div class="grid" role="main">
-    <section class="card" aria-labelledby="productsLabel">
-      <h2 id="productsLabel">Products</h2>
-      <div class="small" style="margin-bottom:8px">Select flavors and add to cart.</div>
+    <section class="card">
+      <h2>Products</h2>
       <div class="products" id="productsGrid"></div>
     </section>
-    <aside class="card" aria-labelledby="cartLabel">
-      <h2 id="cartLabel">Cart & Pickup</h2>
+    <aside class="card">
+      <h2>Cart & Pickup</h2>
       <div>
         <label class="small">Pickup Location</label>
-        <select id="locationSelect" aria-label="Pickup location">
+        <select id="locationSelect">
           <option value="Hasbrook Park">Hasbrook Park</option>
           <option value="Virginia Terrace Park">Virginia Terrace Park</option>
-          <option value="Frontier Park">Frontier Park</option>
-          <option value="Pioneer Park">Pioneer Park</option>
-          <option value="Grealish Park">Grealish Park</option>
-          <option value="Happiness Park">Happiness Park</option>
-          <option value="Greenbrier Park">Greenbrier Park</option>
-          <option value="Kimball Hill Park">Kimball Hill Park</option>
-          <option value="Centennial Park">Centennial Park</option>
         </select>
       </div>
       <div style="margin-top:12px">
-        <div id="cartList" aria-live="polite"></div>
+        <div id="cartList"></div>
         <div class="cart-total small" id="cartTotal"></div>
       </div>
       <div style="margin-top:12px;display:flex;gap:8px">
@@ -144,37 +127,26 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
       </div>
     </aside>
   </div>
-  <footer> Easy Green only accepts cash payments. Fake cash will result in a ban. </footer>
+  <footer> Easy Green only accepts cash payments. </footer>
 </div>
 
 <!-- Admin Screen -->
-<div class="wrap hidden" id="adminScreen">
-  <header>
-    <svg width="44" height="44" viewBox="0 0 24 24" aria-hidden>
-      <rect rx="6" width="24" height="24" fill="#2f9c4a"/>
-      <text x="50%" y="60%" font-size="10" text-anchor="middle" fill="white" font-family="sans-serif">EG</text>
-    </svg>
-    <div><h1>Admin Console</h1></div>
-    <button class="btn ghost" id="closeAdminBtn" style="margin-left:auto">Close Admin</button>
-  </header>
-  <div class="grid" role="main" style="margin-top:12px">
-    <section class="card" aria-labelledby="adminProductsLabel">
-      <h2 id="adminProductsLabel">Stock Control</h2>
-      <div class="small" style="margin-bottom:8px">Adjust stock per flavor.</div>
-      <div class="products" id="adminStockArea"></div>
-    </section>
-    <aside class="card" aria-labelledby="adminTicketsLabel">
-      <h2 id="adminTicketsLabel">All Tickets</h2>
-      <div id="allTicketsArea" style="margin-top:8px"></div>
-    </aside>
+<div id="adminScreen">
+  <h2>Admin Console</h2>
+  <div style="margin-bottom:12px">
+    <button class="btn" id="refreshTickets">Refresh Tickets</button>
+    <button class="btn ghost" id="closeAdmin">Close Admin</button>
   </div>
+  <h3>Stock Control</h3>
+  <div id="adminStockArea"></div>
+  <h3>All Tickets</h3>
+  <div id="allTicketsArea"></div>
 </div>
 
-<!-- Firebase SDK -->
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 <script>
-// Firebase setup
 const firebaseConfig = {
   apiKey: "<YOUR_API_KEY>",
   authDomain: "<YOUR_PROJECT_ID>.firebaseapp.com",
@@ -186,88 +158,164 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+</script>
 
-// ================= USER DATA =================
+<script>
+/* === USER SIDE === */
 let currentUser = null;
-
-// Example products/flavors
-const products = [
-  { id:'flower', name:'Flower', flavors:['OG Kush','Blue Dream','Sour Diesel'], price:25 },
-  { id:'edibles', name:'Edibles', flavors:['Gummy Bears','Chocolate Bar'], price:15 },
-  { id:'carts', name:'Carts', flavors:['Mint','Strawberry'], price:40 }
+let cart = [];
+let products = [
+  {id:'bud1', name:'OG Kush', price:50, flavors:['Classic', 'Fruity']},
+  {id:'bud2', name:'Blue Dream', price:55, flavors:['Berry', 'Sweet']},
+  {id:'cart1', name:'Ghost Cart', price:35, flavors:['Sativa', 'Hybrid']},
+  {id:'cart2', name:'Live Resin Cart', price:40, flavors:['Indica', 'Hybrid']}
 ];
 
-const locations = ["Hasbrook Park","Virginia Terrace Park","Frontier Park","Pioneer Park","Grealish Park","Happiness Park","Greenbrier Park","Kimball Hill Park","Centennial Park"];
+// Create account
+document.getElementById('createCodeBtn').onclick = () => {
+  const code = 'user-' + Math.random().toString(36).substr(2,6);
+  db.ref('users/' + code).set({created:Date.now()});
+  alert('Your code: ' + code);
+  document.getElementById('loginCode').value = code;
+};
 
-// ======== FUNCTIONS ========
-function renderProductsGrid(gridId){
-  const grid=document.getElementById(gridId); grid.innerHTML='';
-  products.forEach(p=>{
-    const div=document.createElement('div'); div.className='product';
-    div.innerHTML=`<h3>${p.name} - $${p.price}</h3>`;
-    p.flavors.forEach(f=>{
-      const row=document.createElement('div'); row.className='row';
-      row.innerHTML=`<span>${f}</span><input type="number" min="0" value="0" style="width:50px">`;
-      div.appendChild(row);
-    });
+// Login
+document.getElementById('loginBtn').onclick = () => {
+  const code = document.getElementById('loginCode').value.trim();
+  if (!code) return alert('Enter a code');
+  currentUser = code;
+  document.getElementById('acctCode').innerText = code;
+  document.getElementById('loginModal').classList.add('hidden');
+  document.getElementById('warningModal').classList.remove('hidden');
+};
+
+// Warning Modal
+document.getElementById('ackBtn').onclick = () => {
+  if (!document.getElementById('ackCheck').checked) return alert('Check agree');
+  document.getElementById('warningModal').classList.add('hidden');
+  document.getElementById('mainWrap').classList.remove('hidden');
+  renderTickets();
+  renderProducts();
+};
+
+document.getElementById('closeHelp').onclick = () => document.getElementById('helpModal').classList.add('hidden');
+document.getElementById('helpBtn').onclick = () => document.getElementById('helpModal').classList.remove('hidden');
+document.getElementById('logoutBtn').onclick = () => location.reload();
+document.getElementById('clearBtn').onclick = () => { cart = []; renderCart(); };
+
+// Render products
+function renderProducts() {
+  const grid = document.getElementById('productsGrid');
+  grid.innerHTML = '';
+  products.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'product';
+    div.innerHTML = `<h3>${p.name}</h3><div>$${p.price}</div>`;
+    const flavorSelect = document.createElement('select');
+    p.flavors.forEach(f => flavorSelect.innerHTML += `<option value="${f}">${f}</option>`);
+    div.appendChild(flavorSelect);
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.textContent = 'Add';
+    btn.onclick = () => { cart.push({...p, flavor:flavorSelect.value}); renderCart(); };
+    div.appendChild(btn);
     grid.appendChild(div);
   });
 }
 
-function renderCart(){
-  const list=document.getElementById('cartList'); list.innerHTML=''; let total=0;
-  const grid=document.getElementById('productsGrid');
-  products.forEach((p,pi)=>{
-    p.flavors.forEach((f,fi)=>{
-      const qty=parseInt(grid.children[pi].children[fi+1].querySelector('input').value);
-      if(qty>0){
-        const div=document.createElement('div'); div.className='cart-item';
-        div.textContent=`${p.name} - ${f} x${qty} = $${(qty*p.price).toFixed(2)}`;
-        list.appendChild(div);
-        total+=qty*p.price;
-      }
-    });
+function renderCart() {
+  const list = document.getElementById('cartList');
+  list.innerHTML = '';
+  let total = 0;
+  cart.forEach(c => {
+    total += c.price;
+    const row = document.createElement('div');
+    row.className = 'cart-item';
+    row.innerHTML = `<span>${c.name} (${c.flavor})</span><span>$${c.price}</span>`;
+    list.appendChild(row);
   });
-  document.getElementById('cartTotal').textContent=`Total: $${total.toFixed(2)}`;
+  document.getElementById('cartTotal').innerText = 'Total $' + total;
 }
 
-// ================= BUTTONS =================
-document.getElementById('helpBtn').onclick=()=>document.getElementById('helpModal').classList.remove('hidden');
-document.getElementById('closeHelp').onclick=()=>document.getElementById('helpModal').classList.add('hidden');
-document.getElementById('logoutBtn').onclick=()=>{
-  currentUser=null; 
-  document.getElementById('mainWrap').classList.add('hidden'); 
-  document.getElementById('loginModal').classList.remove('hidden');
+// Purchase -> create ticket
+document.getElementById('purchaseBtn').onclick = () => {
+  if (!cart.length) return alert('Empty cart');
+  const id = 'tkt-' + Date.now();
+  const total = cart.reduce((a,b) => a+b.price, 0);
+  const ticket = {id, total, location:document.getElementById('locationSelect').value, status:'pending', items:cart};
+  db.ref('tickets/'+id).set(ticket);
+  db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
+  cart = [];
+  renderCart();
 };
-document.getElementById('closeAdminBtn').onclick=()=>document.getElementById('adminScreen').classList.add('hidden');
 
-// ================= LOGIN =================
-document.getElementById('createCodeBtn').onclick=()=>{
-  const code=Math.random().toString(36).slice(2,8);
-  db.ref('users/'+code).set({created:Date.now()});
-  alert('Your new code: '+code);
-};
-document.getElementById('loginBtn').onclick=()=>{
-  const code=document.getElementById('loginCode').value.trim();
-  if(!code){alert('Enter code'); return;}
-  if(code==='joeygold54'){
-    document.getElementById('loginModal').classList.add('hidden'); 
-    document.getElementById('adminScreen').classList.remove('hidden'); 
-    renderProductsGrid('adminStockArea');
-    return;
-  }
-  db.ref('users/'+code).get().then(snap=>{
-    if(!snap.exists()){alert('Code not found'); return;}
-    currentUser=code;
-    document.getElementById('acctCode').textContent=currentUser;
-    document.getElementById('loginModal').classList.add('hidden');
-    document.getElementById('mainWrap').classList.remove('hidden');
-    renderProductsGrid('productsGrid');
+// Render tickets & chat
+function renderTickets() {
+  const area = document.getElementById('ticketsArea');
+  db.ref('tickets').on('value', snap => {
+    const tickets = snap.val()||{};
+    area.innerHTML = '';
+    Object.values(tickets).forEach(t => {
+      if(!t.id) return;
+      const div = document.createElement('div');
+      div.className = 'ticket';
+      div.innerHTML = `<div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
+      <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
+      <div style="display:flex;gap:4px;margin-top:4px"><input type="text" class="msgInput" style="flex:1"><button class="btn sendBtn">Send</button></div>`;
+      area.appendChild(div);
+      const chatEl = document.getElementById('chat-'+t.id);
+      db.ref('messages/'+t.id).off();
+      db.ref('messages/'+t.id).on('value', ms => {
+        const msgs = ms.val()||{};
+        chatEl.innerHTML = Object.values(msgs).map(m=>`<div><strong>${m.from}:</strong> ${m.text||''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`).join('');
+        chatEl.scrollTop = chatEl.scrollHeight;
+      });
+      div.querySelector('.sendBtn').onclick = () => {
+        const inp = div.querySelector('.msgInput');
+        const txt = inp.value.trim();
+        if (!txt) return;
+        db.ref('messages/'+t.id).push({from:currentUser,text:txt});
+        inp.value = '';
+      };
+    });
   });
-};
+}
 
-// ================= CART =================
-document.getElementById('productsGrid').addEventListener('input',renderCart);
+/* === ADMIN === */
+function renderAdminTickets() {
+  const area = document.getElementById('allTicketsArea');
+  area.innerHTML = '';
+  db.ref('tickets').on('value', snap => {
+    const tickets = snap.val()||{};
+    area.innerHTML = '';
+    Object.entries(tickets).forEach(([id,t]) => {
+      const div = document.createElement('div');
+      div.className = 'ticket';
+      div.innerHTML = `<div class="ticket-entry"><strong>${t.id||id}</strong> @ ${t.location} | Total $${t.total} | Status: ${t.status}</div>
+      <div id="admin-chat-${id}" style="height:120px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
+      <div style="display:flex;gap:4px;margin-top:4px"><input type="text" class="msgInput" style="flex:1"><button class="btn sendBtn">Send</button></div>`;
+      area.appendChild(div);
+      const chatEl = document.getElementById('admin-chat-'+id);
+      db.ref('messages/'+id).off();
+      db.ref('messages/'+id).on('value', ms => {
+        const msgs = ms.val()||{};
+        chatEl.innerHTML = Object.values(msgs).map(m=>`<div><strong>${m.from}:</strong> ${m.text||''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`).join('');
+        chatEl.scrollTop = chatEl.scrollHeight;
+      });
+      div.querySelector('.sendBtn').onclick = () => {
+        const inp = div.querySelector('.msgInput');
+        const txt = inp.value.trim();
+        if (!txt) return;
+        db.ref('messages/'+id).push({from:'Admin',text:txt});
+        inp.value = '';
+      };
+    });
+  });
+}
+
+document.getElementById('refreshTickets').onclick = renderAdminTickets;
+document.getElementById('closeAdmin').onclick = () => document.getElementById('adminScreen').style.display='none';
+renderAdminTickets();
 </script>
 </body>
 </html>
