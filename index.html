@@ -1,258 +1,338 @@
-<!DOCTYPE html>
+<!doctype html> 
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Easy Green</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f6fff6; margin: 0; padding: 0; }
-    header { background: #2f9c4a; color: white; padding: 15px; text-align: center; font-size: 24px; }
-    .container { display: flex; }
-    .products, .chat { flex: 1; padding: 20px; }
-    .products { border-right: 1px solid #ddd; }
-    .cart { margin-top: 20px; padding: 10px; border: 1px solid #ccc; background: white; }
-    .chat-box { border: 1px solid #ccc; height: 300px; overflow-y: auto; padding: 10px; background: white; margin-bottom: 10px; }
-    .message { margin: 5px 0; }
-    .message strong { color: #2f9c4a; }
-    .admin .message strong { color: #d9534f; }
-    button { background: #2f9c4a; color: white; border: none; padding: 10px 15px; cursor: pointer; margin-top: 5px; }
-    button:hover { background: #256f35; }
-    input, select { padding: 5px; margin: 5px 0; width: 100%; }
-    .ticket { border: 1px solid #ddd; margin-bottom: 10px; padding: 10px; background: #fff; }
-    .ticket button { background: #d9534f; margin-top: 5px; }
-    img.chat-image { max-width: 200px; border-radius: 8px; margin-top: 5px; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Easy Green</title>
+<style>
+:root{--accent:#2f9c4a;--muted:#6b7280;--card:#fff;--bg:#f6fff6;--maxw:980px}
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0;background:linear-gradient(#f6fff6,#eefef0);color:#111}
+.wrap{max-width:var(--maxw);margin:18px auto;padding:16px}
+header{display:flex;gap:12px;align-items:center}
+header h1{margin:0;color:var(--accent);font-size:1.3rem}
+.grid{display:grid;grid-template-columns:1fr 320px;gap:14px;margin-top:12px}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 8px 20px rgba(20,60,20,.06)}
+.products{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.product{border:1px solid #eee;padding:10px;border-radius:10px}
+.product h3{margin:6px 0 4px}
+.row{display:flex;gap:8px;align-items:center}
+label{font-size:.92rem}
+select,input[type="number"],input[type="file"]{padding:6px;border-radius:8px;border:1px solid #ddd}
+.btn{background:var(--accent);color:white;padding:8px 12px;border-radius:8px;border:0;cursor:pointer}
+.btn.ghost{background:#f3f3f3;color:#111}
+.small{font-size:.88rem;color:var(--muted)}
+.cart-item{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #eee}
+.modal-back{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:1000}
+.modal{width:100%;max-width:760px;background:white;padding:16px;border-radius:12px}
+.ticket{background:#fbfff9;border:1px dashed #e6f4ea;padding:10px;border-radius:8px;margin-bottom:6px}
+.ticket-entry{margin-bottom:8px}
+footer{margin-top:12px;color:var(--muted);font-size:.82rem}
+.hidden{display:none !important;}
+#adminScreen{position:fixed;inset:0;background:rgba(0,0,0,.95);color:#111;padding:16px;overflow:auto;display:none;z-index:3000}
+#adminScreen h2{margin-top:0;color:var(--accent)}
+.flavor-stock{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.flavor-stock span{font-size:.88rem}
+</style>
 </head>
 <body>
-  <header>Easy Green</header>
-  <div id="login-screen">
-    <div style="padding:20px;max-width:400px;margin:auto;">
-      <h2>Login / Create Account</h2>
-      <input type="text" id="username" placeholder="Enter username">
-      <input type="password" id="password" placeholder="Enter password">
-      <button onclick="login()">Login</button>
-      <button onclick="createAccount()">Create Account</button>
+<!-- Login Modal -->
+<div id="loginModal" class="modal-back">
+  <div class="modal">
+    <h3>Login</h3>
+    <div style="margin-bottom:12px">
+      <label>Enter your login code or Create Account if new: <input type="text" id="loginCode"></label>
+    </div>
+    <div style="margin-bottom:12px">or <button class="btn" id="createCodeBtn">Create new code</button></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn" id="loginBtn">Login</button>
     </div>
   </div>
-  <div id="main-screen" style="display:none;">
-    <div class="container">
-      <div class="products">
-        <h3>Products</h3>
-        <select id="product-select">
-          <option value="Cart - Gelato">Cart - Gelato</option>
-          <option value="Cart - Lemon Haze">Cart - Lemon Haze</option>
-          <option value="Cart - Blue Dream">Cart - Blue Dream</option>
-          <option value="Edible - Brownie">Edible - Brownie</option>
-          <option value="Edible - Gummy Bears">Edible - Gummy Bears</option>
-          <option value="Bud - OG Kush">Bud - OG Kush</option>
-          <option value="Bud - Sour Diesel">Bud - Sour Diesel</option>
+</div>
+
+<!-- Warning Modal -->
+<div id="warningModal" class="modal-back hidden">
+  <div class="modal">
+    <h3>Warnings & Rules</h3>
+    <ul>
+      <li>Easy Green is not liable for any stolen Product/Payments.</li>
+      <li>Use products safely.</li>
+      <li>Respect site anonymity.</li>
+    </ul>
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+      <label style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="ackCheck"> I agree
+      </label>
+      <button class="btn" id="ackBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Help Modal -->
+<div id="helpModal" class="modal-back hidden">
+  <div class="modal">
+    <h3>First Time Help</h3>
+    <p>Welcome to Easy Green! Here's how it works:</p>
+    <ol>
+      <li>Select products and flavors you want.</li>
+      <li>Add items to your cart and choose pickup location.</li>
+      <li>Click Purchase to generate a ticket for your order.</li>
+      <li>Use the chat under your ticket to send messages or images to admin.</li>
+      <li>Admin can respond and send images back.</li>
+      <li>Place the specified cash amount in an Envelope and hide it.</li>
+      <li>Mark as paid and send a photo of your envelope.</li>
+      <li>Admin will message you with pickup details after pickup.</li>
+    </ol>
+    <button class="btn" id="closeHelp">Got it!</button>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="wrap hidden" id="mainWrap">
+  <header>
+    <h1>Easy Green — Anonymous Cannabis</h1>
+    <button class="btn ghost" id="logoutBtn" style="margin-left:auto">Log Out</button>
+  </header>
+  <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+    <div class="small">(Write this down) Your account code: <span id="acctCode"></span></div>
+    <button class="btn" id="helpBtn" style="margin-left:auto">First time help</button>
+  </div>
+  <div class="grid" role="main">
+    <section class="card">
+      <h2>Products</h2>
+      <div class="products" id="productsGrid"></div>
+    </section>
+    <aside class="card">
+      <h2>Cart & Pickup</h2>
+      <div>
+        <label class="small">Pickup Location</label>
+        <select id="locationSelect">
+          <option value="Hasbrook Park">Hasbrook Park</option>
+          <option value="Virginia Terrace Park">Virginia Terrace Park</option>
         </select>
-        <input type="number" id="quantity" placeholder="Quantity" min="1">
-        <button onclick="addToCart()">Add to Cart</button>
-        <div class="cart">
-          <h4>Your Cart</h4>
-          <ul id="cart-list"></ul>
-          <button onclick="checkout()">Purchase</button>
-        </div>
       </div>
-      <div class="chat">
-        <h3>Chat</h3>
-        <div id="chat-box" class="chat-box"></div>
-        <input type="text" id="message-input" placeholder="Type a message...">
-        <input type="file" id="image-input" accept="image/*">
-        <button onclick="sendMessage()">Send</button>
+      <div style="margin-top:12px">
+        <div id="cartList"></div>
+        <div class="cart-total small" id="cartTotal"></div>
       </div>
-    </div>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="btn" id="purchaseBtn">Purchase</button>
+        <button class="btn ghost" id="clearBtn">Clear</button>
+      </div>
+      <div style="margin-top:12px">
+        <div class="small">Tickets </div>
+        <div id="ticketsArea" style="margin-top:8px"></div>
+      </div>
+    </aside>
   </div>
-  <div id="admin-screen" style="display:none;">
-    <div style="padding:20px;">
-      <h2>Admin - Support Tickets</h2>
-      <div id="tickets"></div>
-    </div>
+  <footer> Easy Green only accepts cash payments. </footer>
+</div>
+
+<!-- Admin Screen -->
+<div id="adminScreen">
+  <h2>Admin Console</h2>
+  <div style="margin-bottom:12px">
+    <button class="btn" id="refreshTickets">Refresh Tickets</button>
+    <button class="btn ghost" id="closeAdmin">Close Admin</button>
   </div>
+  <h3>All Tickets</h3>
+  <div id="allTicketsArea"></div>
+</div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-    import { getDatabase, ref, push, onChildAdded, remove } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
-    import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
+  authDomain: "easy-green-website.firebaseapp.com",
+  databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com/",
+  projectId: "easy-green-website",
+  storageBucket: "easy-green-website.appspot.com",
+  messagingSenderId: "988776675269",
+  appId: "1:988776675269:web:f2245f84a726d01f3e3dac",
+  measurementId: "G-PR35QWS2T6"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const storage = firebase.storage();
+</script>
 
-    // ✅ Fixed Firebase config
-    const firebaseConfig = {
-      apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
-      authDomain: "easy-green-website.firebaseapp.com",
-      databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com",
-      projectId: "easy-green-website",
-      storageBucket: "easy-green-website.appspot.com", // ✅ Correct bucket
-      messagingSenderId: "988776675269",
-      appId: "1:988776675269:web:f2245f84a726d01f3e3dac",
-      measurementId: "G-PR35QWS2T6"
+<script>
+let currentUser = null;
+let cart = [];
+
+// create new account
+document.getElementById('createCodeBtn').onclick = () => {
+  const code = 'user-' + Math.random().toString(36).substr(2,6);
+  db.ref('users/' + code).set({created:Date.now()});
+  alert('Your code: ' + code);
+  document.getElementById('loginCode').value = code;
+};
+
+// login
+document.getElementById('loginBtn').onclick = () => {
+  const code = document.getElementById('loginCode').value.trim();
+  if(!code) return alert('Enter a code');
+  currentUser = code;
+  document.getElementById('acctCode').innerText = code;
+  document.getElementById('loginModal').classList.add('hidden');
+
+  if(currentUser === 'joeygold54'){
+    document.getElementById('adminScreen').style.display = 'block';
+    renderTickets();
+  } else {
+    document.getElementById('warningModal').classList.remove('hidden');
+  }
+};
+
+// warning modal
+document.getElementById('ackBtn').onclick = () => {
+  if(!document.getElementById('ackCheck').checked) return alert('Check agree');
+  document.getElementById('warningModal').classList.add('hidden');
+  document.getElementById('mainWrap').classList.remove('hidden');
+  renderTickets();
+  renderProducts();
+};
+
+document.getElementById('closeHelp').onclick = () => document.getElementById('helpModal').classList.add('hidden');
+document.getElementById('helpBtn').onclick = () => document.getElementById('helpModal').classList.remove('hidden');
+document.getElementById('logoutBtn').onclick = () => location.reload();
+document.getElementById('clearBtn').onclick = () => { cart = []; renderCart(); };
+
+// render products
+function renderProducts(){
+  const grid = document.getElementById('productsGrid');
+  grid.innerHTML = '';
+  const sample = [
+    {id:'bud1',name:'OG Kush',price:50},
+    {id:'cart1',name:'Ghost Cart',price:35}
+  ];
+  sample.forEach(p=>{
+    const div=document.createElement('div');
+    div.className='product';
+    div.innerHTML = `<h3>${p.name}</h3><div>$${p.price}</div>
+      <select>
+        <option value="">Select Flavor</option>
+        <option value="Flavor1">Flavor1</option>
+        <option value="Flavor2">Flavor2</option>
+      </select>
+      <button class="btn">Add</button>`;
+    div.querySelector('button').onclick = ()=>{
+      const flavor = div.querySelector('select').value || "None";
+      cart.push({...p, selectedFlavor: flavor});
+      renderCart();
+    };
+    grid.appendChild(div);
+  });
+}
+
+// render cart
+function renderCart(){
+  const list=document.getElementById('cartList');
+  list.innerHTML='';
+  let total=0;
+  cart.forEach(c=>{
+    total+=c.price;
+    const row=document.createElement('div');
+    row.className='cart-item';
+    row.innerHTML=`<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price}</span>`;
+    list.appendChild(row);
+  });
+  document.getElementById('cartTotal').innerText='Total $'+total;
+}
+
+// purchase -> create ticket
+document.getElementById('purchaseBtn').onclick = () => {
+  if(!cart.length) return alert('Empty cart');
+  const id = 'tkt-'+Date.now();
+  const total = cart.reduce((a,b)=>a+b.price,0);
+  const ticket = {id,total,location: document.getElementById('locationSelect').value,status:'pending',items: cart,user: currentUser};
+  db.ref('tickets/'+id).set(ticket);
+  db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
+  cart=[]; renderCart();
+};
+
+/* === TICKETS & CHAT WITH IMAGE SUPPORT === */
+function renderTickets(){
+  const area = document.getElementById(currentUser==='joeygold54'?'allTicketsArea':'ticketsArea');
+  area.innerHTML='';
+
+  db.ref('tickets').off();
+  db.ref('tickets').on('child_added', snap=>{
+    const t = snap.val(); if(!t.id) t.id = snap.key;
+    if(currentUser!=='joeygold54' && t.user !== currentUser) return;
+
+    const itemsText = t.items.map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
+
+    const div = document.createElement('div');
+    div.className='ticket';
+    div.innerHTML = `
+      <div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
+      <div><em>Items: ${itemsText}</em></div>
+      <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
+      <div style="display:flex;gap:4px;margin-top:4px">
+        <input type="text" class="msgInput" style="flex:1">
+        <input type="file" class="imgInput">
+        <button class="btn sendBtn">Send</button>
+        ${currentUser==='joeygold54'?'<button class="btn ghost deleteBtn" style="margin-left:4px;">Delete</button>':''}
+      </div>
+    `;
+    area.appendChild(div);
+
+    const chatEl = document.getElementById('chat-'+t.id);
+    db.ref('messages/'+t.id).off();
+    db.ref('messages/'+t.id).on('value', ms => {
+      const msgs = ms.val() || {};
+      chatEl.innerHTML = Object.values(msgs).map(m=>
+        `<div><strong>${m.from==='joeygold54'?'admin':m.from}:</strong> ${m.text || ''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`
+      ).join('');
+      chatEl.scrollTop = chatEl.scrollHeight;
+    });
+
+    // send message or image
+    div.querySelector('.sendBtn').onclick = () => {
+      const inp = div.querySelector('.msgInput');
+      const fileInp = div.querySelector('.imgInput');
+      const txt = inp.value.trim();
+
+      if(fileInp.files.length>0){
+        const file = fileInp.files[0];
+        const storageRef = storage.ref('chat_images/'+Date.now()+'_'+file.name);
+        const uploadTask = storageRef.put(file);
+
+        uploadTask.on('state_changed',
+          snapshot => {}, // progress function (optional)
+          error => alert('Upload failed: '+error),
+          () => {
+            uploadTask.snapshot.ref.getDownloadURL().then(url=>{
+              db.ref('messages/'+t.id).push({from:currentUser, image:url});
+            });
+          }
+        );
+        fileInp.value='';
+      }
+
+      if(txt) db.ref('messages/'+t.id).push({from:currentUser, text: txt});
+      inp.value='';
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const storage = getStorage(app);
-
-    let currentUser = null;
-    let isAdmin = false;
-    let currentCart = [];
-
-    function login() {
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
-
-      if (password === "joeygold54") {
-        isAdmin = true;
-        currentUser = "admin";
-        document.getElementById("login-screen").style.display = "none";
-        document.getElementById("admin-screen").style.display = "block";
-        loadAdminTickets();
-      } else if (username.trim() !== "" && password.trim() !== "") {
-        currentUser = username;
-        isAdmin = false;
-        document.getElementById("login-screen").style.display = "none";
-        document.getElementById("main-screen").style.display = "block";
-        loadMessages();
-      }
-    }
-
-    function createAccount() {
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
-      if (username && password) {
-        alert("Account created! Now log in.");
-      }
-    }
-
-    function addToCart() {
-      const product = document.getElementById("product-select").value;
-      const quantity = document.getElementById("quantity").value;
-      if (product && quantity > 0) {
-        currentCart.push({ product, quantity });
-        updateCartDisplay();
-      }
-    }
-
-    function updateCartDisplay() {
-      const cartList = document.getElementById("cart-list");
-      cartList.innerHTML = "";
-      currentCart.forEach(item => {
-        const li = document.createElement("li");
-        li.textContent = `${item.quantity} x ${item.product}`;
-        cartList.appendChild(li);
-      });
-    }
-
-    function checkout() {
-      if (currentCart.length === 0) return;
-      const ticketRef = push(ref(db, "tickets"));
-      const ticketId = ticketRef.key;
-      const newTicket = {
-        user: currentUser,
-        items: currentCart,
-        messages: []
+    if(currentUser==='joeygold54'){
+      div.querySelector('.deleteBtn').onclick = () => {
+        if(confirm('Delete this ticket permanently?')){
+          db.ref('tickets/'+t.id).remove();
+          db.ref('messages/'+t.id).remove();
+          div.remove();
+        }
       };
-      push(ref(db, "tickets/" + ticketId), newTicket);
-      currentCart = [];
-      updateCartDisplay();
-      alert("Order placed. Support ticket created.");
     }
+  });
+}
 
-    function sendMessage() {
-      const messageInput = document.getElementById("message-input");
-      const imageInput = document.getElementById("image-input");
-      const text = messageInput.value.trim();
-      const file = imageInput.files[0];
-
-      if (!text && !file) return;
-
-      const ticketRef = ref(db, "tickets");
-      onChildAdded(ticketRef, (snapshot) => {
-        const ticketKey = snapshot.key;
-        if (snapshot.val().user === currentUser || isAdmin) {
-          if (file) {
-            const imgRef = storageRef(storage, "chat_images/" + Date.now() + "-" + file.name);
-            uploadBytes(imgRef, file).then(() => {
-              getDownloadURL(imgRef).then(url => {
-                push(ref(db, "tickets/" + ticketKey + "/messages"), {
-                  sender: isAdmin ? "admin" : currentUser,
-                  image: url,
-                  timestamp: Date.now()
-                });
-              });
-            });
-            imageInput.value = "";
-          }
-          if (text) {
-            push(ref(db, "tickets/" + ticketKey + "/messages"), {
-              sender: isAdmin ? "admin" : currentUser,
-              text: text,
-              timestamp: Date.now()
-            });
-            messageInput.value = "";
-          }
-        }
-      });
-    }
-
-    function loadMessages() {
-      const chatBox = document.getElementById("chat-box");
-      const ticketRef = ref(db, "tickets");
-      onChildAdded(ticketRef, (snapshot) => {
-        const ticket = snapshot.val();
-        if (ticket.user === currentUser) {
-          const messagesRef = ref(db, "tickets/" + snapshot.key + "/messages");
-          onChildAdded(messagesRef, (msgSnap) => {
-            const msg = msgSnap.val();
-            const div = document.createElement("div");
-            div.classList.add("message");
-            div.innerHTML = `<strong>${msg.sender}:</strong> ${msg.text || ""}`;
-            if (msg.image) {
-              div.innerHTML += `<br><img class="chat-image" src="${msg.image}">`;
-            }
-            chatBox.appendChild(div);
-            chatBox.scrollTop = chatBox.scrollHeight;
-          });
-        }
-      });
-    }
-
-    function loadAdminTickets() {
-      const ticketsDiv = document.getElementById("tickets");
-      const ticketRef = ref(db, "tickets");
-      onChildAdded(ticketRef, (snapshot) => {
-        const ticket = snapshot.val();
-        const div = document.createElement("div");
-        div.classList.add("ticket");
-        div.innerHTML = `<strong>User:</strong> ${ticket.user}<br><strong>Items:</strong> ${
-          ticket.items ? ticket.items.map(i => `${i.quantity}x ${i.product}`).join(", ") : "None"
-        }<br><div class="messages" id="messages-${snapshot.key}"></div>
-        <button onclick="deleteTicket('${snapshot.key}')">Delete</button>`;
-        ticketsDiv.appendChild(div);
-
-        const messagesRef = ref(db, "tickets/" + snapshot.key + "/messages");
-        onChildAdded(messagesRef, (msgSnap) => {
-          const msg = msgSnap.val();
-          const messagesDiv = div.querySelector(`#messages-${snapshot.key}`);
-          const msgDiv = document.createElement("div");
-          msgDiv.classList.add("message");
-          msgDiv.innerHTML = `<strong>${msg.sender}:</strong> ${msg.text || ""}`;
-          if (msg.image) {
-            msgDiv.innerHTML += `<br><img class="chat-image" src="${msg.image}">`;
-          }
-          messagesDiv.appendChild(msgDiv);
-        });
-      });
-    }
-
-    window.login = login;
-    window.createAccount = createAccount;
-    window.addToCart = addToCart;
-    window.checkout = checkout;
-    window.sendMessage = sendMessage;
-    window.deleteTicket = function(ticketId) {
-      remove(ref(db, "tickets/" + ticketId));
-      document.getElementById("tickets").innerHTML = "";
-      loadAdminTickets();
-    };
-  </script>
+document.getElementById('refreshTickets').onclick = renderTickets;
+document.getElementById('closeAdmin').onclick = ()=>document.getElementById('adminScreen').style.display='none';
+</script>
 </body>
 </html>
