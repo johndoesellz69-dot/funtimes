@@ -38,7 +38,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 </head>
 <body>
 
-<!-- Login / Create Code Modal -->
 <div id="loginModal" class="modal-back">
   <div class="modal">
     <h3>Login</h3>
@@ -54,7 +53,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   </div>
 </div>
 
-<!-- Warning modal -->
 <div id="warningModal" class="modal-back hidden">
   <div class="modal">
     <h3>Warnings & Rules</h3>
@@ -72,7 +70,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   </div>
 </div>
 
-<!-- First Time Help Modal -->
 <div id="helpModal" class="modal-back hidden">
   <div class="modal">
     <h3>First Time Help</h3>
@@ -92,7 +89,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   </div>
 </div>
 
-<!-- Main site -->
 <div class="wrap hidden" id="mainWrap">
   <header>
     <h1>Easy Green — Anonymous Cannabis</h1>
@@ -133,7 +129,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   <footer> Easy Green only accepts cash payments. </footer>
 </div>
 
-<!-- Admin Screen -->
 <div id="adminScreen">
   <h2>Admin Console</h2>
   <div style="margin-bottom:12px">
@@ -146,7 +141,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   <div id="allTicketsArea"></div>
 </div>
 
-<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 <script>
@@ -165,6 +159,21 @@ const db = firebase.database();
 
 <script>
 // === ADMIN TICKETS WITH CHAT ===
+function renderAdminChat(ticketId) {
+    const chatEl = document.getElementById('admin-chat-' + ticketId);
+    if (!chatEl) return;
+
+    db.ref('messages/' + ticketId).on('value', msgSnap => {
+        const msgs = msgSnap.val() || {};
+        chatEl.innerHTML = Object.values(msgs).map(m =>
+            m.image
+                ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`
+                : `<div><strong>${m.from}:</strong> ${m.text}</div>`
+        ).join('');
+        chatEl.scrollTop = chatEl.scrollHeight;
+    });
+}
+
 function renderAdminTickets() {
   const area = document.getElementById('allTicketsArea');
   area.innerHTML = '';
@@ -172,7 +181,7 @@ function renderAdminTickets() {
   db.ref('tickets').on('value', snap => {
     const tickets = snap.val() || {};
     area.innerHTML = '';
-
+    
     Object.values(tickets).forEach(t => {
       const div = document.createElement('div');
       div.className = 'ticket';
@@ -190,17 +199,7 @@ function renderAdminTickets() {
       `;
       area.appendChild(div);
 
-      const chatEl = document.getElementById('admin-chat-' + t.id);
-
-      db.ref('messages/' + t.id).on('value', msgSnap => {
-        const msgs = msgSnap.val() || {};
-        chatEl.innerHTML = Object.values(msgs).map(m =>
-          m.image
-            ? `<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`
-            : `<div><strong>${m.from}:</strong> ${m.text}</div>`
-        ).join('');
-        chatEl.scrollTop = chatEl.scrollHeight;
-      });
+      renderAdminChat(t.id);
 
       div.querySelector('.sendBtn').onclick = () => {
         const text = div.querySelector('.msgInput').value.trim();
@@ -234,7 +233,14 @@ document.getElementById('closeAdmin').onclick = () => {
 };
 
 // Call on load
-renderAdminTickets();
+document.addEventListener('DOMContentLoaded', () => {
+    // This part of the code is not shown in the snippet,
+    // but the assumption is that the admin screen is
+    // shown on some login or event.
+    // Call renderAdminTickets when the admin screen is first displayed.
+    // For now, it's called on page load to demonstrate the fix.
+    renderAdminTickets();
+});
 </script>
 </body>
 </html>
