@@ -292,22 +292,18 @@ function renderTickets(){
     });
 
     // send message or image
-    div.querySelector('.sendBtn').onclick = async () => {
+    div.querySelector('.sendBtn').onclick = () => {
       const inp = div.querySelector('.msgInput');
       const fileInp = div.querySelector('.imgInput');
       const txt = inp.value.trim();
 
-      // handle image
+      // handle image properly
       if(fileInp.files.length > 0){
         const file = fileInp.files[0];
         const storageRef = storage.ref('chatImages/' + Date.now() + '_' + file.name);
-        try {
-          const snapshot = await storageRef.put(file);  // wait for upload
-          const url = await snapshot.ref.getDownloadURL();  // get URL
-          await db.ref('messages/' + t.id).push({from: currentUser, image: url}); // push to DB
-        } catch(err) {
-          alert('Image upload failed: ' + err);
-        }
+        storageRef.put(file).then(snapshot => snapshot.ref.getDownloadURL()).then(url => {
+          db.ref('messages/' + t.id).push({from: currentUser, image: url});
+        }).catch(err => { alert('Image upload failed: ' + err); });
         fileInp.value = '';
       }
 
