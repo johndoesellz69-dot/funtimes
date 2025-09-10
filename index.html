@@ -26,7 +26,7 @@ select,input[type="number"],input[type="file"]{padding:6px;border-radius:8px;bor
 .cart-item{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #eee}
 .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:1000}
 .modal{width:100%;max-width:760px;background:white;padding:16px;border-radius:12px}
-.ticket{background:#fbfff9;border:1px dashed #e6f4ea;padding:10px;border-radius:8px}
+.ticket{background:#fbfff9;border:1px dashed #e6f4ea;padding:10px;border-radius:8px;margin-bottom:8px}
 .ticket-entry{margin-bottom:8px}
 footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 .hidden{display:none !important;}
@@ -37,7 +37,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 </style>
 </head>
 <body>
-
 <!-- Login Modal -->
 <div id="loginModal" class="modal-back">
   <div class="modal">
@@ -95,15 +94,18 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
     <h1>Easy Green — Anonymous Cannabis</h1>
     <button class="btn ghost" id="logoutBtn" style="margin-left:auto">Log Out</button>
   </header>
+
   <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
     <div class="small">(Write this down) Your account code: <span id="acctCode"></span></div>
     <button class="btn" id="helpBtn" style="margin-left:auto">First time help</button>
   </div>
+
   <div class="grid" role="main">
     <section class="card">
       <h2>Products</h2>
       <div class="products" id="productsGrid"></div>
     </section>
+
     <aside class="card">
       <h2>Cart & Pickup</h2>
       <div>
@@ -113,21 +115,27 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
           <option value="Virginia Terrace Park">Virginia Terrace Park</option>
         </select>
       </div>
+
       <div style="margin-top:12px">
         <div id="cartList"></div>
         <div class="cart-total small" id="cartTotal"></div>
       </div>
+
       <div style="margin-top:12px;display:flex;gap:8px">
         <button class="btn" id="purchaseBtn">Purchase</button>
         <button class="btn ghost" id="clearBtn">Clear</button>
       </div>
+
       <div style="margin-top:12px">
         <div class="small">Tickets </div>
         <div id="ticketsArea" style="margin-top:8px"></div>
       </div>
     </aside>
   </div>
-  <footer> Easy Green only accepts cash payments. </footer>
+
+  <footer>
+    Easy Green only accepts cash payments.
+  </footer>
 </div>
 
 <!-- Admin Screen -->
@@ -164,14 +172,8 @@ const db = firebase.database();
 /* === USER SIDE === */
 let currentUser = null;
 let cart = [];
-let products = [
-  {id:'bud1', name:'OG Kush', price:50, flavors:['Classic', 'Fruity']},
-  {id:'bud2', name:'Blue Dream', price:55, flavors:['Berry', 'Sweet']},
-  {id:'cart1', name:'Ghost Cart', price:35, flavors:['Sativa', 'Hybrid']},
-  {id:'cart2', name:'Live Resin Cart', price:40, flavors:['Indica', 'Hybrid']}
-];
 
-// Create account
+// create new account
 document.getElementById('createCodeBtn').onclick = () => {
   const code = 'user-' + Math.random().toString(36).substr(2,6);
   db.ref('users/' + code).set({created:Date.now()});
@@ -179,7 +181,7 @@ document.getElementById('createCodeBtn').onclick = () => {
   document.getElementById('loginCode').value = code;
 };
 
-// Login
+// login
 document.getElementById('loginBtn').onclick = () => {
   const code = document.getElementById('loginCode').value.trim();
   if (!code) return alert('Enter a code');
@@ -189,7 +191,7 @@ document.getElementById('loginBtn').onclick = () => {
   document.getElementById('warningModal').classList.remove('hidden');
 };
 
-// Warning Modal
+// warning modal
 document.getElementById('ackBtn').onclick = () => {
   if (!document.getElementById('ackCheck').checked) return alert('Check agree');
   document.getElementById('warningModal').classList.add('hidden');
@@ -203,111 +205,133 @@ document.getElementById('helpBtn').onclick = () => document.getElementById('help
 document.getElementById('logoutBtn').onclick = () => location.reload();
 document.getElementById('clearBtn').onclick = () => { cart = []; renderCart(); };
 
-// Render products
+// render products
 function renderProducts() {
   const grid = document.getElementById('productsGrid');
   grid.innerHTML = '';
-  products.forEach(p => {
-    const div = document.createElement('div');
-    div.className = 'product';
-    div.innerHTML = `<h3>${p.name}</h3><div>$${p.price}</div>`;
-    const flavorSelect = document.createElement('select');
-    p.flavors.forEach(f => flavorSelect.innerHTML += `<option value="${f}">${f}</option>`);
-    div.appendChild(flavorSelect);
-    const btn = document.createElement('button');
-    btn.className = 'btn';
-    btn.textContent = 'Add';
-    btn.onclick = () => { cart.push({...p, flavor:flavorSelect.value}); renderCart(); };
-    div.appendChild(btn);
+  const sample = [
+    {id:'bud1',name:'OG Kush',price:50,flavors:['Lemon','Pine']},
+    {id:'cart1',name:'Ghost Cart',price:35,flavors:['Vanilla','Mint']}
+  ];
+  sample.forEach(p=>{
+    const div=document.createElement('div');
+    div.className='product';
+    div.innerHTML = `<h3>${p.name}</h3><div>$${p.price}</div>
+      <select>${p.flavors.map(f=>`<option>${f}</option>`).join('')}</select>
+      <button class="btn">Add</button>`;
+    div.querySelector('button').onclick = () => {
+      const flavor = div.querySelector('select').value;
+      cart.push({...p,selectedFlavor:flavor});
+      renderCart();
+    };
     grid.appendChild(div);
   });
 }
 
+// render cart
 function renderCart() {
   const list = document.getElementById('cartList');
   list.innerHTML = '';
   let total = 0;
-  cart.forEach(c => {
+  cart.forEach(c=>{
     total += c.price;
     const row = document.createElement('div');
     row.className = 'cart-item';
-    row.innerHTML = `<span>${c.name} (${c.flavor})</span><span>$${c.price}</span>`;
+    row.innerHTML = `<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price}</span>`;
     list.appendChild(row);
   });
   document.getElementById('cartTotal').innerText = 'Total $' + total;
 }
 
-// Purchase -> create ticket
+// purchase -> create ticket
 document.getElementById('purchaseBtn').onclick = () => {
   if (!cart.length) return alert('Empty cart');
   const id = 'tkt-' + Date.now();
-  const total = cart.reduce((a,b) => a+b.price, 0);
-  const ticket = {id, total, location:document.getElementById('locationSelect').value, status:'pending', items:cart};
-  db.ref('tickets/'+id).set(ticket);
-  db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
+  const total = cart.reduce((a,b)=>a+b.price,0);
+  const ticket = {
+    id,
+    user: currentUser,
+    total,
+    location: document.getElementById('locationSelect').value,
+    status: 'pending',
+    items: cart
+  };
+  db.ref('tickets/' + id).set(ticket);
+  db.ref('messages/' + id).push({from: currentUser, text: 'Ticket created: ' + cart.map(i=>i.name+'('+i.selectedFlavor+')').join(', ')});
   cart = [];
   renderCart();
 };
 
-// Render tickets & chat
+// render tickets & chat for user (only their own tickets)
 function renderTickets() {
   const area = document.getElementById('ticketsArea');
   db.ref('tickets').on('value', snap => {
-    const tickets = snap.val()||{};
+    const tickets = snap.val() || {};
     area.innerHTML = '';
     Object.values(tickets).forEach(t => {
-      if(!t.id) return;
+      if (!t.id || t.user !== currentUser) return;
+
       const div = document.createElement('div');
       div.className = 'ticket';
       div.innerHTML = `<div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
-      <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
-      <div style="display:flex;gap:4px;margin-top:4px"><input type="text" class="msgInput" style="flex:1"><button class="btn sendBtn">Send</button></div>`;
+        <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
+        <div style="display:flex;gap:4px;margin-top:4px"><input type="text" class="msgInput" style="flex:1"><button class="btn sendBtn">Send</button></div>`;
+
       area.appendChild(div);
+
       const chatEl = document.getElementById('chat-'+t.id);
       db.ref('messages/'+t.id).off();
       db.ref('messages/'+t.id).on('value', ms => {
-        const msgs = ms.val()||{};
-        chatEl.innerHTML = Object.values(msgs).map(m=>`<div><strong>${m.from}:</strong> ${m.text||''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`).join('');
+        const msgs = ms.val() || {};
+        chatEl.innerHTML = Object.values(msgs).map(m =>
+          `<div><strong>${m.from}:</strong> ${m.text || ''}${m.image ? '<br><img src="'+m.image+'" style="max-width:100px">' : ''}</div>`
+        ).join('');
         chatEl.scrollTop = chatEl.scrollHeight;
       });
+
       div.querySelector('.sendBtn').onclick = () => {
         const inp = div.querySelector('.msgInput');
         const txt = inp.value.trim();
         if (!txt) return;
-        db.ref('messages/'+t.id).push({from:currentUser,text:txt});
+        db.ref('messages/'+t.id).push({from: currentUser, text: txt});
         inp.value = '';
       };
     });
   });
 }
 
-/* === ADMIN === */
+/* === ADMIN CHAT === */
 function renderAdminTickets() {
   const area = document.getElementById('allTicketsArea');
   area.innerHTML = '';
   db.ref('tickets').on('value', snap => {
-    const tickets = snap.val()||{};
+    const tickets = snap.val() || {};
     area.innerHTML = '';
     Object.entries(tickets).forEach(([id,t]) => {
       const div = document.createElement('div');
       div.className = 'ticket';
       div.innerHTML = `<div class="ticket-entry"><strong>${t.id||id}</strong> @ ${t.location} | Total $${t.total} | Status: ${t.status}</div>
-      <div id="admin-chat-${id}" style="height:120px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
-      <div style="display:flex;gap:4px;margin-top:4px"><input type="text" class="msgInput" style="flex:1"><button class="btn sendBtn">Send</button></div>`;
+        <div id="admin-chat-${id}" style="height:120px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
+        <div style="display:flex;gap:4px;margin-top:4px"><input type="text" class="msgInput" style="flex:1"><button class="btn sendBtn">Send</button></div>`;
+
       area.appendChild(div);
+
       const chatEl = document.getElementById('admin-chat-'+id);
       db.ref('messages/'+id).off();
       db.ref('messages/'+id).on('value', ms => {
-        const msgs = ms.val()||{};
-        chatEl.innerHTML = Object.values(msgs).map(m=>`<div><strong>${m.from}:</strong> ${m.text||''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`).join('');
+        const msgs = ms.val() || {};
+        chatEl.innerHTML = Object.values(msgs).map(m =>
+          `<div><strong>${m.from}:</strong> ${m.text || ''}${m.image ? '<br><img src="'+m.image+'" style="max-width:100px">' : ''}</div>`
+        ).join('');
         chatEl.scrollTop = chatEl.scrollHeight;
       });
+
       div.querySelector('.sendBtn').onclick = () => {
         const inp = div.querySelector('.msgInput');
         const txt = inp.value.trim();
         if (!txt) return;
         db.ref('messages/'+id).push({from:'Admin',text:txt});
-        inp.value = '';
+        inp.value='';
       };
     });
   });
@@ -316,6 +340,8 @@ function renderAdminTickets() {
 document.getElementById('refreshTickets').onclick = renderAdminTickets;
 document.getElementById('closeAdmin').onclick = () => document.getElementById('adminScreen').style.display='none';
 renderAdminTickets();
+
 </script>
 </body>
 </html>
+
