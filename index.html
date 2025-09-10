@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html> 
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -177,11 +177,9 @@ const db = firebase.database();
 </script>
 
 <script>
+// Full script with admin tickets & chat fix
 document.addEventListener('DOMContentLoaded', () => {
-  const PRODUCTS=[
-    {id:'c1',name:'Edibles',price:20,flavors:['Sour Patch','Skittlez','Swedish Fish','Watermelon','Starburst','Trolli','Peach Rings']},
-    {id:'c2',name:'2G Ghost Disposable Carts',price:40,flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice cream Cake','Black Mamba']},
-  ];
+  const PRODUCTS=[{id:'c1',name:'Edibles',price:20,flavors:['Sour Patch','Skittlez','Swedish Fish','Watermelon','Starburst','Trolli','Peach Rings']},{id:'c2',name:'2G Ghost Disposable Carts',price:40,flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice cream Cake','Black Mamba']}];
   function uid6(){return Math.random().toString(36).slice(2,8).toUpperCase();}
   function money(n){return '$'+n.toFixed(2);}
   let account=localStorage.getItem('eg_account')||'';
@@ -198,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSiteScripts();
   }
 
-  // Login / Create
+  /* Login / Create */
   document.getElementById('loginBtn').onclick=()=>{
     const code=document.getElementById('loginCode').value.trim();
     if(!code){alert('Enter code');return;}
@@ -216,23 +214,23 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('eg_ack','1');document.getElementById('warningModal').classList.add('hidden');
   };
 
-  // First Time Help
+  /* First Time Help */
   document.getElementById('helpBtn').onclick=()=>{document.getElementById('helpModal').classList.remove('hidden');};
   document.getElementById('closeHelp').onclick=()=>{document.getElementById('helpModal').classList.add('hidden');};
 
-  // Log Out
+  /* Log Out */
   document.getElementById('logoutBtn').onclick = () => {
     localStorage.removeItem('eg_account'); account = '';
     document.getElementById('mainWrap').classList.add('hidden');
     document.getElementById('loginModal').classList.remove('hidden');
   };
 
-  // Admin Screen
+  /* Admin Screen */
   document.getElementById('closeAdmin').onclick=()=>{document.getElementById('adminScreen').style.display='none';};
   document.getElementById('refreshTickets').onclick=()=>{renderAdminTickets(); renderAdminStock();};
   function showAdmin(){document.getElementById('adminScreen').style.display='block'; renderAdminStock(); renderAdminTickets();}
 
-  // Site scripts
+  /* Site scripts */
   function initSiteScripts(){
     const grid=document.getElementById('productsGrid');grid.innerHTML='';
     PRODUCTS.forEach(p=>{
@@ -266,62 +264,72 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderCart(){
       cartList.innerHTML='';if(cart.length===0){cartList.innerHTML='<div class="small">Cart empty.</div>';cartTotalEl.textContent='';return;}
-      cart.forEach((i,idx)=>{
+      cart.forEach((it,idx)=>{
         const div=document.createElement('div');div.className='cart-item';
-        div.innerHTML=`<div>${i.name} (${i.flavor}) x ${i.qty}</div><div>${money(i.price*i.qty)}</div>`;
+        div.innerHTML=`<div><div style="font-weight:600">${it.name} ×${it.qty}</div><div class="small">${it.flavor}</div>${it.image?'<img src="'+it.image+'" style="width:60px;margin-top:4px;border-radius:6px">':''}</div>
+        <div style="text-align:right"><div>${money(it.price*it.qty)}</div><div style="margin-top:6px"><button class="btn ghost" data-i="${idx}">Remove</button></div></div>`;
         cartList.appendChild(div);
+        div.querySelector('button').addEventListener('click',(e)=>{cart.splice(Number(e.target.dataset.i),1);saveCart();});
       });
-      const total=cart.reduce((a,b)=>a+b.price*b.qty,0);cartTotalEl.textContent='Total: '+money(total);
+      const total=cart.reduce((s,i)=>s+i.price*i.qty,0);cartTotalEl.textContent=`Total: ${money(total)}`;
     }
 
+    document.getElementById('purchaseBtn').addEventListener('click',()=>{
+      if(cart.length===0){alert('Cart empty');return;}
+      const loc=document.getElementById('locationSelect').value;
+      const tid='T-'+Math.random().toString(36).slice(2,8).toUpperCase();
+      const items=JSON.parse(JSON.stringify(cart));
+      const total=items.reduce((s,i)=>s+i.price*i.qty,0);
+      const ticket={id:tid,account,location:loc,items,total,status:'open',messages:[{from:'System',text:`Ticket created. Total ${money(total)}. Hide payment at ${loc}.`} ]};
+      db.ref('tickets/'+tid).set(ticket);
+      db.ref('messages/'+tid).set(ticket.messages);
+      tickets.push(ticket);saveTickets();cart=[];saveCart();
+    });
+
+    document.getElementById('clearBtn').addEventListener('click',()=>{cart=[];saveCart();});
+
     function renderTickets(){
-      ticketsArea.innerHTML='';if(tickets.length===0){ticketsArea.innerHTML='<div class="small">No tickets yet.</div>';return;}
+      ticketsArea.innerHTML='';
       tickets.forEach(t=>{
-        const div=document.createElement('div');div.className='ticket';div.innerHTML=`<div><strong>Ticket ${t.id}</strong> | Status: ${t.status}</div><div id="chat-${t.id}" style="margin-top:4px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>`;
+        const div=document.createElement('div');div.className='ticket';
+        div.innerHTML=`<div class="ticket-entry"><strong>${t.id}</strong> @ ${t.location} | Total ${money(t.total)} | Status: ${t.status}</div>
+        <div id="chat-${t.id}" style="margin-top:4px;height:120px;overflow:auto;border-top:1px dashed #ddd;padding-top:4px"></div>
+        <div style="margin-top:4px;display:flex;gap:4px">
+          <input type="text" placeholder="Message" class="msgInput" style="flex:1">
+          <input type="file" class="imgInput" style="flex:1">
+          <button class="btn sendBtn">Send</button>
+        </div>`;
         ticketsArea.appendChild(div);
         const chatEl=document.getElementById('chat-'+t.id);
         db.ref('messages/'+t.id).on('value',snap=>{
           const msgs=snap.val()||[];
-          chatEl.innerHTML=msgs.map(m=>m.image?`<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:80px"></div>`:`<div><strong>${m.from}:</strong> ${m.text}</div>`).join('');
+          chatEl.innerHTML=msgs.map(m=>m.image?`<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`:`<div><strong>${m.from}:</strong> ${m.text}</div>`).join('');
           chatEl.scrollTop=chatEl.scrollHeight;
         });
+        div.querySelector('.sendBtn').onclick=()=>{
+          const text=div.querySelector('.msgInput').value.trim();
+          const file=div.querySelector('.imgInput').files[0];
+          if(!text&&!file){alert('Write message or choose image');return;}
+          if(file){
+            const reader=new FileReader();
+            reader.onload=e=>{
+              const msg={from:'You',image:e.target.result};
+              db.ref('messages/'+t.id).push(msg);
+              div.querySelector('.imgInput').value='';
+            };reader.readAsDataURL(file);
+          }
+          if(text){db.ref('messages/'+t.id).push({from:'You',text});div.querySelector('.msgInput').value='';}
+        };
       });
     }
 
     renderCart();renderTickets();
-
-    document.getElementById('clearBtn').onclick=()=>{cart=[];saveCart();}
-    document.getElementById('purchaseBtn').onclick=()=>{
-      if(cart.length===0){alert('Cart empty');return;}
-      const total=cart.reduce((a,b)=>a+b.price*b.qty,0);
-      const tID='T-'+Date.now();
-      const ticket={id:tID,total,location:document.getElementById('locationSelect').value,status:'Pending',items:cart};
-      tickets.push(ticket);saveTickets();
-      db.ref('tickets/'+tID).set(ticket);
-      cart.forEach(c=>{
-        if(c.image)db.ref('stock/'+c.productId+'/'+c.flavor).set(false);
-      });
-      cart=[];saveCart();alert('Ticket created');renderTickets();
-    };
   }
 
-  // ADMIN: Stock
-  function renderAdminStock(){
-    const area=document.getElementById('adminStockArea');area.innerHTML='';
-    PRODUCTS.forEach(p=>{
-      const div=document.createElement('div');div.className='flavor-stock';
-      const stockRef=db.ref('stock/'+p.id);
-      stockRef.once('value').then(snap=>{
-        const stock=snap.val()||{};
-        div.innerHTML=`<span>${p.name}</span><select>${p.flavors.map(f=>`<option ${stock[f]===false?'disabled class="option-disabled"':''}>${f}</option>`).join('')}</select>`;
-        area.appendChild(div);
-      });
-    });
-  }
-
-  // ADMIN: Tickets & Messages
+  /* Admin tickets & chat fix */
   function renderAdminTickets(){
-    const area=document.getElementById('allTicketsArea');area.innerHTML='';
+    const area=document.getElementById('allTicketsArea');
+    area.innerHTML='';
     db.ref('tickets').on('value',snap=>{
       const tickets=snap.val()||{};
       area.innerHTML='';
@@ -335,39 +343,37 @@ document.addEventListener('DOMContentLoaded', () => {
           <button class="btn sendBtn">Send</button>
         </div>`;
         area.appendChild(div);
-
         const chatEl=document.getElementById('admin-chat-'+t.id);
         db.ref('messages/'+t.id).on('value',msgSnap=>{
           const msgs=msgSnap.val()||[];
           chatEl.innerHTML=msgs.map(m=>m.image?`<div><strong>${m.from}:</strong><br><img src="${m.image}" style="max-width:100px;border-radius:6px"></div>`:`<div><strong>${m.from}:</strong> ${m.text}</div>`).join('');
           chatEl.scrollTop=chatEl.scrollHeight;
         });
-
         div.querySelector('.sendBtn').onclick=()=>{
           const text=div.querySelector('.msgInput').value.trim();
           const file=div.querySelector('.imgInput').files[0];
-          if(!text && !file){alert('Write message or choose image');return;}
-          if(file){
-            const reader=new FileReader();
-            reader.onload=e=>{
-              const msg={from:'Admin',image:e.target.result};
-              db.ref('messages/'+t.id).push(msg);
-              div.querySelector('.imgInput').value='';
-            };
-            reader.readAsDataURL(file);
-          }
-          if(text){
-            const msg={from:'Admin',text};
-            db.ref('messages/'+t.id).push(msg);
-            div.querySelector('.msgInput').value='';
-          }
+          if(!text&&!file){alert('Write message or choose image');return;}
+          if(file){const reader=new FileReader();reader.onload=e=>{db.ref('messages/'+t.id).push({from:'Admin',image:e.target.result});div.querySelector('.imgInput').value='';};reader.readAsDataURL(file);}
+          if(text){db.ref('messages/'+t.id).push({from:'Admin',text});div.querySelector('.msgInput').value='';}
         };
       });
     });
   }
 
-  // Check if logged in
-  if(account){showMainSite();if(account==='joeygold54'){showAdmin();}}
+  /* Admin stock (basic version) */
+  function renderAdminStock(){
+    const area=document.getElementById('adminStockArea');
+    area.innerHTML='';
+    PRODUCTS.forEach(p=>{
+      const div=document.createElement('div');div.className='flavor-stock';
+      const ref=db.ref('stock/'+p.id);
+      ref.once('value').then(snap=>{
+        const stock=snap.val()||{};
+        div.innerHTML=`<strong>${p.name}</strong> <span>${p.flavors.map(f=>stock[f]===false?f+' ❌':f).join(', ')}</span>`;
+        area.appendChild(div);
+      });
+    });
+  }
 });
 </script>
 </body>
