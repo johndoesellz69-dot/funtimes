@@ -300,32 +300,17 @@ function renderTickets(){
 
       if(fileInp.files.length > 0){
         const file = fileInp.files[0];
-        const reader = new FileReader();
-        reader.onload = e => {
-          const tempImg = `<div><strong>${sender}:</strong><br><img src="${e.target.result}" style="max-width:100px;opacity:0.5"></div>`;
-          chatEl.innerHTML += tempImg;
-          chatEl.scrollTop = chatEl.scrollHeight;
-        };
-        reader.readAsDataURL(file);
-
         const storageRef = storage.ref('chatImages/' + Date.now() + '_' + file.name);
-        const uploadTask = storageRef.put(file);
-
-        uploadTask.on('state_changed', 
-          null, 
-          error => { alert('Image upload failed: ' + error); }, 
-          () => {
-            uploadTask.snapshot.ref.getDownloadURL().then(url => {
-              db.ref('messages/' + t.id).push({from: sender, image: url});
-            });
-          }
-        );
-
-        fileInp.value = '';
+        storageRef.put(file).then(() => {
+          storageRef.getDownloadURL().then(url => {
+            db.ref('messages/' + t.id).push({from: sender, image: url});
+          });
+        });
+        fileInp.value='';
       }
 
       if(txt) db.ref('messages/'+t.id).push({from: sender, text: txt});
-      inp.value = '';
+      inp.value='';
     };
 
     if(currentUser==='joeygold54'){
