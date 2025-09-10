@@ -143,6 +143,7 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 <script>
 const firebaseConfig = {
   apiKey: "<YOUR_API_KEY>",
@@ -155,10 +156,10 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+const storage = firebase.storage();
 </script>
 
 <script>
-/* === USER SIDE === */
 let currentUser = null;
 let cart = [];
 
@@ -178,10 +179,9 @@ document.getElementById('loginBtn').onclick = () => {
   document.getElementById('acctCode').innerText = code;
   document.getElementById('loginModal').classList.add('hidden');
 
-  // check if admin
   if(currentUser === 'joeygold54'){
     document.getElementById('adminScreen').style.display = 'block';
-    renderTickets(); // admin view
+    renderTickets();
   } else {
     document.getElementById('warningModal').classList.remove('hidden');
   }
@@ -248,30 +248,21 @@ document.getElementById('purchaseBtn').onclick = () => {
   if(!cart.length) return alert('Empty cart');
   const id = 'tkt-'+Date.now();
   const total = cart.reduce((a,b)=>a+b.price,0);
-  const ticket = {
-    id,
-    total,
-    location: document.getElementById('locationSelect').value,
-    status:'pending',
-    items: cart,
-    user: currentUser
-  };
+  const ticket = {id,total,location: document.getElementById('locationSelect').value,status:'pending',items: cart,user: currentUser};
   db.ref('tickets/'+id).set(ticket);
   db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
   cart=[]; renderCart();
 };
 
-/* === TICKETS & CHAT === */
+/* === TICKETS & CHAT WITH IMAGE SUPPORT === */
 function renderTickets(){
   const area = document.getElementById(currentUser==='joeygold54'?'allTicketsArea':'ticketsArea');
   area.innerHTML='';
 
   db.ref('tickets').off();
   db.ref('tickets').on('child_added', snap=>{
-    const t = snap.val();
-    if(!t.id) t.id = snap.key;
-
-    if(currentUser !== 'joeygold54' && t.user !== currentUser) return;
+    const t = snap.val(); if(!t.id) t.id = snap.key;
+    if(currentUser!=='joeygold54' && t.user !== currentUser) return;
 
     const itemsText = t.items.map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
 
@@ -283,6 +274,7 @@ function renderTickets(){
       <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
       <div style="display:flex;gap:4px;margin-top:4px">
         <input type="text" class="msgInput" style="flex:1">
+        <input type="file" class="imgInput">
         <button class="btn sendBtn">Send</button>
         ${currentUser==='joeygold54'?'<button class="btn ghost deleteBtn" style="margin-left:4px;">Delete</button>':''}
       </div>
@@ -299,11 +291,21 @@ function renderTickets(){
       chatEl.scrollTop = chatEl.scrollHeight;
     });
 
+    // send message or image
     div.querySelector('.sendBtn').onclick = () => {
       const inp = div.querySelector('.msgInput');
+      const fileInp = div.querySelector('.imgInput');
       const txt = inp.value.trim();
-      if(!txt) return;
-      db.ref('messages/'+t.id).push({from:currentUser,text:txt});
+
+      if(fileInp.files.length>0){
+        const file = fileInp.files[0];
+        const storageRef = storage.ref('chatImages/'+Date.now()+'_'+file.name);
+        storageRef.put(file).then(() => storageRef.getDownloadURL().then(url=>{
+          db.ref('messages/'+t.id).push({from: currentUser, image: url});
+        }));
+        fileInp.value='';
+      }
+      if(txt) db.ref('messages/'+t.id).push({from: currentUser, text: txt});
       inp.value='';
     };
 
@@ -324,5 +326,3 @@ document.getElementById('closeAdmin').onclick = ()=>document.getElementById('adm
 </script>
 </body>
 </html>
-
-
