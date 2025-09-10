@@ -1,4 +1,4 @@
-<!doctype html> 
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -32,8 +32,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 .hidden{display:none !important;}
 #adminScreen{position:fixed;inset:0;background:rgba(0,0,0,.95);color:#111;padding:16px;overflow:auto;display:none;z-index:3000}
 #adminScreen h2{margin-top:0;color:var(--accent)}
-.flavor-stock{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-.flavor-stock span{font-size:.88rem}
 </style>
 </head>
 <body>
@@ -146,14 +144,13 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
 <script>
 const firebaseConfig = {
-  apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
+  apiKey: "<YOUR_API_KEY>",
   authDomain: "easy-green-website.firebaseapp.com",
   databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com/",
   projectId: "easy-green-website",
   storageBucket: "easy-green-website.appspot.com",
-  messagingSenderId: "988776675269",
-  appId: "1:988776675269:web:f2245f84a726d01f3e3dac",
-  measurementId: "G-PR35QWS2T6"
+  messagingSenderId: "<YOUR_SENDER_ID>",
+  appId: "<YOUR_APP_ID>"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
@@ -164,7 +161,7 @@ const storage = firebase.storage();
 let currentUser = null;
 let cart = [];
 
-// create new account
+// Create account
 document.getElementById('createCodeBtn').onclick = () => {
   const code = 'user-' + Math.random().toString(36).substr(2,6);
   db.ref('users/' + code).set({created:Date.now()});
@@ -172,7 +169,7 @@ document.getElementById('createCodeBtn').onclick = () => {
   document.getElementById('loginCode').value = code;
 };
 
-// login
+// Login
 document.getElementById('loginBtn').onclick = () => {
   const code = document.getElementById('loginCode').value.trim();
   if(!code) return alert('Enter a code');
@@ -188,7 +185,7 @@ document.getElementById('loginBtn').onclick = () => {
   }
 };
 
-// warning modal
+// Warning modal
 document.getElementById('ackBtn').onclick = () => {
   if(!document.getElementById('ackCheck').checked) return alert('Check agree');
   document.getElementById('warningModal').classList.add('hidden');
@@ -200,9 +197,9 @@ document.getElementById('ackBtn').onclick = () => {
 document.getElementById('closeHelp').onclick = () => document.getElementById('helpModal').classList.add('hidden');
 document.getElementById('helpBtn').onclick = () => document.getElementById('helpModal').classList.remove('hidden');
 document.getElementById('logoutBtn').onclick = () => location.reload();
-document.getElementById('clearBtn').onclick = () => { cart = []; renderCart(); };
+document.getElementById('clearBtn').onclick = () => { cart=[]; renderCart(); };
 
-// render products
+// Render products
 function renderProducts(){
   const grid = document.getElementById('productsGrid');
   grid.innerHTML = '';
@@ -229,7 +226,7 @@ function renderProducts(){
   });
 }
 
-// render cart
+// Render cart
 function renderCart(){
   const list=document.getElementById('cartList');
   list.innerHTML='';
@@ -244,7 +241,7 @@ function renderCart(){
   document.getElementById('cartTotal').innerText='Total $'+total;
 }
 
-// purchase -> create ticket
+// Purchase -> create ticket
 document.getElementById('purchaseBtn').onclick = () => {
   if(!cart.length) return alert('Empty cart');
   const id = 'tkt-'+Date.now();
@@ -293,29 +290,28 @@ function renderTickets(){
     });
 
     // send message or image
-    div.querySelector('.sendBtn').onclick = () => {
+    div.querySelector('.sendBtn').onclick = ()=>{
       const inp = div.querySelector('.msgInput');
       const fileInp = div.querySelector('.imgInput');
       const txt = inp.value.trim();
 
       if(fileInp.files.length>0){
         const file = fileInp.files[0];
-        const storageRef = storage.ref('chat_images/'+Date.now()+'_'+file.name);
+        const storageRef = storage.ref('chat_images/' + Date.now() + '_' + file.name);
         const uploadTask = storageRef.put(file);
 
-        uploadTask.on('state_changed',
-          snapshot => {}, // progress function (optional)
-          error => alert('Upload failed: '+error),
-          () => {
+        uploadTask.on('state_changed', 
+          ()=>{}, 
+          (err)=>{alert('Upload failed: '+err.message)}, 
+          ()=>{
             uploadTask.snapshot.ref.getDownloadURL().then(url=>{
-              db.ref('messages/'+t.id).push({from:currentUser, image:url});
+              db.ref('messages/'+t.id).push({from: currentUser, image: url});
             });
           }
         );
         fileInp.value='';
       }
-
-      if(txt) db.ref('messages/'+t.id).push({from:currentUser, text: txt});
+      if(txt) db.ref('messages/'+t.id).push({from: currentUser, text: txt});
       inp.value='';
     };
 
