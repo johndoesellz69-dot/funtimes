@@ -292,23 +292,31 @@ function renderTickets(){
     });
 
     // send message or image
-    div.querySelector('.sendBtn').onclick = async () => {
+    div.querySelector('.sendBtn').onclick = () => {
       const inp = div.querySelector('.msgInput');
       const fileInp = div.querySelector('.imgInput');
       const txt = inp.value.trim();
 
-      if(fileInp.files.length>0){
-        const file = fileInp.files[0];
-        const storageRef = storage.ref('chatImages/'+Date.now()+'_'+file.name);
-        try {
-          const snapshot = await storageRef.put(file);
-          const url = await snapshot.ref.getDownloadURL();
-          db.ref('messages/'+t.id).push({from: currentUser==='joeygold54'?'admin':currentUser, image: url});
-        } catch(e){ console.error('Upload error', e); alert('Image upload failed'); }
-        fileInp.value='';
-      }
-      if(txt) db.ref('messages/'+t.id).push({from: currentUser==='joeygold54'?'admin':currentUser, text: txt});
-      inp.value='';
+      const sendMessage = async () => {
+        if(fileInp.files.length > 0){
+          const file = fileInp.files[0];
+          const storageRef = storage.ref('chatImages/' + Date.now() + '_' + file.name);
+          try {
+            const snapshot = await storageRef.put(file);
+            const url = await snapshot.ref.getDownloadURL();
+            db.ref('messages/' + t.id).push({from: currentUser==='joeygold54'?'admin':currentUser, image: url});
+          } catch(e) {
+            console.error('Upload error', e);
+            alert('Image upload failed');
+          }
+          fileInp.value = '';
+        }
+
+        if(txt) db.ref('messages/' + t.id).push({from: currentUser==='joeygold54'?'admin':currentUser, text: txt});
+        inp.value = '';
+      };
+
+      sendMessage();
     };
 
     if(currentUser==='joeygold54'){
@@ -328,4 +336,5 @@ document.getElementById('closeAdmin').onclick = ()=>document.getElementById('adm
 </script>
 </body>
 </html>
+
 
