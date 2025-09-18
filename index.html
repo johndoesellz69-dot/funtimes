@@ -1,4 +1,4 @@
-<!doctype html> 
+<!doctype html>  
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -235,7 +235,7 @@ function renderProducts(){
   grid.innerHTML = '';
   const sample = [
     {id:'bud1',name:'Edibles (Buy 3 get 1 free)',price:20,flavors:['Sour Patch','Skittles','Swedish fish','Watermelon Sour Patch','Starburst','Trolli','Peach Rings']},
-    {id:'cart1',name:'2g Ghost Cart (Buy 1 get 1 $10 off)',price:40,flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice Cream Cake','Black Mamba']}
+    {id:'cart1',name:'2g Muha Meds Carts (Buy 1 get 1 $5 off)',price:30,flavors:['Alien Burger','Durban Gushers','Papaya','Ghost Train Haze','Purple Ice Cream Cake','Black Mamba']}
   ];
   sample.forEach(p=>{
     const div=document.createElement('div');
@@ -261,12 +261,12 @@ function renderCart(){
   list.innerHTML='';
   let total=0;
   let ediblesCount = 0;
-  let cartCount = 0;
+  let muhaCount = 0;
 
   cart.forEach(c=>{
     let price = c.price;
     if(c.name.includes('Edibles')) ediblesCount++;
-    if(c.name.includes('Ghost Cart')) cartCount++;
+    if(c.name.includes('Muha Meds')) muhaCount++;
 
     total += price;
   });
@@ -275,9 +275,9 @@ function renderCart(){
   let ediblesDiscount = Math.floor(ediblesCount/4)*20;
   total -= ediblesDiscount;
 
-  // Apply Buy 1 Get 1 $10 off for ghost carts
-  let ghostDiscount = Math.floor(cartCount/2)*10;
-  total -= ghostDiscount;
+  // Apply Buy 1 Get 1 $5 off for Muha Meds carts
+  let muhaDiscount = Math.floor(muhaCount/2)*5;
+  total -= muhaDiscount;
 
   cart.forEach(c=>{
     const row=document.createElement('div');
@@ -294,16 +294,16 @@ document.getElementById('purchaseBtn').onclick = () => {
   const id = 'tkt-'+Date.now();
   let total=0;
   let ediblesCount=0;
-  let cartCount=0;
+  let muhaCount=0;
 
   cart.forEach(c=>{
     total+=c.price;
     if(c.name.includes('Edibles')) ediblesCount++;
-    if(c.name.includes('Ghost Cart')) cartCount++;
+    if(c.name.includes('Muha Meds')) muhaCount++;
   });
 
   total -= Math.floor(ediblesCount/4)*20; // edibles discount
-  total -= Math.floor(cartCount/2)*10; // ghost cart discount
+  total -= Math.floor(muhaCount/2)*5; // muha cart discount
 
   const ticket = {id,total,location: document.getElementById('locationSelect').value,status:'pending',items: cart,user: currentUser};
   db.ref('tickets/'+id).set(ticket);
@@ -400,3 +400,4 @@ document.getElementById('closeAdmin').onclick = ()=>document.getElementById('adm
 </script>
 </body>
 </html>
+
