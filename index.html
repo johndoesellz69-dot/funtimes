@@ -30,7 +30,7 @@ select,input[type="number"],input[type="file"]{padding:6px;border-radius:8px;bor
 .ticket-entry{margin-bottom:8px}
 footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 .hidden{display:none !important;}
-#adminScreen{position:fixed;inset:0;background:rgba(0,0,0,.95);color:#111;padding:16px;overflow:auto;display:none;z-index:3000}
+#adminScreen{position:fixed;inset:0;background:rgba(0,0,0,.95);color:var(--bg);padding:16px;overflow:auto;display:none;z-index:3000}
 #adminScreen h2{margin-top:0;color:var(--accent)}
 </style>
 </head>
@@ -180,30 +180,18 @@ const db = firebase.database();
 <script>
 let currentUser = null;
 let cart = [];
-// Create account
 document.getElementById('createCodeBtn').onclick = () => {
 const code = 'user-' + Math.random().toString(36).substr(2,6);
 db.ref('users/' + code).set({created:Date.now()});
 alert('Your code: ' + code);
 document.getElementById('loginCode').value = code;
 };
-// Login
 document.getElementById('loginBtn').onclick = () => {
 const code = document.getElementById('loginCode').value.trim();
 if(!code) return alert('Enter a code');
 currentUser = code;
-document.getElementById('acctCode').innerText = code;
-document.getElementById('loginModal').classList.add('hidden');
-if(currentUser === 'joeygold54'){
-document.getElementById('adminScreen').style.display = 'block';
-renderTickets();
-} else {
-document.getElementById('warningModal').classList.remove('hidden');
-}
-};
-</script>
-</body>
-</html>
-
+document.getElementById('
+::contentReference[oaicite:3]{index=3}
+ 
 
 
