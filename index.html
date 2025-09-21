@@ -314,12 +314,24 @@ function renderTickets(){
     db.ref('messages/'+t.id).on('value',ms=>{
       const msgs=ms.val()||{};
       chatEl.innerHTML=Object.values(msgs).map(m=>{
-        // FIX: messages from admin show as "admin"
-        const fromAdmin = m.from && m.from === currentUser && currentUserIsAdmin;
-        const displayName = fromAdmin ? 'admin' : m.from;
-        return `<div><strong>${displayName}:</strong> ${m.text||''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`;
+        // Check if sender is admin
+        let displayName = m.from;
+        const senderRef = db.ref('users/' + m.from);
+        senderRef.once('value', snap => {
+          const sender = snap.val();
+          if(sender && sender.isAdmin) displayName = 'admin';
+          chatEl.innerHTML = Object.values(msgs).map(m2=>{
+            let name = m2.from;
+            senderRef.once(snap2 => {
+              const s2 = snap2.val();
+              if(s2 && s2.isAdmin) name = 'admin';
+            });
+            return `<div><strong>${name}:</strong> ${m2.text || ''}${m2.image ? '<br><img src="'+m2.image+'" style="max-width:100px">' : ''}</div>`;
+          }).join('');
+          chatEl.scrollTop = chatEl.scrollHeight;
+        });
+        return '';
       }).join('');
-      chatEl.scrollTop=chatEl.scrollHeight;
     });
 
     div.querySelector('.sendBtn').onclick=()=>{
@@ -352,3 +364,4 @@ renderProducts();
 </script>
 </body>
 </html>
+
