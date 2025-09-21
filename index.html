@@ -208,7 +208,7 @@ document.getElementById('loginBtn').onclick = () => {
     const user = snapshot.val();
     if(!user) return alert('Invalid code');
     currentUser = code;
-    currentUserIsAdmin = !!user.isAdmin;
+    currentUserIsAdmin = (code === 'user-9e21mr'); // Only this account is admin
     document.getElementById('acctCode').innerText = code;
     document.getElementById('loginModal').classList.add('hidden');
 
@@ -314,10 +314,8 @@ function renderTickets(){
     db.ref('messages/'+t.id).on('value',ms=>{
       const msgs=ms.val()||{};
       chatEl.innerHTML=Object.values(msgs).map(m=>{
-        // === FIXED === show admin as "admin" only for display
-        const fromAdmin = m.from && m.from !== currentUser && currentUserIsAdmin;
-        const displayName = (currentUserIsAdmin && m.from !== currentUser) ? 'admin' : m.from;
-        return `<div><strong>${displayName}:</strong> ${m.text||''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`;
+        const displayName = (m.from === 'user-9e21mr' && currentUser !== 'user-9e21mr') ? 'admin' : m.from;
+        return `<div><strong>${displayName}:</strong> ${m.text || ''}${m.image ? '<br><img src="'+m.image+'" style="max-width:100px">' : ''}</div>`;
       }).join('');
       chatEl.scrollTop=chatEl.scrollHeight;
     });
