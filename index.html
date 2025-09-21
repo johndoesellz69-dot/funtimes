@@ -172,11 +172,16 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 <script>
+// --- PRODUCTION FIREBASE CONFIG ---
 const firebaseConfig = {
-  apiKey: "<YOUR_API_KEY>",
+  apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
   authDomain: "easy-green-website.firebaseapp.com",
-  databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com/",
+  databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com",
   projectId: "easy-green-website",
+  storageBucket: "easy-green-website.firebasestorage.app",
+  messagingSenderId: "988776675269",
+  appId: "1:988776675269:web:f2245f84a726d01f3e3dac",
+  measurementId: "G-PR35QWS2T6"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
@@ -195,19 +200,24 @@ document.getElementById('createCodeBtn').onclick = () => {
   document.getElementById('loginCode').value = code;
 };
 
-// Login
+// Login (via Firebase)
 document.getElementById('loginBtn').onclick = () => {
   const code = document.getElementById('loginCode').value.trim();
   if(!code) return alert('Enter a code');
-  currentUser = code;
-  document.getElementById('acctCode').innerText = code;
-  document.getElementById('loginModal').classList.add('hidden');
-  if(currentUser === 'joeygold54'){
-    document.getElementById('adminScreen').style.display = 'block';
-    renderTickets();
-  } else {
-    document.getElementById('warningModal').classList.remove('hidden');
-  }
+
+  db.ref('users/' + code).once('value', snapshot => {
+    const user = snapshot.val();
+    if(!user) return alert('Invalid code');
+    currentUser = code;
+    document.getElementById('acctCode').innerText = code;
+    document.getElementById('loginModal').classList.add('hidden');
+    if(user.isAdmin) {
+      document.getElementById('adminScreen').style.display = 'block';
+      renderTickets();
+    } else {
+      document.getElementById('warningModal').classList.remove('hidden');
+    }
+  });
 };
 
 // Warning modal
@@ -239,7 +249,7 @@ function renderProducts(){
   sample.forEach(p=>{
     const div = document.createElement('div');
     div.className='product';
-    div.innerHTML = `<h3>${p.name}</h3><div>$${p.price}</div>
+    div.innerHTML=`<h3>${p.name}</h3><div>$${p.price}</div>
       <select><option value="">Select Flavor</option>${p.flavors.map(f=>`<option value="${f}">${f}</option>`).join('')}</select>
       <button class="btn">Add</button>`;
     div.querySelector('button').onclick = ()=>{ const flavor=div.querySelector('select').value||"None"; cart.push({...p,selectedFlavor:flavor}); renderCart(); };
@@ -277,7 +287,7 @@ function renderTickets(){
   area.innerHTML='';
   db.ref('tickets').off();
   db.ref('tickets').on('child_added',snap=>{
-    const t=snap.val(); if(!t.id) t.id=snap.key; if(currentUser!=='joeygold54'&&t.user!==currentUser) return;
+    const t=snap.val(); if(!t.id) t.id=snap.key; if(!t.user) t.user = ''; if(currentUser!=='joeygold54'&&t.user!==currentUser) return;
     const itemsText=t.items.map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
     const div=document.createElement('div'); div.className='ticket';
     div.innerHTML=`<div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
@@ -315,3 +325,4 @@ document.getElementById('closeAdmin').onclick=()=>document.getElementById('admin
 </script>
 </body>
 </html>
+
