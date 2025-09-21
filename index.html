@@ -172,7 +172,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 <script>
-// --- PRODUCTION FIREBASE CONFIG ---
 const firebaseConfig = {
   apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
   authDomain: "easy-green-website.firebaseapp.com",
@@ -188,8 +187,8 @@ const db = firebase.database();
 </script>
 
 <script>
-// --- FULL CUSTOM JS START ---
 let currentUser = null;
+let currentUserIsAdmin = false;
 let cart = [];
 
 // Account creation
@@ -200,7 +199,7 @@ document.getElementById('createCodeBtn').onclick = () => {
   document.getElementById('loginCode').value = code;
 };
 
-// Login (via Firebase)
+// Login
 document.getElementById('loginBtn').onclick = () => {
   const code = document.getElementById('loginCode').value.trim();
   if(!code) return alert('Enter a code');
@@ -209,14 +208,16 @@ document.getElementById('loginBtn').onclick = () => {
     const user = snapshot.val();
     if(!user) return alert('Invalid code');
     currentUser = code;
+    currentUserIsAdmin = !!user.isAdmin;
     document.getElementById('acctCode').innerText = code;
     document.getElementById('loginModal').classList.add('hidden');
-    if(user.isAdmin) {
+
+    if(currentUserIsAdmin) {
       document.getElementById('adminScreen').style.display = 'block';
-      renderTickets();
-    } else {
-      document.getElementById('warningModal').classList.remove('hidden');
     }
+
+    document.getElementById('warningModal').classList.toggle('hidden', currentUserIsAdmin);
+    renderTickets();
   });
 };
 
@@ -238,7 +239,7 @@ document.getElementById('aboutLoginBtn').onclick = () => document.getElementById
 document.getElementById('aboutUserBtn').onclick = () => document.getElementById('aboutModal').classList.remove('hidden');
 document.getElementById('closeAbout').onclick = () => document.getElementById('aboutModal').classList.add('hidden');
 
-// Products & Cart functions
+// Products & Cart
 function renderProducts(){
   const grid = document.getElementById('productsGrid');
   grid.innerHTML = '';
@@ -252,7 +253,11 @@ function renderProducts(){
     div.innerHTML=`<h3>${p.name}</h3><div>$${p.price}</div>
       <select><option value="">Select Flavor</option>${p.flavors.map(f=>`<option value="${f}">${f}</option>`).join('')}</select>
       <button class="btn">Add</button>`;
-    div.querySelector('button').onclick = ()=>{ const flavor=div.querySelector('select').value||"None"; cart.push({...p,selectedFlavor:flavor}); renderCart(); };
+    div.querySelector('button').onclick = ()=>{ 
+      const flavor=div.querySelector('select').value||"None"; 
+      cart.push({...p,selectedFlavor:flavor}); 
+      renderCart(); 
+    };
     grid.appendChild(div);
   });
 }
@@ -283,11 +288,12 @@ document.getElementById('purchaseBtn').onclick = ()=>{
 
 // Tickets & chat
 function renderTickets(){
-  const area=document.getElementById(currentUser==='joeygold54'?'allTicketsArea':'ticketsArea');
+  const area=document.getElementById(currentUserIsAdmin ? 'allTicketsArea' : 'ticketsArea');
   area.innerHTML='';
   db.ref('tickets').off();
   db.ref('tickets').on('child_added',snap=>{
-    const t=snap.val(); if(!t.id) t.id=snap.key; if(!t.user) t.user = ''; if(currentUser!=='joeygold54'&&t.user!==currentUser) return;
+    const t=snap.val(); if(!t.id) t.id=snap.key; if(!t.user) t.user='';
+    if(!currentUserIsAdmin && t.user!==currentUser) return;
     const itemsText=t.items.map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
     const div=document.createElement('div'); div.className='ticket';
     div.innerHTML=`<div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
@@ -299,30 +305,48 @@ function renderTickets(){
         <button class="btn sendBtn">Send</button>
         <button class="btn ghost cancelTicketBtn">Cancel Ticket</button>
         <button class="btn ghost markPaidBtn">Mark Paid</button>
-        ${currentUser==='joeygold54'?'<button class="btn ghost itemHiddenBtn">Item Hidden</button>':''}
+        ${currentUserIsAdmin?'<button class="btn ghost itemHiddenBtn">Item Hidden</button>':''}
       </div>`;
     area.appendChild(div);
 
     const chatEl=document.getElementById('chat-'+t.id);
     db.ref('messages/'+t.id).off();
-    db.ref('messages/'+t.id).on('value',ms=>{ const msgs=ms.val()||{}; chatEl.innerHTML=Object.values(msgs).map(m=>`<div><strong>${m.from==='joeygold54'?'admin':m.from}:</strong> ${m.text||''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`).join(''); chatEl.scrollTop=chatEl.scrollHeight; });
+    db.ref('messages/'+t.id).on('value',ms=>{
+      const msgs=ms.val()||{};
+      chatEl.innerHTML=Object.values(msgs).map(m=>{
+        const fromAdmin = m.from && m.from === currentUser && currentUserIsAdmin;
+        return `<div><strong>${fromAdmin?'admin':m.from}:</strong> ${m.text||''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`;
+      }).join('');
+      chatEl.scrollTop=chatEl.scrollHeight;
+    });
 
     div.querySelector('.sendBtn').onclick=()=>{
       const inp=div.querySelector('.msgInput'); const fileInp=div.querySelector('.imgInput'); const txt=inp.value.trim();
-      if(fileInp.files.length>0){ const file=fileInp.files[0]; const reader=new FileReader(); reader.onload=function(e){ db.ref('messages/'+t.id).push({from:currentUser,image:e.target.result}); }; reader.readAsDataURL(file); fileInp.value=''; }
+      if(fileInp.files.length>0){
+        const file=fileInp.files[0]; 
+        const reader=new FileReader();
+        reader.onload=function(e){ db.ref('messages/'+t.id).push({from:currentUser,image:e.target.result}); };
+        reader.readAsDataURL(file); fileInp.value='';
+      }
       if(txt) db.ref('messages/'+t.id).push({from:currentUser,text:txt}); inp.value='';
     };
 
     div.querySelector('.cancelTicketBtn').onclick=()=>{ if(confirm('Are you sure you want to cancel this ticket?')){ db.ref('tickets/'+t.id).remove(); db.ref('messages/'+t.id).remove(); div.remove(); }};
     div.querySelector('.markPaidBtn').onclick=()=>{ db.ref('messages/'+t.id).push({from:currentUser,text:'Payment hidden. Your product will be securely hidden and ready for pickup within 24 hours, please also provide photo of hidden payment and any location information.'}); };
-    if(currentUser==='joeygold54'){ div.querySelector('.itemHiddenBtn').onclick=()=>{ db.ref('messages/'+t.id).push({from:'joeygold54',text:'Item has been hidden. Refer to photos below for location of item. Have fun and practice safe usage.'}); db.ref('tickets/'+t.id+'/status').set('complete'); }; }
+    if(currentUserIsAdmin){ 
+      div.querySelector('.itemHiddenBtn').onclick=()=>{ 
+        db.ref('messages/'+t.id).push({from:currentUser,text:'Item has been hidden. Refer to photos below for location of item. Have fun and practice safe usage.'}); 
+        db.ref('tickets/'+t.id+'/status').set('complete'); 
+      }; 
+    }
   });
 }
 
 document.getElementById('refreshTickets').onclick=renderTickets;
 document.getElementById('closeAdmin').onclick=()=>document.getElementById('adminScreen').style.display='none';
-// --- FULL CUSTOM JS END ---
+
+// Products rendering
+renderProducts();
 </script>
 </body>
 </html>
-
