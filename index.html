@@ -1,112 +1,354 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-  <title>Easy Green Website</title>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Easy Green</title>
+<style>
+:root{--accent:#2f9c4a;--muted:#6b7280;--card:#fff;--bg:#f6fff6;--maxw:980px}
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0;background:linear-gradient(#f6fff6,#eefef0);color:#111}
+.wrap{max-width:var(--maxw);margin:18px auto;padding:16px}
+header{display:flex;gap:12px;align-items:center}
+header h1{margin:0;color:var(--accent);font-size:1.3rem}
+.grid{display:grid;grid-template-columns:1fr 320px;gap:14px;margin-top:12px}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 8px 20px rgba(20,60,20,.06)}
+.products{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.product{border:1px solid #eee;padding:10px;border-radius:10px}
+.product h3{margin:6px 0 4px}
+.row{display:flex;gap:8px;align-items:center}
+label{font-size:.92rem}
+select,input[type="number"],input[type="file"]{padding:6px;border-radius:8px;border:1px solid #ddd}
+.btn{background:var(--accent);color:white;padding:8px 12px;border-radius:8px;border:0;cursor:pointer}
+.btn.ghost{background:#f3f3f3;color:#111}
+.small{font-size:.88rem;color:var(--muted)}
+.cart-item{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #eee}
+.modal-back{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:1000}
+.modal{width:100%;max-width:760px;background:white;padding:16px;border-radius:12px}
+.ticket{background:#fbfff9;border:1px dashed #e6f4ea;padding:10px;border-radius:8px;margin-bottom:6px}
+.ticket-entry{margin-bottom:8px}
+footer{margin-top:12px;color:var(--muted);font-size:.82rem}
+.hidden{display:none !important;}
+#adminScreen{position:fixed;inset:0;background:rgba(0,0,0,.95);color:#111;padding:16px;overflow:auto;display:none;z-index:3000}
+#adminScreen h2{margin-top:0;color:var(--accent)}
+</style>
 </head>
 <body>
-  <h1>Easy Green Website</h1>
-
-  <div id="loginScreen">
-    <input id="loginCode" placeholder="Enter your code">
-    <button onclick="login()">Login</button>
+<!-- Login Modal -->
+<div id="loginModal" class="modal-back">
+  <div class="modal">
+    <h3>Login</h3>
+    <div style="margin-bottom:12px">
+      <label>Enter your login code or Create Account if new: <input type="text" id="loginCode"></label>
+    </div>
+    <div style="margin-bottom:12px">or <button class="btn" id="createCodeBtn">Create new code</button></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn" id="loginBtn">Login</button>
+    </div>
+    <div style="margin-top:8px;display:flex;justify-content:flex-end">
+      <button class="btn ghost" id="aboutLoginBtn">About Easy Green</button>
+    </div>
   </div>
+</div>
 
-  <div id="userScreen" style="display:none;">
-    <h2>User Chat</h2>
-    <div id="chat"></div>
-    <input id="msg" placeholder="Type message">
-    <button onclick="sendMessage()">Send</button>
+<!-- Warning Modal -->
+<div id="warningModal" class="modal-back hidden">
+  <div class="modal">
+    <h3>Warnings & Rules</h3>
+    <ul>
+      <li>Easy Green is not liable for any stolen Product/Payments.</li>
+      <li>Use products safely.</li>
+      <li>Respect site anonymity.</li>
+    </ul>
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+      <label style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="ackCheck"> I agree
+      </label>
+      <button class="btn" id="ackBtn">Confirm</button>
+    </div>
   </div>
+</div>
 
-  <div id="adminScreen" style="display:none;">
-    <h2>Admin Dashboard</h2>
-    <div id="adminChats"></div>
+<!-- Help Modal -->
+<div id="helpModal" class="modal-back hidden">
+  <div class="modal">
+    <h3>First Time Help</h3>
+    <p>Welcome to Easy Green! Here's how it works:</p>
+    <ol>
+      <li>Select products and flavors you want.</li>
+      <li>Add items to your cart and choose pickup location.</li>
+      <li>Click Purchase to generate a ticket for your order.</li>
+      <li>Use the chat under your ticket to send messages or images to admin.</li>
+      <li>Admin can respond and send images back.</li>
+      <li>Place the specified cash amount in an Envelope and hide it.</li>
+      <li>Mark as paid and send a photo of your envelope and the cash inside.</li>
+      <li>Admin will message you with item retrieval details after your payment is collected.</li>
+      <li>TIPS: It is recommended to hide payments out of the publics view and way, and ensure nobody sees you hiding your payment.</li>
+    </ol>
+    <button class="btn" id="closeHelp">Got it!</button>
   </div>
+</div>
 
-  <script>
-    // Firebase config
-    const firebaseConfig = {
-      apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
-      authDomain: "easy-green-website.firebaseapp.com",
-      databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com",
-      projectId: "easy-green-website",
-      storageBucket: "easy-green-website.firebasestorage.app",
-      messagingSenderId: "988776675269",
-      appId: "1:988776675269:web:f2245f84a726d01f3e3dac",
-      measurementId: "G-PR35QWS2T6"
+<!-- About Modal -->
+<div id="aboutModal" class="modal-back hidden">
+  <div class="modal">
+    <h3>About Easy Green</h3>
+    <p>
+      Welcome to Easy Green! We are proud to be the only local Cannabis service that is fully anonymous. 
+      If you wish to obtain cannabis discreetly—without meeting a random sketchy dealer in person, or if you 
+      do not have access to a nearby dispensary—Easy Green is here for you. Simply select a pickup location 
+      nearest to you and enjoy our secure and simple exchange process.  
+      We are based in Arlington Heights and proudly serve anyone in or near the area.  
+      Take advantage of our exceptional deals and competitive pricing, as we believe everyone should have access to quality cannabis regardless of budget.  
+      We are continually expanding our product selection and pickup locations, and will soon offer additional items beyond cannabis.  
+      Enjoy Easy Green, and please consider sharing our website!
+    </p>
+    <button class="btn" id="closeAbout">Close</button>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="wrap hidden" id="mainWrap">
+  <header>
+    <h1>Easy Green — Anonymous Cannabis</h1>
+    <button class="btn ghost" id="logoutBtn" style="margin-left:auto">Log Out</button>
+  </header>
+  <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+    <div class="small">(Write this down) Your account code: <span id="acctCode"></span></div>
+    <button class="btn" id="helpBtn" style="margin-left:auto">First time help</button>
+    <button class="btn ghost" id="aboutUserBtn">About Easy Green</button>
+  </div>
+  <div class="grid" role="main">
+    <section class="card">
+      <h2>Products</h2>
+      <div class="products" id="productsGrid"></div>
+    </section>
+    <aside class="card">
+      <h2>Cart & Pickup</h2>
+      <div>
+        <label class="small">Pickup Location</label>
+        <select id="locationSelect">
+          <option value="Hasbrook Park">Hasbrook Park</option>
+          <option value="Virginia Terrace Park">Virginia Terrace Park</option>
+          <option value="Frontier Park">Frontier Park</option>
+          <option value="Pioneer Park">Pioneer Park</option>
+          <option value="Grealish Park">Grealish Park</option>
+          <option value="Happiness Park">Happiness Park</option>
+          <option value="Greenbrier Park">Greenbrier Park</option>
+          <option value="Kimball Hill Park">Kimball Hill Park</option>
+          <option value="Centennial Park">Centennial Park</option>
+        </select>
+      </div>
+      <div style="margin-top:12px">
+        <div id="cartList"></div>
+        <div class="cart-total small" id="cartTotal"></div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="btn" id="purchaseBtn">Purchase</button>
+        <button class="btn ghost" id="clearBtn">Clear</button>
+      </div>
+      <div style="margin-top:12px">
+        <div class="small">Tickets </div>
+        <div id="ticketsArea" style="margin-top:8px"></div>
+      </div>
+    </aside>
+  </div>
+  <footer> Easy Green only accepts cash payments. </footer>
+</div>
+
+<!-- Admin Screen -->
+<div id="adminScreen">
+  <h2>Admin Console</h2>
+  <div style="margin-bottom:12px">
+    <button class="btn" id="refreshTickets">Refresh Tickets</button>
+    <button class="btn ghost" id="closeAdmin">Close Admin</button>
+  </div>
+  <h3>All Tickets</h3>
+  <div id="allTicketsArea"></div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
+  authDomain: "easy-green-website.firebaseapp.com",
+  databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com",
+  projectId: "easy-green-website",
+  storageBucket: "easy-green-website.firebasestorage.app",
+  messagingSenderId: "988776675269",
+  appId: "1:988776675269:web:f2245f84a726d01f3e3dac",
+  measurementId: "G-PR35QWS2T6"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+</script>
+
+<script>
+let currentUser = null;
+let currentUserIsAdmin = false;
+let cart = [];
+
+// Account creation
+document.getElementById('createCodeBtn').onclick = () => {
+  const code = 'user-' + Math.random().toString(36).substr(2,6);
+  db.ref('users/' + code).set({created:Date.now()});
+  alert('Your code: ' + code);
+  document.getElementById('loginCode').value = code;
+};
+
+// Login
+document.getElementById('loginBtn').onclick = () => {
+  const code = document.getElementById('loginCode').value.trim();
+  if(!code) return alert('Enter a code');
+
+  db.ref('users/' + code).once('value', snapshot => {
+    const user = snapshot.val();
+    if(!user) return alert('Invalid code');
+    currentUser = code;
+    currentUserIsAdmin = !!user.isAdmin;
+    document.getElementById('acctCode').innerText = code;
+    document.getElementById('loginModal').classList.add('hidden');
+
+    if(currentUserIsAdmin) {
+      document.getElementById('adminScreen').style.display = 'block';
+    }
+
+    document.getElementById('warningModal').classList.toggle('hidden', currentUserIsAdmin);
+    renderTickets();
+  });
+};
+
+// Warning modal
+document.getElementById('ackBtn').onclick = () => {
+  if(!document.getElementById('ackCheck').checked) return alert('Check agree');
+  document.getElementById('warningModal').classList.add('hidden');
+  document.getElementById('mainWrap').classList.remove('hidden');
+  renderTickets();
+  renderProducts();
+};
+
+// Help & About
+document.getElementById('closeHelp').onclick = () => document.getElementById('helpModal').classList.add('hidden');
+document.getElementById('helpBtn').onclick = () => document.getElementById('helpModal').classList.remove('hidden');
+document.getElementById('logoutBtn').onclick = () => location.reload();
+document.getElementById('clearBtn').onclick = () => { cart=[]; renderCart(); };
+document.getElementById('aboutLoginBtn').onclick = () => document.getElementById('aboutModal').classList.remove('hidden');
+document.getElementById('aboutUserBtn').onclick = () => document.getElementById('aboutModal').classList.remove('hidden');
+document.getElementById('closeAbout').onclick = () => document.getElementById('aboutModal').classList.add('hidden');
+
+// Products & Cart
+function renderProducts(){
+  const grid = document.getElementById('productsGrid');
+  grid.innerHTML = '';
+  const sample = [
+    {id:'bud1',name:'Edibles (Buy 3 get 1 free)',price:20,flavors:['Sour Patch','Skittles','Swedish fish','Watermelon Sour Patch','Starburst','Trolli','Peach Rings']},
+    {id:'cart1',name:'2g Muha Meds Carts (Buy 1 get 1 $5 off)',price:30,flavors:['Sugar Daddy Punch','Pinneaple Runtz','Blueberry Muffin','Blue Slushie','Candy Apple']}
+  ];
+  sample.forEach(p=>{
+    const div = document.createElement('div');
+    div.className='product';
+    div.innerHTML=`<h3>${p.name}</h3><div>$${p.price}</div>
+      <select><option value="">Select Flavor</option>${p.flavors.map(f=>`<option value="${f}">${f}</option>`).join('')}</select>
+      <button class="btn">Add</button>`;
+    div.querySelector('button').onclick = ()=>{ 
+      const flavor=div.querySelector('select').value||"None"; 
+      cart.push({...p,selectedFlavor:flavor}); 
+      renderCart(); 
+    };
+    grid.appendChild(div);
+  });
+}
+
+function renderCart(){
+  const list=document.getElementById('cartList');
+  list.innerHTML='';
+  let total=0,ediblesCount=0,muhaCount=0;
+  cart.forEach(c=>{ if(c.name.includes('Edibles')) ediblesCount++; if(c.name.includes('Muha Meds')) muhaCount++; total+=c.price; });
+  total -= Math.floor(ediblesCount/4)*20;
+  total -= Math.floor(muhaCount/2)*5;
+  cart.forEach(c=>{ const row=document.createElement('div'); row.className='cart-item'; row.innerHTML=`<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price}</span>`; list.appendChild(row); });
+  document.getElementById('cartTotal').innerText='Total $'+total;
+}
+
+// Purchase -> ticket
+document.getElementById('purchaseBtn').onclick = ()=>{
+  if(!cart.length) return alert('Empty cart');
+  const id='tkt-'+Date.now();
+  let total=0,ediblesCount=0,muhaCount=0;
+  cart.forEach(c=>{ total+=c.price; if(c.name.includes('Edibles')) ediblesCount++; if(c.name.includes('Muha Meds')) muhaCount++; });
+  total-=Math.floor(ediblesCount/4)*20; total-=Math.floor(muhaCount/2)*5;
+  const ticket={id,total,location:document.getElementById('locationSelect').value,status:'pending',items:cart,user:currentUser};
+  db.ref('tickets/'+id).set(ticket);
+  db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
+  cart=[]; renderCart();
+};
+
+// Tickets & chat
+function renderTickets(){
+  const area=document.getElementById(currentUserIsAdmin ? 'allTicketsArea' : 'ticketsArea');
+  area.innerHTML='';
+  db.ref('tickets').off();
+  db.ref('tickets').on('child_added',snap=>{
+    const t=snap.val(); if(!t.id) t.id=snap.key; if(!t.user) t.user='';
+    if(!currentUserIsAdmin && t.user!==currentUser) return;
+    const itemsText=t.items.map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
+    const div=document.createElement('div'); div.className='ticket';
+    div.innerHTML=`<div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
+      <div><em>Items: ${itemsText}</em></div>
+      <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
+      <div style="display:flex;gap:4px;margin-top:4px">
+        <input type="text" class="msgInput" style="flex:1">
+        <input type="file" class="imgInput">
+        <button class="btn sendBtn">Send</button>
+        <button class="btn ghost cancelTicketBtn">Cancel Ticket</button>
+        <button class="btn ghost markPaidBtn">Mark Paid</button>
+        ${currentUserIsAdmin?'<button class="btn ghost itemHiddenBtn">Item Hidden</button>':''}
+      </div>`;
+    area.appendChild(div);
+
+    const chatEl=document.getElementById('chat-'+t.id);
+    db.ref('messages/'+t.id).off();
+    db.ref('messages/'+t.id).on('value',ms=>{
+      const msgs=ms.val()||{};
+      chatEl.innerHTML=Object.values(msgs).map(m=>{
+        // FIX: messages from admin show as "admin"
+        const fromAdmin = m.from && m.from === currentUser && currentUserIsAdmin;
+        const displayName = fromAdmin ? 'admin' : m.from;
+        return `<div><strong>${displayName}:</strong> ${m.text||''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`;
+      }).join('');
+      chatEl.scrollTop=chatEl.scrollHeight;
+    });
+
+    div.querySelector('.sendBtn').onclick=()=>{
+      const inp=div.querySelector('.msgInput'); const fileInp=div.querySelector('.imgInput'); const txt=inp.value.trim();
+      if(fileInp.files.length>0){
+        const file=fileInp.files[0]; 
+        const reader=new FileReader();
+        reader.onload=function(e){ db.ref('messages/'+t.id).push({from:currentUser,image:e.target.result}); };
+        reader.readAsDataURL(file); fileInp.value='';
+      }
+      if(txt) db.ref('messages/'+t.id).push({from:currentUser,text:txt}); inp.value='';
     };
 
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    let currentUser = null;
-    let isAdmin = false;
-    let users = {};
-
-    // Login
-    function login() {
-      const code = document.getElementById('loginCode').value.trim();
-      db.ref('users/' + code).once('value', snap => {
-        const user = snap.val();
-        if (!user) return alert('Invalid code');
-        currentUser = code;
-        isAdmin = !!user.isAdmin;
-        document.getElementById('loginScreen').style.display = 'none';
-        if (isAdmin) {
-          document.getElementById('adminScreen').style.display = 'block';
-          loadAdmin();
-        } else {
-          document.getElementById('userScreen').style.display = 'block';
-          loadChat();
-        }
-      });
+    div.querySelector('.cancelTicketBtn').onclick=()=>{ if(confirm('Are you sure you want to cancel this ticket?')){ db.ref('tickets/'+t.id).remove(); db.ref('messages/'+t.id).remove(); div.remove(); }};
+    div.querySelector('.markPaidBtn').onclick=()=>{ db.ref('messages/'+t.id).push({from:currentUser,text:'Payment hidden. Your product will be securely hidden and ready for pickup within 24 hours, please also provide photo of hidden payment and any location information.'}); };
+    if(currentUserIsAdmin){ 
+      div.querySelector('.itemHiddenBtn').onclick=()=>{ 
+        db.ref('messages/'+t.id).push({from:currentUser,text:'Item has been hidden. Refer to photos below for location of item. Have fun and practice safe usage.'}); 
+        db.ref('tickets/'+t.id+'/status').set('complete'); 
+      }; 
     }
+  });
+}
 
-    // Load chat for normal user
-    function loadChat() {
-      db.ref('messages/' + currentUser).on('value', snap => {
-        const messages = snap.val() || [];
-        let chatHtml = '';
-        messages.forEach(m => {
-          const fromAdmin = (m.from === 'Admin' || users[m.from]?.isAdmin);
-          const label = fromAdmin ? 'Admin' : m.from;
-          chatHtml += `<div><strong>${label}:</strong> ${m.text||''} ${m.img?'<br><img src="'+m.img+'" width=80>':''}</div>`;
-        });
-        document.getElementById('chat').innerHTML = chatHtml;
-      });
-    }
+document.getElementById('refreshTickets').onclick=renderTickets;
+document.getElementById('closeAdmin').onclick=()=>document.getElementById('adminScreen').style.display='none';
 
-    // Load chats for admin
-    function loadAdmin() {
-      db.ref('users').on('value', snap => {
-        users = snap.val() || {};
-        db.ref('messages').on('value', snap => {
-          const allMsgs = snap.val() || {};
-          let html = '';
-          Object.keys(allMsgs).forEach(userId => {
-            html += `<h3>Chat with ${userId}</h3>`;
-            allMsgs[userId].forEach(m => {
-              const fromAdmin = (m.from === 'Admin' || users[m.from]?.isAdmin);
-              const label = fromAdmin ? 'Admin' : m.from;
-              html += `<div><strong>${label}:</strong> ${m.text||''} ${m.img?'<br><img src="'+m.img+'" width=80>':''}</div>`;
-            });
-          });
-          document.getElementById('adminChats').innerHTML = html;
-        });
-      });
-    }
-
-    // Send message
-    function sendMessage() {
-      const text = document.getElementById('msg').value;
-      if (!text) return;
-      const msg = { from: currentUser, text };
-      db.ref('messages/' + currentUser).push(msg);
-      document.getElementById('msg').value = '';
-    }
-  </script>
+// Products rendering
+renderProducts();
+</script>
 </body>
 </html>
-
