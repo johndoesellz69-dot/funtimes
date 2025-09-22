@@ -1,4 +1,4 @@
-<!doctype html> 
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -32,6 +32,8 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 .hidden{display:none !important;}
 #adminScreen{position:fixed;inset:0;background:rgba(0,0,0,.95);color:#111;padding:16px;overflow:auto;display:none;z-index:3000}
 #adminScreen h2{margin-top:0;color:var(--accent)}
+.stockModal{background:white;padding:16px;border-radius:12px;width:100%;max-width:500px;}
+.stockRow{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -110,11 +112,12 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 
 <!-- Stock Modal -->
 <div id="stockModal" class="modal-back hidden">
-  <div class="modal">
+  <div class="stockModal">
     <h3>Manage Stock</h3>
     <div id="stockList"></div>
-    <button class="btn" id="saveStockBtn">Save Changes</button>
-    <button class="btn ghost" id="closeStockBtn">Close</button>
+    <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn" id="closeStockBtn">Close</button>
+    </div>
   </div>
 </div>
 
@@ -172,8 +175,8 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   <h2>Admin Console</h2>
   <div style="margin-bottom:12px">
     <button class="btn" id="refreshTickets">Refresh Tickets</button>
+    <button class="btn ghost" id="manageStockBtn">Manage Stock</button>
     <button class="btn ghost" id="closeAdmin">Close Admin</button>
-    <button class="btn" id="manageStockBtn">Manage Stock</button>
   </div>
   <h3>All Tickets</h3>
   <div id="allTicketsArea"></div>
@@ -202,6 +205,11 @@ let currentUser = null;
 let currentUserIsAdmin = false;
 let cart = [];
 
+const productsList = [
+  {id:'bud1',name:'Edibles (Buy 3 get 1 free)',price:20,flavors:['Sour Patch','Skittles','Swedish fish','Watermelon Sour Patch','Starburst','Trolli','Peach Rings']},
+  {id:'cart1',name:'2g Muha Meds Carts (Buy 1 get 1 $5 off)',price:30,flavors:['Sugar Daddy Punch','Pineapple Runtz','Blueberry Muffin','Blue Slushy','Candy Apple']}
+];
+
 // Account creation
 document.getElementById('createCodeBtn').onclick = () => {
   const code = 'user-' + Math.random().toString(36).substr(2,6);
@@ -223,9 +231,7 @@ document.getElementById('loginBtn').onclick = () => {
     document.getElementById('acctCode').innerText = code;
     document.getElementById('loginModal').classList.add('hidden');
 
-    if(currentUserIsAdmin) {
-      document.getElementById('adminScreen').style.display = 'block';
-    }
+    if(currentUserIsAdmin) document.getElementById('adminScreen').style.display = 'block';
 
     document.getElementById('warningModal').classList.toggle('hidden', currentUserIsAdmin);
     renderTickets();
@@ -254,18 +260,19 @@ document.getElementById('closeAbout').onclick = () => document.getElementById('a
 function renderProducts(){
   const grid = document.getElementById('productsGrid');
   grid.innerHTML = '';
-  db.ref('products').once('value', snap => {
-    const products = snap.val() || {};
-    Object.values(products).forEach(p=>{
+  productsList.forEach(p=>{
+    db.ref('stock/'+p.id).once('value',snap=>{
+      const stock = snap.val();
       const div = document.createElement('div');
       div.className='product';
-      div.innerHTML=`<h3>${p.name}</h3><div>$${p.price}</div>
-        <select><option value="">Select Flavor</option>${(p.flavors||[]).map(f=>`<option value="${f}">${f}</option>`).join('')}</select>
-        <button class="btn">Add</button>`;
-      div.querySelector('button').onclick = ()=>{
-        const flavor=div.querySelector('select').value||"None";
-        cart.push({...p,selectedFlavor:flavor});
-        renderCart();
+      div.innerHTML = `<h3>${p.name}</h3>
+        <div>$${p.price} | Stock: ${stock===null?'∞':stock}</div>
+        <select><option value="">Select Flavor</option>${p.flavors.map(f=>`<option value="${f}">${f}</option>`).join('')}</select>
+        <button class="btn" ${stock===0?'disabled':''}>Add</button>`;
+      div.querySelector('button').onclick = ()=>{ 
+        const flavor = div.querySelector('select').value || "None"; 
+        cart.push({...p,selectedFlavor:flavor}); 
+        renderCart(); 
       };
       grid.appendChild(div);
     });
@@ -283,7 +290,7 @@ function renderCart(){
   document.getElementById('cartTotal').innerText='Total $'+total;
 }
 
-// Purchase -> ticket
+// Purchase -> ticket & decrease stock
 document.getElementById('purchaseBtn').onclick = ()=>{
   if(!cart.length) return alert('Empty cart');
   const id='tkt-'+Date.now();
@@ -293,7 +300,20 @@ document.getElementById('purchaseBtn').onclick = ()=>{
   const ticket={id,total,location:document.getElementById('locationSelect').value,status:'pending',items:cart,user:currentUser};
   db.ref('tickets/'+id).set(ticket);
   db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
-  cart=[]; renderCart();
+
+  // decrease stock in Firebase
+  cart.forEach(item=>{
+    const stockRef = db.ref('stock/'+item.id);
+    stockRef.transaction(s=>{
+      if(s===null) return null; 
+      if(s>0) return s-1;
+      return s;
+    });
+  });
+
+  cart=[]; 
+  renderCart(); 
+  renderProducts();
 };
 
 // Tickets & chat
@@ -352,38 +372,28 @@ function renderTickets(){
   });
 }
 
-document.getElementById('refreshTickets').onclick=renderTickets;
-document.getElementById('closeAdmin').onclick=()=>document.getElementById('adminScreen').style.display='none';
-
-// Stock Management
-const stockModal = document.getElementById('stockModal');
-const stockList = document.getElementById('stockList');
-document.getElementById('manageStockBtn').onclick = () => {
-  stockModal.classList.remove('hidden');
-  stockList.innerHTML = '';
-  db.ref('products').once('value', snap=>{
-    const products = snap.val()||{};
-    Object.entries(products).forEach(([id,p])=>{
-      const div = document.createElement('div');
-      div.style.marginBottom='8px';
-      div.innerHTML=`<strong>${p.name}</strong> <input type="number" min="0" value="${p.stock||0}" data-id="${id}" style="width:60px">`;
-      stockList.appendChild(div);
+// Admin stock management
+document.getElementById('manageStockBtn').onclick = ()=>{
+  document.getElementById('stockModal').classList.remove('hidden');
+  const stockList = document.getElementById('stockList');
+  stockList.innerHTML='';
+  productsList.forEach(p=>{
+    db.ref('stock/'+p.id).once('value',snap=>{
+      const stockVal = snap.val();
+      const row = document.createElement('div');
+      row.className='stockRow';
+      row.innerHTML=`<span>${p.name}</span><input type="number" min="0" value="${stockVal===null?'':stockVal}">`;
+      const input = row.querySelector('input');
+      input.onchange = ()=>{ db.ref('stock/'+p.id).set(parseInt(input.value)||0); renderProducts(); };
+      stockList.appendChild(row);
     });
   });
 };
-document.getElementById('closeStockBtn').onclick = ()=>stockModal.classList.add('hidden');
-document.getElementById('saveStockBtn').onclick = ()=>{
-  const inputs = stockList.querySelectorAll('input');
-  inputs.forEach(inp=>{
-    const id = inp.dataset.id;
-    const value = parseInt(inp.value)||0;
-    db.ref('products/'+id+'/stock').set(value);
-  });
-  alert('Stock updated!');
-  stockModal.classList.add('hidden');
-};
+document.getElementById('closeStockBtn').onclick = ()=>document.getElementById('stockModal').classList.add('hidden');
 
-// Products rendering
+document.getElementById('refreshTickets').onclick=renderTickets;
+document.getElementById('closeAdmin').onclick=()=>document.getElementById('adminScreen').style.display='none';
+
 renderProducts();
 </script>
 </body>
