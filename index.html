@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html> 
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -107,7 +107,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
     <button class="btn" id="closeAbout">Close</button>
   </div>
 </div>
-
 <!-- Main -->
 <div class="wrap hidden" id="mainWrap">
   <header>
@@ -167,7 +166,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   <h3>All Tickets</h3>
   <div id="allTicketsArea"></div>
 </div>
-
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -185,7 +183,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 </script>
-
 <script>
 let currentUser = null;
 let currentUserIsAdmin = false;
@@ -243,25 +240,26 @@ document.getElementById('closeAbout').onclick = () => document.getElementById('a
 function renderProducts(){
   const grid = document.getElementById('productsGrid');
   grid.innerHTML = '';
-  const sample = [
-    {id:'bud1',name:'Edibles (Buy 3 get 1 free)',price:20,flavors:['Sour Patch','Skittles','Swedish fish','Watermelon Sour Patch','Starburst','Trolli','Peach Rings']},
-    {id:'cart1',name:'2g Muha Meds Carts (Buy 1 get 1 $5 off)',price:30,flavors:['Sugar Daddy Punch','Pinneaple Runtz','Blueberry Muffin','Blue Slushie','Candy Apple']}
-  ];
-  sample.forEach(p=>{
-    const div = document.createElement('div');
-    div.className='product';
-    div.innerHTML=`<h3>${p.name}</h3><div>$${p.price}</div>
-      <select><option value="">Select Flavor</option>${p.flavors.map(f=>`<option value="${f}">${f}</option>`).join('')}</select>
-      <button class="btn">Add</button>`;
-    div.querySelector('button').onclick = ()=>{ 
-      const flavor=div.querySelector('select').value||"None"; 
-      cart.push({...p,selectedFlavor:flavor}); 
-      renderCart(); 
-    };
-    grid.appendChild(div);
+  db.ref('products').once('value', snap => {
+    const products = snap.val() || {};
+    Object.values(products).forEach(p=>{
+      const div = document.createElement('div');
+      div.className='product';
+      div.innerHTML=`<h3>${p.name}</h3>
+        <div>$${p.price}</div>
+        <div class="small">Stock: ${p.stock}</div>
+        <select><option value="">Select Flavor</option>${(p.flavors||[]).map(f=>`<option value="${f}">${f}</option>`).join('')}</select>
+        <button class="btn">Add</button>`;
+      div.querySelector('button').onclick = ()=>{ 
+        if(p.stock <= 0) return alert('Out of stock');
+        const flavor=div.querySelector('select').value||"None"; 
+        cart.push({...p,selectedFlavor:flavor}); 
+        renderCart(); 
+      };
+      grid.appendChild(div);
+    });
   });
 }
-
 function renderCart(){
   const list=document.getElementById('cartList');
   list.innerHTML='';
@@ -283,7 +281,13 @@ document.getElementById('purchaseBtn').onclick = ()=>{
   const ticket={id,total,location:document.getElementById('locationSelect').value,status:'pending',items:cart,user:currentUser};
   db.ref('tickets/'+id).set(ticket);
   db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
-  cart=[]; renderCart();
+
+  // Decrease stock
+  cart.forEach(item=>{
+    db.ref('products/'+item.id+'/stock').transaction(stock => (stock||0) - 1);
+  });
+
+  cart=[]; renderCart(); renderProducts();
 };
 
 // Tickets & chat
@@ -308,7 +312,6 @@ function renderTickets(){
         ${currentUserIsAdmin?'<button class="btn ghost itemHiddenBtn">Item Hidden</button>':''}
       </div>`;
     area.appendChild(div);
-
     const chatEl=document.getElementById('chat-'+t.id);
     db.ref('messages/'+t.id).off();
     db.ref('messages/'+t.id).on('value',ms=>{
