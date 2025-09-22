@@ -107,6 +107,17 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
     <button class="btn" id="closeAbout">Close</button>
   </div>
 </div>
+
+<!-- Stock Modal -->
+<div id="stockModal" class="modal-back hidden">
+  <div class="modal">
+    <h3>Manage Stock</h3>
+    <div id="stockList"></div>
+    <button class="btn" id="saveStockBtn">Save Changes</button>
+    <button class="btn ghost" id="closeStockBtn">Close</button>
+  </div>
+</div>
+
 <!-- Main -->
 <div class="wrap hidden" id="mainWrap">
   <header>
@@ -162,10 +173,12 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
   <div style="margin-bottom:12px">
     <button class="btn" id="refreshTickets">Refresh Tickets</button>
     <button class="btn ghost" id="closeAdmin">Close Admin</button>
+    <button class="btn" id="manageStockBtn">Manage Stock</button>
   </div>
   <h3>All Tickets</h3>
   <div id="allTicketsArea"></div>
 </div>
+
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -183,6 +196,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 </script>
+
 <script>
 let currentUser = null;
 let currentUserIsAdmin = false;
@@ -205,7 +219,7 @@ document.getElementById('loginBtn').onclick = () => {
     const user = snapshot.val();
     if(!user) return alert('Invalid code');
     currentUser = code;
-    currentUserIsAdmin = (code === 'user-9e21mr'); // Only this account is admin
+    currentUserIsAdmin = (code === 'user-9e21mr');
     document.getElementById('acctCode').innerText = code;
     document.getElementById('loginModal').classList.add('hidden');
 
@@ -245,21 +259,19 @@ function renderProducts(){
     Object.values(products).forEach(p=>{
       const div = document.createElement('div');
       div.className='product';
-      div.innerHTML=`<h3>${p.name}</h3>
-        <div>$${p.price}</div>
-        <div class="small">Stock: ${p.stock}</div>
+      div.innerHTML=`<h3>${p.name}</h3><div>$${p.price}</div>
         <select><option value="">Select Flavor</option>${(p.flavors||[]).map(f=>`<option value="${f}">${f}</option>`).join('')}</select>
         <button class="btn">Add</button>`;
-      div.querySelector('button').onclick = ()=>{ 
-        if(p.stock <= 0) return alert('Out of stock');
-        const flavor=div.querySelector('select').value||"None"; 
-        cart.push({...p,selectedFlavor:flavor}); 
-        renderCart(); 
+      div.querySelector('button').onclick = ()=>{
+        const flavor=div.querySelector('select').value||"None";
+        cart.push({...p,selectedFlavor:flavor});
+        renderCart();
       };
       grid.appendChild(div);
     });
   });
 }
+
 function renderCart(){
   const list=document.getElementById('cartList');
   list.innerHTML='';
@@ -281,13 +293,7 @@ document.getElementById('purchaseBtn').onclick = ()=>{
   const ticket={id,total,location:document.getElementById('locationSelect').value,status:'pending',items:cart,user:currentUser};
   db.ref('tickets/'+id).set(ticket);
   db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
-
-  // Decrease stock
-  cart.forEach(item=>{
-    db.ref('products/'+item.id+'/stock').transaction(stock => (stock||0) - 1);
-  });
-
-  cart=[]; renderCart(); renderProducts();
+  cart=[]; renderCart();
 };
 
 // Tickets & chat
@@ -312,6 +318,7 @@ function renderTickets(){
         ${currentUserIsAdmin?'<button class="btn ghost itemHiddenBtn">Item Hidden</button>':''}
       </div>`;
     area.appendChild(div);
+
     const chatEl=document.getElementById('chat-'+t.id);
     db.ref('messages/'+t.id).off();
     db.ref('messages/'+t.id).on('value',ms=>{
@@ -348,8 +355,37 @@ function renderTickets(){
 document.getElementById('refreshTickets').onclick=renderTickets;
 document.getElementById('closeAdmin').onclick=()=>document.getElementById('adminScreen').style.display='none';
 
+// Stock Management
+const stockModal = document.getElementById('stockModal');
+const stockList = document.getElementById('stockList');
+document.getElementById('manageStockBtn').onclick = () => {
+  stockModal.classList.remove('hidden');
+  stockList.innerHTML = '';
+  db.ref('products').once('value', snap=>{
+    const products = snap.val()||{};
+    Object.entries(products).forEach(([id,p])=>{
+      const div = document.createElement('div');
+      div.style.marginBottom='8px';
+      div.innerHTML=`<strong>${p.name}</strong> <input type="number" min="0" value="${p.stock||0}" data-id="${id}" style="width:60px">`;
+      stockList.appendChild(div);
+    });
+  });
+};
+document.getElementById('closeStockBtn').onclick = ()=>stockModal.classList.add('hidden');
+document.getElementById('saveStockBtn').onclick = ()=>{
+  const inputs = stockList.querySelectorAll('input');
+  inputs.forEach(inp=>{
+    const id = inp.dataset.id;
+    const value = parseInt(inp.value)||0;
+    db.ref('products/'+id+'/stock').set(value);
+  });
+  alert('Stock updated!');
+  stockModal.classList.add('hidden');
+};
+
 // Products rendering
 renderProducts();
 </script>
 </body>
 </html>
+
