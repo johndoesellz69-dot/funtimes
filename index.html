@@ -196,9 +196,10 @@ let stockCache = {};
 
 db.ref('stock').on('value', snap => {
   stockCache = snap.val() || {};
-  try { renderProducts(); } catch(e){ }
+  try { renderProducts(); } catch(e){}
 });
 
+// Account creation
 document.getElementById('createCodeBtn').onclick = () => {
   const code = 'user-' + Math.random().toString(36).substr(2,6);
   db.ref('users/' + code).set({created:Date.now()});
@@ -206,6 +207,7 @@ document.getElementById('createCodeBtn').onclick = () => {
   document.getElementById('loginCode').value = code;
 };
 
+// Login
 document.getElementById('loginBtn').onclick = () => {
   const code = document.getElementById('loginCode').value.trim();
   if(!code) return alert('Enter a code');
@@ -214,11 +216,10 @@ document.getElementById('loginBtn').onclick = () => {
     const user = snapshot.val();
     if(!user) return alert('Invalid code');
     currentUser = code;
-    currentUserIsAdmin = (code === 'user-9e21mr');
+    currentUserIsAdmin = (code === 'user-9e21mr'); 
     document.getElementById('acctCode').innerText = code;
     document.getElementById('loginModal').classList.add('hidden');
 
-    // 1️⃣ Referral code display
     if(!currentUserIsAdmin){
       const refDiv = document.createElement('div');
       refDiv.className = 'small';
@@ -227,12 +228,16 @@ document.getElementById('loginBtn').onclick = () => {
       document.getElementById('mainWrap').insertBefore(refDiv, document.getElementById('productsGrid').parentNode);
     }
 
-    if(currentUserIsAdmin) document.getElementById('adminScreen').style.display = 'block';
+    if(currentUserIsAdmin) {
+      document.getElementById('adminScreen').style.display = 'block';
+    }
+
     document.getElementById('warningModal').classList.toggle('hidden', currentUserIsAdmin);
     renderTickets();
   });
 };
 
+// Warning modal
 document.getElementById('ackBtn').onclick = () => {
   if(!document.getElementById('ackCheck').checked) return alert('Check agree');
   document.getElementById('warningModal').classList.add('hidden');
@@ -241,6 +246,7 @@ document.getElementById('ackBtn').onclick = () => {
   renderProducts();
 };
 
+// Help & About
 document.getElementById('closeHelp').onclick = () => document.getElementById('helpModal').classList.add('hidden');
 document.getElementById('helpBtn').onclick = () => document.getElementById('helpModal').classList.remove('hidden');
 document.getElementById('logoutBtn').onclick = () => location.reload();
@@ -249,6 +255,7 @@ document.getElementById('aboutLoginBtn').onclick = () => document.getElementById
 document.getElementById('aboutUserBtn').onclick = () => document.getElementById('aboutModal').classList.remove('hidden');
 document.getElementById('closeAbout').onclick = () => document.getElementById('aboutModal').classList.add('hidden');
 
+/* --- Products & Cart --- */
 function renderProducts(){
   const grid = document.getElementById('productsGrid');
   grid.innerHTML = '';
@@ -257,22 +264,23 @@ function renderProducts(){
     {id:'cart1',name:'2g Muha Meds Carts (Buy 1 get 1 $5 off)',price:30,flavors:['Sugar Daddy Punch','Pineapple Runtz','Blueberry Muffin','Blue Slushie','Candy Apple']}
   ];
   sample.forEach(p=>{
-    const div = document.createElement('div'); div.className='product';
+    const div = document.createElement('div');
+    div.className='product';
     const title = document.createElement('h3'); title.textContent = p.name;
     const priceDiv = document.createElement('div'); priceDiv.textContent = `$${p.price}`;
     const select = document.createElement('select');
-    const defOpt = document.createElement('option'); defOpt.value=''; defOpt.textContent='Select Flavor'; select.appendChild(defOpt);
+    const defOpt = document.createElement('option'); defOpt.value = ''; defOpt.textContent = 'Select Flavor'; select.appendChild(defOpt);
     p.flavors.forEach(f=>{
-      const option = document.createElement('option'); option.value = f;
-      const status = (stockCache[p.id] && typeof stockCache[p.id][f] !== 'undefined') ? stockCache[p.id][f] : 'in';
-      if(status==='out'){ option.disabled=true; option.textContent=`${f} (Out of Stock)`; } else option.textContent=f;
+      const option = document.createElement('option'); option.value=f;
+      const status=(stockCache[p.id]&&typeof stockCache[p.id][f]!=='undefined')?stockCache[p.id][f]:'in';
+      if(status==='out'){ option.disabled=true; option.textContent=`${f} (Out of Stock)` } else option.textContent=f;
       select.appendChild(option);
     });
     const btn = document.createElement('button'); btn.className='btn'; btn.textContent='Add';
     btn.onclick = ()=>{
       const flavor = select.value || "None";
       if(!flavor) return alert('Select a flavor');
-      const curStatus = (stockCache[p.id] && typeof stockCache[p.id][flavor] !== 'undefined') ? stockCache[p.id][flavor] : 'in';
+      const curStatus = (stockCache[p.id] && typeof stockCache[p.id][flavor]!=='undefined')?stockCache[p.id][flavor]:'in';
       if(curStatus==='out') return alert('That flavor is currently out of stock.');
       cart.push({...p,selectedFlavor:flavor});
       renderCart();
@@ -286,15 +294,16 @@ function renderCart(){
   const list=document.getElementById('cartList'); list.innerHTML='';
   let total=0,ediblesCount=0,muhaCount=0;
   cart.forEach(c=>{ if(c.name.includes('Edibles')) ediblesCount++; if(c.name.includes('Muha Meds')) muhaCount++; total+=c.price; });
-  total -= Math.floor(ediblesCount/4)*20; total -= Math.floor(muhaCount/2)*5;
+  total -= Math.floor(ediblesCount/4)*20;
+  total -= Math.floor(muhaCount/2)*5;
   cart.forEach(c=>{
     const row=document.createElement('div'); row.className='cart-item';
-    row.innerHTML=`<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price}</span>`;
-    list.appendChild(row);
+    row.innerHTML=`<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price}</span>`; list.appendChild(row);
   });
   document.getElementById('cartTotal').innerText='Total $'+total;
 }
 
+// Purchase -> ticket
 document.getElementById('purchaseBtn').onclick = ()=>{
   if(!cart.length) return alert('Empty cart');
   const id='tkt-'+Date.now();
@@ -307,9 +316,9 @@ document.getElementById('purchaseBtn').onclick = ()=>{
   cart=[]; renderCart();
 };
 
-// ===== FULL renderTickets WITH MARK COMPLETE + REFERRAL
+// Tickets & chat
 function renderTickets(){
-  const area=document.getElementById(currentUserIsAdmin ? 'allTicketsArea' : 'ticketsArea');
+  const area=document.getElementById(currentUserIsAdmin?'allTicketsArea':'ticketsArea');
   area.innerHTML='';
   db.ref('tickets').off();
   db.ref('tickets').on('child_added',snap=>{
@@ -326,7 +335,7 @@ function renderTickets(){
         <button class="btn sendBtn">Send</button>
         <button class="btn ghost cancelTicketBtn">Cancel Ticket</button>
         <button class="btn ghost markPaidBtn">Mark Paid</button>
-        ${currentUserIsAdmin?'<button class="btn ghost itemHiddenBtn">Item Hidden</button><button class="btn ghost markCompleteBtn">Mark Complete + Referral</button>':''}
+        ${currentUserIsAdmin?'<button class="btn ghost itemHiddenBtn">Item Hidden</button><button class="btn ghost markCompleteBtn">Mark Complete</button>':''}
       </div>`;
     area.appendChild(div);
 
@@ -335,8 +344,8 @@ function renderTickets(){
     db.ref('messages/'+t.id).on('value',ms=>{
       const msgs=ms.val()||{};
       chatEl.innerHTML=Object.values(msgs).map(m=>{
-        const displayName = (m.from==='user-9e21mr' && currentUser!=='user-9e21mr') ? 'admin' : m.from;
-        return `<div><strong>${displayName}:</strong> ${m.text || ''}${m.image ? '<br><img src="'+m.image+'" style="max-width:100px">' : ''}</div>`;
+        const displayName=(m.from==='user-9e21mr' && currentUser!=='user-9e21mr')?'admin':m.from;
+        return `<div><strong>${displayName}:</strong> ${m.text||''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`;
       }).join('');
       chatEl.scrollTop=chatEl.scrollHeight;
     });
@@ -344,47 +353,62 @@ function renderTickets(){
     div.querySelector('.sendBtn').onclick=()=>{
       const inp=div.querySelector('.msgInput'); const fileInp=div.querySelector('.imgInput'); const txt=inp.value.trim();
       if(fileInp.files.length>0){
-        const file=fileInp.files[0];
-        const reader=new FileReader();
+        const file=fileInp.files[0]; const reader=new FileReader();
         reader.onload=function(e){ db.ref('messages/'+t.id).push({from:currentUser,image:e.target.result}); };
         reader.readAsDataURL(file); fileInp.value='';
       }
       if(txt) db.ref('messages/'+t.id).push({from:currentUser,text:txt}); inp.value='';
     };
 
-    div.querySelector('.cancelTicketBtn').onclick=()=>{ if(confirm('Are you sure you want to cancel this ticket?')){ db.ref('tickets/'+t.id).remove(); db.ref('messages/'+t.id).remove(); div.remove(); }};
-    div.querySelector('.markPaidBtn').onclick=()=>{ db.ref('messages/'+t.id).push({from:currentUser,text:'Payment hidden. Your product will be securely hidden and ready for pickup within 24 hours, please also provide photo of hidden payment and any location information.'}); };
+    div.querySelector('.cancelTicketBtn').onclick=()=>{ 
+      if(confirm('Are you sure you want to cancel this ticket?')){ 
+        db.ref('tickets/'+t.id).remove(); 
+        db.ref('messages/'+t.id).remove(); 
+        div.remove(); 
+      }
+    };
+    div.querySelector('.markPaidBtn').onclick=()=>{ 
+      db.ref('messages/'+t.id).push({from:currentUser,text:'Payment hidden. Your product will be securely hidden and ready for pickup within 24 hours, please also provide photo of hidden payment and any location information.'}); 
+    };
+
     if(currentUserIsAdmin){
-      div.querySelector('.itemHiddenBtn').onclick=()=>{ db.ref('messages/'+t.id).push({from:currentUser,text:'Item has been hidden. Refer to photos below for location of item. Have fun and practice safe usage.'}); db.ref('tickets/'+t.id+'/status').set('complete'); };
+      div.querySelector('.itemHiddenBtn').onclick=()=>{
+        db.ref('messages/'+t.id).push({from:currentUser,text:'Item has been hidden. Refer to photos below for location of item. Have fun and practice safe usage.'}); 
+        db.ref('tickets/'+t.id+'/status').set('complete'); 
+      };
+
       div.querySelector('.markCompleteBtn').onclick=()=>{
-        db.ref('tickets/'+t.id+'/status').set('complete');
-        db.ref('messages/'+t.id).push({from:currentUser,text:'Ticket marked complete by admin.'});
-        const userRef = t.user;
-        if(userRef && userRef!==currentUser){
-          db.ref('users/'+userRef+'/referrals').once('value',snap=>{
-            let count = snap.val() || 0;
-            db.ref('users/'+userRef+'/referrals').set(count+1);
-          });
-        }
+        db.ref('tickets/'+t.id+'/status').set('complete'); 
+        db.ref('users/'+t.user+'/referrals').once('value',snap=>{
+          let count = snap.val() || 0;
+          db.ref('users/'+t.user+'/referrals').set(count+1);
+        });
+        alert('Ticket marked complete and referral incremented!');
       };
     }
+
   });
 }
 
 document.getElementById('refreshTickets').onclick=renderTickets;
 document.getElementById('closeAdmin').onclick=()=>document.getElementById('adminScreen').style.display='none';
+
+// Admin Add Raffle Winner button
 const addRaffleBtn = document.createElement('button');
-addRaffleBtn.className='btn'; addRaffleBtn.textContent='Add Raffle Winner';
+addRaffleBtn.className = 'btn';
+addRaffleBtn.textContent = 'Add Raffle Winner';
 document.getElementById('adminScreen').querySelector('div').appendChild(addRaffleBtn);
-addRaffleBtn.onclick=()=>{
-  const winner = prompt("Enter winner's user code:"); if(!winner) return;
-  const raffleId = 'raffle-' + Date.now();
-  db.ref('raffles/'+raffleId).set({winner, created:Date.now()});
-  alert('Raffle ticket created for '+winner);
+
+addRaffleBtn.onclick = () => {
+    const winner = prompt("Enter winner's user code:");
+    if(!winner) return;
+    const raffleId = 'raffle-' + Date.now();
+    db.ref('raffles/' + raffleId).set({winner, created:Date.now()});
+    alert('Raffle ticket created for ' + winner);
 };
 
+// initial render
 renderProducts();
 </script>
 </body>
 </html>
-
