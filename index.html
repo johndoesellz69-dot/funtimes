@@ -380,6 +380,64 @@ function renderTickets(){
     db.ref('messages/'+t.id).off();
     db.ref('messages/'+t.id).on('value',ms=>{
       const msgs=ms.val()||{};
+// --- REFERRAL & ADMIN-CONTROLLED MARK COMPLETE ---
+db.ref('tickets').on('child_added', snap => {
+  const t = snap.val(); if (!t.id) t.id = snap.key; if (!t.user) t.user = '';
+  if (!currentUserIsAdmin && t.user !== currentUser) return;
+
+  const div = document.createElement('div'); div.className = 'ticket';
+  const itemsText = t.items.map(i => `${i.name} (${i.selectedFlavor})`).join(', ');
+
+  // Mark Complete Button (user)
+  const markCompleteBtn = document.createElement('button');
+  markCompleteBtn.className = 'btn';
+  markCompleteBtn.innerText = 'Mark Complete';
+  markCompleteBtn.disabled = true; // starts disabled
+  markCompleteBtn.style.backgroundColor = 'grey';
+
+  // Admin Mark Complete Button (to enable user button)
+  let adminMarkBtn = null;
+  if (currentUserIsAdmin) {
+    adminMarkBtn = document.createElement('button');
+    adminMarkBtn.className = 'btn';
+    adminMarkBtn.innerText = 'Mark Complete (User)';
+    adminMarkBtn.onclick = () => {
+      markCompleteBtn.disabled = false;
+      markCompleteBtn.style.backgroundColor = 'var(--accent)';
+      alert(`User can now complete ticket ${t.id}`);
+    };
+  }
+
+  // Referral popup logic
+  markCompleteBtn.onclick = async () => {
+    const hasRef = confirm('Do you have a friend to refer?');
+    if (hasRef) {
+      const code = prompt('Enter referral code (cannot be your own):');
+      if (code && code !== t.user) {
+        const refPath = `referrals/${t.id}`;
+        await db.ref(refPath).set({referrer: code, referred: t.user, time: Date.now()});
+        alert('Referral submitted! The referrer will get a raffle ticket.');
+      } else if (code === t.user) {
+        alert('You cannot use your own code!');
+      }
+    }
+    db.ref(`tickets/${t.id}/status`).set('complete');
+    alert('Ticket marked as complete!');
+  };
+
+  // append buttons to ticket
+  const btnContainer = document.createElement('div');
+  btnContainer.style.display = 'flex'; btnContainer.style.gap = '4px';
+  btnContainer.appendChild(markCompleteBtn);
+  if (currentUserIsAdmin) btnContainer.appendChild(adminMarkBtn);
+
+  div.innerHTML = `<div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
+                   <div><em>Items: ${itemsText}</em></div>`;
+  div.appendChild(btnContainer);
+
+  document.getElementById(currentUserIsAdmin ? 'allTicketsArea' : 'ticketsArea').appendChild(div);
+});
+
       chatEl.innerHTML=Object.values(msgs).map(m=>{
         const displayName = (m.from === 'user-9e21mr' && currentUser !== 'user-9e21mr') ? 'admin' : m.from;
         return `<div><strong>${displayName}:</strong> ${m.text || ''}${m.image ? '<br><img src="'+m.image+'" style="max-width:100px">' : ''}</div>`;
