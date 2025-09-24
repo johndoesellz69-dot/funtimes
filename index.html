@@ -37,24 +37,85 @@ select option[disabled] { color: #999; }
 </style>
 </head>
 <body>
-<!-- (unchanged modals above) -->
+<div id="loginModal" class="modal-back">
+  <div class="modal">
+    <h3>Login</h3>
+    <div style="margin-bottom:12px">
+      <label>Enter your login code or Create Account if new: <input type="text" id="loginCode"></label>
+      <div class="loginNotice">(Login codes are case-sensitive. Ensure the 'user' part is lowercase. EX: user-123abc)</div>
+    </div>
+    <div style="margin-bottom:12px">or <button class="btn" id="createCodeBtn">Create new code</button></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn" id="loginBtn">Login</button>
+    </div>
+    <div style="margin-top:8px;display:flex;justify-content:flex-end">
+      <button class="btn ghost" id="aboutLoginBtn">About Easy Green</button>
+    </div>
+  </div>
+</div>
+
+<div id="warningModal" class="modal-back hidden">
+  <div class="modal">
+    <h3>Warnings & Rules</h3>
+    <ul>
+      <li>Easy Green is not liable for any stolen Product/Payments.</li>
+      <li>Use products safely.</li>
+      <li>Respect site anonymity.</li>
+    </ul>
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+      <label style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="ackCheck"> I agree
+      </label>
+      <button class="btn" id="ackBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div id="helpModal" class="modal-back hidden">
+  <div class="modal">
+    <h3>First Time Help</h3>
+    <p>Welcome to Easy Green! Here's how it works:</p>
+    <ol>
+      <li>Select products and flavors you want.</li>
+      <li>Add items to your cart and choose pickup location.</li>
+      <li>Click Purchase to generate a ticket for your order.</li>
+      <li>Use the chat under your ticket to send messages or images to admin.</li>
+      <li>Admin can respond and send images back.</li>
+      <li>Place the specified cash amount in an Envelope and hide it.</li>
+      <li>Mark as paid and send a photo of your envelope and the cash inside.</li>
+      <li>Admin will message you with item retrieval details after your payment is collected.</li>
+      <li>TIPS: It is recommended to hide payments out of the publics view and way, and ensure nobody sees you hiding your payment.</li>
+    </ol>
+    <button class="btn" id="closeHelp">Got it!</button>
+  </div>
+</div>
+
+<div id="aboutModal" class="modal-back hidden">
+  <div class="modal">
+    <h3>About Easy Green</h3>
+    <p>
+      Welcome to Easy Green! We are proud to be the only local Cannabis service that is fully anonymous. 
+      If you wish to obtain cannabis discreetly—without meeting a random sketchy dealer in person, or if you 
+      do not have access to a nearby dispensary—Easy Green is here for you. Simply select a pickup location 
+      nearest to you and enjoy our secure and simple exchange process.  
+      We are based in Arlington Heights and proudly serve anyone in or near the area.  
+      Take advantage of our exceptional deals and competitive pricing, as we believe everyone should have access to quality cannabis regardless of budget.  
+      We are continually expanding our product selection and pickup locations, and will soon offer additional items beyond cannabis.  
+      Enjoy Easy Green, and please consider sharing our website!
+    </p>
+    <button class="btn" id="closeAbout">Close</button>
+  </div>
+</div>
 
 <div class="wrap hidden" id="mainWrap">
   <header>
     <h1>Easy Green — Anonymous Cannabis</h1>
     <button class="btn ghost" id="logoutBtn" style="margin-left:auto">Log Out</button>
   </header>
-  <div style="display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap">
+  <div style="display:flex;gap:8px;align-items:center;margin-top:12px;flex-direction:column;align-items:flex-start;">
     <div class="small">(Write this down) Your account code: <span id="acctCode"></span></div>
-    <button class="btn" id="helpBtn" style="margin-left:auto">First time help</button>
-    <button class="btn ghost" id="aboutUserBtn">About Easy Green</button>
+    <div class="small" id="referralCodeDisplay">Your referral code is: <span id="refCode"></span></div>
   </div>
-  <!-- REFERRAL ADDITION: referral code + tickets -->
-  <div style="margin-top:12px;padding:8px;background:#f0fff0;border:1px solid #cdeccd;border-radius:8px">
-    <div id="referralDisplay" style="font-weight:bold">Your referral code is: ...</div>
-    <div id="ticketCountDisplay" style="margin-top:4px">You have 0 tickets</div>
-  </div>
-  <!-- END REFERRAL ADDITION -->
   <div class="grid" role="main">
     <section class="card">
       <h2>Products</h2>
@@ -93,12 +154,29 @@ select option[disabled] { color: #999; }
   <footer> Easy Green only accepts cash payments. </footer>
 </div>
 
-<!-- adminScreen unchanged -->
+<div id="adminScreen">
+  <h2>Admin Console</h2>
+  <div style="margin-bottom:12px">
+    <button class="btn" id="refreshTickets">Refresh Tickets</button>
+    <button class="btn ghost" id="closeAdmin">Close Admin</button>
+  </div>
+  <h3>All Tickets</h3>
+  <div id="allTicketsArea"></div>
+</div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 <script>
-const firebaseConfig = { /* unchanged config */ };
+const firebaseConfig = {
+  apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
+  authDomain: "easy-green-website.firebaseapp.com",
+  databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com",
+  projectId: "easy-green-website",
+  storageBucket: "easy-green-website.firebasestorage.app",
+  messagingSenderId: "988776675269",
+  appId: "1:988776675269:web:f2245f84a726d01f3e3dac",
+  measurementId: "G-PR35QWS2T6"
+};
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 </script>
@@ -107,76 +185,42 @@ const db = firebase.database();
 let currentUser = null;
 let currentUserIsAdmin = false;
 let cart = [];
-let stockCache = {};
+let referralCode = null;
 
-// listen for stock changes
-db.ref('stock').on('value', snap => {
-  stockCache = snap.val() || {};
-  try { renderProducts(); } catch(e){}
-});
-
-// Utility to generate referral code
-function generateReferralCode() {
-  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const letter = letters[Math.floor(Math.random()*letters.length)];
-  const digits = Math.floor(10000 + Math.random()*90000); // 5 digits
-  return letter + digits;
-}
-
-// Account creation
 document.getElementById('createCodeBtn').onclick = () => {
   const code = 'user-' + Math.random().toString(36).substr(2,6);
-  const refCode = generateReferralCode();
-  db.ref('users/' + code).set({
-    created: Date.now(),
-    referralCode: refCode,
-    ticketsCount: 0
-  });
+  db.ref('users/' + code).set({created:Date.now()});
   alert('Your code: ' + code);
   document.getElementById('loginCode').value = code;
 };
 
-// Login
 document.getElementById('loginBtn').onclick = () => {
   const code = document.getElementById('loginCode').value.trim();
   if(!code) return alert('Enter a code');
 
   db.ref('users/' + code).once('value', snapshot => {
-    let user = snapshot.val();
+    const user = snapshot.val();
     if(!user) return alert('Invalid code');
     currentUser = code;
     currentUserIsAdmin = (code === 'user-9e21mr');
     document.getElementById('acctCode').innerText = code;
+
+    // Step 1: Generate referral code for user if it doesn't exist
+    if(!user.refCode){
+      referralCode = String.fromCharCode(65 + Math.floor(Math.random()*26)) + Math.floor(10000 + Math.random()*90000);
+      db.ref('users/' + code + '/refCode').set(referralCode);
+    } else {
+      referralCode = user.refCode;
+    }
+    document.getElementById('refCode').innerText = referralCode;
+
     document.getElementById('loginModal').classList.add('hidden');
-
-    // REFERRAL ADDITION: ensure user has referralCode and show it
-    if(!user.referralCode){
-      const newRef = generateReferralCode();
-      db.ref('users/' + code + '/referralCode').set(newRef);
-      user.referralCode = newRef;
-    }
-    document.getElementById('referralDisplay').innerText =
-      "Your referral code is: " + user.referralCode;
-
-    // live listener for tickets count
-    db.ref('users/' + code + '/ticketsCount').on('value', snap => {
-      const count = snap.val() || 0;
-      document.getElementById('ticketCountDisplay').innerText =
-        "You have " + count + " tickets";
-    });
-    // END REFERRAL ADDITION
-
-    if(currentUserIsAdmin) {
-      document.getElementById('adminScreen').style.display = 'block';
-    }
-
+    if(currentUserIsAdmin) document.getElementById('adminScreen').style.display = 'block';
     document.getElementById('warningModal').classList.toggle('hidden', currentUserIsAdmin);
     renderTickets();
   });
 };
-
-// (rest of your script unchanged…)
 </script>
+
 </body>
 </html>
-
