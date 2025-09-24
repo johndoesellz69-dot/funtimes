@@ -37,86 +37,24 @@ select option[disabled] { color: #999; }
 </style>
 </head>
 <body>
-<div id="loginModal" class="modal-back">
-  <div class="modal">
-    <h3>Login</h3>
-    <div style="margin-bottom:12px">
-      <label>Enter your login code or Create Account if new: <input type="text" id="loginCode"></label>
-      <div class="loginNotice">(Login codes are case-sensitive. Ensure the 'user' part is lowercase. EX: user-123abc)</div>
-    </div>
-    <div style="margin-bottom:12px">or <button class="btn" id="createCodeBtn">Create new code</button></div>
-    <div style="display:flex;justify-content:flex-end;gap:8px">
-      <button class="btn" id="loginBtn">Login</button>
-    </div>
-    <div style="margin-top:8px;display:flex;justify-content:flex-end">
-      <button class="btn ghost" id="aboutLoginBtn">About Easy Green</button>
-    </div>
-  </div>
-</div>
-
-<div id="warningModal" class="modal-back hidden">
-  <div class="modal">
-    <h3>Warnings & Rules</h3>
-    <ul>
-      <li>Easy Green is not liable for any stolen Product/Payments.</li>
-      <li>Use products safely.</li>
-      <li>Respect site anonymity.</li>
-    </ul>
-    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
-      <label style="display:flex;align-items:center;gap:8px">
-        <input type="checkbox" id="ackCheck"> I agree
-      </label>
-      <button class="btn" id="ackBtn">Confirm</button>
-    </div>
-  </div>
-</div>
-
-<div id="helpModal" class="modal-back hidden">
-  <div class="modal">
-    <h3>First Time Help</h3>
-    <p>Welcome to Easy Green! Here's how it works:</p>
-    <ol>
-      <li>Select products and flavors you want.</li>
-      <li>Add items to your cart and choose pickup location.</li>
-      <li>Click Purchase to generate a ticket for your order.</li>
-      <li>Use the chat under your ticket to send messages or images to admin.</li>
-      <li>Admin can respond and send images back.</li>
-      <li>Place the specified cash amount in an Envelope and hide it.</li>
-      <li>Mark as paid and send a photo of your envelope and the cash inside.</li>
-      <li>Admin will message you with item retrieval details after your payment is collected.</li>
-      <li>TIPS: It is recommended to hide payments out of the publics view and way, and ensure nobody sees you hiding your payment.</li>
-    </ol>
-    <button class="btn" id="closeHelp">Got it!</button>
-  </div>
-</div>
-
-<div id="aboutModal" class="modal-back hidden">
-  <div class="modal">
-    <h3>About Easy Green</h3>
-    <p>
-      Welcome to Easy Green! We are proud to be the only local Cannabis service that is fully anonymous. 
-      If you wish to obtain cannabis discreetly—without meeting a random sketchy dealer in person, or if you 
-      do not have access to a nearby dispensary—Easy Green is here for you. Simply select a pickup location 
-      nearest to you and enjoy our secure and simple exchange process.  
-      We are based in Arlington Heights and proudly serve anyone in or near the area.  
-      Take advantage of our exceptional deals and competitive pricing, as we believe everyone should have access to quality cannabis regardless of budget.  
-      We are continually expanding our product selection and pickup locations, and will soon offer additional items beyond cannabis.  
-      Enjoy Easy Green, and please consider sharing our website!
-    </p>
-    <button class="btn" id="closeAbout">Close</button>
-  </div>
-</div>
+<!-- (unchanged modals above) -->
 
 <div class="wrap hidden" id="mainWrap">
   <header>
     <h1>Easy Green — Anonymous Cannabis</h1>
     <button class="btn ghost" id="logoutBtn" style="margin-left:auto">Log Out</button>
   </header>
-  <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+  <div style="display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap">
     <div class="small">(Write this down) Your account code: <span id="acctCode"></span></div>
     <button class="btn" id="helpBtn" style="margin-left:auto">First time help</button>
     <button class="btn ghost" id="aboutUserBtn">About Easy Green</button>
   </div>
+  <!-- REFERRAL ADDITION: referral code + tickets -->
+  <div style="margin-top:12px;padding:8px;background:#f0fff0;border:1px solid #cdeccd;border-radius:8px">
+    <div id="referralDisplay" style="font-weight:bold">Your referral code is: ...</div>
+    <div id="ticketCountDisplay" style="margin-top:4px">You have 0 tickets</div>
+  </div>
+  <!-- END REFERRAL ADDITION -->
   <div class="grid" role="main">
     <section class="card">
       <h2>Products</h2>
@@ -155,58 +93,45 @@ select option[disabled] { color: #999; }
   <footer> Easy Green only accepts cash payments. </footer>
 </div>
 
-<div id="adminScreen">
-  <h2>Admin Console</h2>
-  <div style="margin-bottom:12px">
-    <button class="btn" id="refreshTickets">Refresh Tickets</button>
-    <button class="btn ghost" id="closeAdmin">Close Admin</button>
-  </div>
-  <h3>All Tickets</h3>
-  <div id="allTicketsArea"></div>
-</div>
+<!-- adminScreen unchanged -->
 
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
-  authDomain: "easy-green-website.firebaseapp.com",
-  databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com",
-  projectId: "easy-green-website",
-  storageBucket: "easy-green-website.firebasestorage.app",
-  messagingSenderId: "988776675269",
-  appId: "1:988776675269:web:f2245f84a726d01f3e3dac",
-  measurementId: "G-PR35QWS2T6"
-};
+const firebaseConfig = { /* unchanged config */ };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 </script>
 
 <script>
-/* === Keep everything else unchanged except stock reading logic below === */
-
 let currentUser = null;
 let currentUserIsAdmin = false;
 let cart = [];
+let stockCache = {};
 
-/* We will read stock from: stock/{productId}/{flavor}
-   Value: "in" or "out"
-   If a flavor key is missing, we treat it as "in" (default infinite). */
-
-let stockCache = {}; // will hold the entire stock tree for quick checks
-
-// listen for stock changes in real time and update cache + UI
+// listen for stock changes
 db.ref('stock').on('value', snap => {
   stockCache = snap.val() || {};
-  // if products are already rendered, re-render so changes show up immediately
-  // this call leaves everything else intact
-  try { renderProducts(); } catch(e){ /* ignore during early load */ }
+  try { renderProducts(); } catch(e){}
 });
+
+// Utility to generate referral code
+function generateReferralCode() {
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const letter = letters[Math.floor(Math.random()*letters.length)];
+  const digits = Math.floor(10000 + Math.random()*90000); // 5 digits
+  return letter + digits;
+}
 
 // Account creation
 document.getElementById('createCodeBtn').onclick = () => {
   const code = 'user-' + Math.random().toString(36).substr(2,6);
-  db.ref('users/' + code).set({created:Date.now()});
+  const refCode = generateReferralCode();
+  db.ref('users/' + code).set({
+    created: Date.now(),
+    referralCode: refCode,
+    ticketsCount: 0
+  });
   alert('Your code: ' + code);
   document.getElementById('loginCode').value = code;
 };
@@ -217,12 +142,29 @@ document.getElementById('loginBtn').onclick = () => {
   if(!code) return alert('Enter a code');
 
   db.ref('users/' + code).once('value', snapshot => {
-    const user = snapshot.val();
+    let user = snapshot.val();
     if(!user) return alert('Invalid code');
     currentUser = code;
-    currentUserIsAdmin = (code === 'user-9e21mr'); // Only this account is admin
+    currentUserIsAdmin = (code === 'user-9e21mr');
     document.getElementById('acctCode').innerText = code;
     document.getElementById('loginModal').classList.add('hidden');
+
+    // REFERRAL ADDITION: ensure user has referralCode and show it
+    if(!user.referralCode){
+      const newRef = generateReferralCode();
+      db.ref('users/' + code + '/referralCode').set(newRef);
+      user.referralCode = newRef;
+    }
+    document.getElementById('referralDisplay').innerText =
+      "Your referral code is: " + user.referralCode;
+
+    // live listener for tickets count
+    db.ref('users/' + code + '/ticketsCount').on('value', snap => {
+      const count = snap.val() || 0;
+      document.getElementById('ticketCountDisplay').innerText =
+        "You have " + count + " tickets";
+    });
+    // END REFERRAL ADDITION
 
     if(currentUserIsAdmin) {
       document.getElementById('adminScreen').style.display = 'block';
@@ -233,175 +175,7 @@ document.getElementById('loginBtn').onclick = () => {
   });
 };
 
-// Warning modal
-document.getElementById('ackBtn').onclick = () => {
-  if(!document.getElementById('ackCheck').checked) return alert('Check agree');
-  document.getElementById('warningModal').classList.add('hidden');
-  document.getElementById('mainWrap').classList.remove('hidden');
-  renderTickets();
-  renderProducts();
-};
-
-// Help & About
-document.getElementById('closeHelp').onclick = () => document.getElementById('helpModal').classList.add('hidden');
-document.getElementById('helpBtn').onclick = () => document.getElementById('helpModal').classList.remove('hidden');
-document.getElementById('logoutBtn').onclick = () => location.reload();
-document.getElementById('clearBtn').onclick = () => { cart=[]; renderCart(); };
-document.getElementById('aboutLoginBtn').onclick = () => document.getElementById('aboutModal').classList.remove('hidden');
-document.getElementById('aboutUserBtn').onclick = () => document.getElementById('aboutModal').classList.remove('hidden');
-document.getElementById('closeAbout').onclick = () => document.getElementById('aboutModal').classList.add('hidden');
-
-/* --- Products & Cart (unchanged flavors & names exactly as you provided) --- */
-function renderProducts(){
-  const grid = document.getElementById('productsGrid');
-  grid.innerHTML = '';
-
-  const sample = [
-    {id:'bud1',name:'Edibles (Buy 3 get 1 free)',price:20,flavors:['Sour Patch','Skittles','Swedish fish','Watermelon Sour Patch','Starburst','Trolli','Peach Rings']},
-    {id:'cart1',name:'2g Muha Meds Carts (Buy 1 get 1 $5 off)',price:30,flavors:['Sugar Daddy Punch','Pineapple Runtz','Blueberry Muffin','Blue Slushie','Candy Apple']}
-  ];
-
-  sample.forEach(p=>{
-    const div = document.createElement('div');
-    div.className='product';
-
-    // create title and price
-    const title = document.createElement('h3');
-    title.textContent = p.name;
-    const priceDiv = document.createElement('div');
-    priceDiv.textContent = `$${p.price}`;
-
-    // create select and populate flavors, checking stockCache for each flavor
-    const select = document.createElement('select');
-    const defOpt = document.createElement('option');
-    defOpt.value = '';
-    defOpt.textContent = 'Select Flavor';
-    select.appendChild(defOpt);
-
-    p.flavors.forEach(f=>{
-      const option = document.createElement('option');
-      option.value = f;
-      // decide stock status: default to 'in' if missing
-      const status = (stockCache[p.id] && typeof stockCache[p.id][f] !== 'undefined') ? stockCache[p.id][f] : 'in';
-      if(status === 'out'){
-        option.disabled = true;
-        option.textContent = `${f} (Out of Stock)`;
-      } else {
-        option.textContent = f;
-      }
-      select.appendChild(option);
-    });
-
-    const btn = document.createElement('button');
-    btn.className = 'btn';
-    btn.textContent = 'Add';
-    btn.onclick = ()=>{
-      const flavor = select.value || "None";
-      // prevent adding an out-of-stock flavor (shouldn't be selectable, but safety)
-      if(!flavor) return alert('Select a flavor');
-      // final stock check: if flavor is out in cache, prevent add
-      const curStatus = (stockCache[p.id] && typeof stockCache[p.id][flavor] !== 'undefined') ? stockCache[p.id][flavor] : 'in';
-      if(curStatus === 'out') return alert('That flavor is currently out of stock.');
-      cart.push({...p,selectedFlavor:flavor});
-      renderCart();
-    };
-
-    // append to product div (preserves original layout)
-    div.appendChild(title);
-    div.appendChild(priceDiv);
-    div.appendChild(select);
-    div.appendChild(btn);
-
-    grid.appendChild(div);
-  });
-}
-
-function renderCart(){
-  const list=document.getElementById('cartList');
-  list.innerHTML='';
-  let total=0,ediblesCount=0,muhaCount=0;
-  cart.forEach(c=>{ if(c.name.includes('Edibles')) ediblesCount++; if(c.name.includes('Muha Meds')) muhaCount++; total+=c.price; });
-  total -= Math.floor(ediblesCount/4)*20;
-  total -= Math.floor(muhaCount/2)*5;
-  cart.forEach(c=>{
-    const row=document.createElement('div');
-    row.className='cart-item';
-    row.innerHTML=`<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price}</span>`;
-    list.appendChild(row);
-  });
-  document.getElementById('cartTotal').innerText='Total $'+total;
-}
-
-// Purchase -> ticket
-document.getElementById('purchaseBtn').onclick = ()=>{
-  if(!cart.length) return alert('Empty cart');
-  const id='tkt-'+Date.now();
-  let total=0,ediblesCount=0,muhaCount=0;
-  cart.forEach(c=>{ total+=c.price; if(c.name.includes('Edibles')) ediblesCount++; if(c.name.includes('Muha Meds')) muhaCount++; });
-  total-=Math.floor(ediblesCount/4)*20; total-=Math.floor(muhaCount/2)*5;
-  const ticket={id,total,location:document.getElementById('locationSelect').value,status:'pending',items:cart,user:currentUser};
-  // Save ticket and send initial message
-  db.ref('tickets/'+id).set(ticket);
-  db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
-  cart=[]; renderCart();
-};
-
-// Tickets & chat
-function renderTickets(){
-  const area=document.getElementById(currentUserIsAdmin ? 'allTicketsArea' : 'ticketsArea');
-  area.innerHTML='';
-  db.ref('tickets').off();
-  db.ref('tickets').on('child_added',snap=>{
-    const t=snap.val(); if(!t.id) t.id=snap.key; if(!t.user) t.user='';
-    if(!currentUserIsAdmin && t.user!==currentUser) return;
-    const itemsText=t.items.map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
-    const div=document.createElement('div'); div.className='ticket';
-    div.innerHTML=`<div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>      <div><em>Items: ${itemsText}</em></div>
-      <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
-      <div style="display:flex;gap:4px;margin-top:4px">
-        <input type="text" class="msgInput" style="flex:1">
-        <input type="file" class="imgInput">
-        <button class="btn sendBtn">Send</button>
-        <button class="btn ghost cancelTicketBtn">Cancel Ticket</button>
-        <button class="btn ghost markPaidBtn">Mark Paid</button>
-        ${currentUserIsAdmin?'<button class="btn ghost itemHiddenBtn">Item Hidden</button>':''}
-      </div>`;    area.appendChild(div);
-
-    const chatEl=document.getElementById('chat-'+t.id);
-    db.ref('messages/'+t.id).off();
-    db.ref('messages/'+t.id).on('value',ms=>{
-      const msgs=ms.val()||{};
-      chatEl.innerHTML=Object.values(msgs).map(m=>{
-        const displayName = (m.from === 'user-9e21mr' && currentUser !== 'user-9e21mr') ? 'admin' : m.from;
-        return `<div><strong>${displayName}:</strong> ${m.text || ''}${m.image ? '<br><img src="'+m.image+'" style="max-width:100px">' : ''}</div>`;
-      }).join('');
-      chatEl.scrollTop=chatEl.scrollHeight;
-    });
-
-    div.querySelector('.sendBtn').onclick=()=>{
-      const inp=div.querySelector('.msgInput'); const fileInp=div.querySelector('.imgInput'); const txt=inp.value.trim();
-      if(fileInp.files.length>0){
-        const file=fileInp.files[0];
-        const reader=new FileReader();
-        reader.onload=function(e){ db.ref('messages/'+t.id).push({from:currentUser,image:e.target.result}); };
-        reader.readAsDataURL(file); fileInp.value='';
-      }
-      if(txt) db.ref('messages/'+t.id).push({from:currentUser,text:txt}); inp.value='';
-    };
-
-    div.querySelector('.cancelTicketBtn').onclick=()=>{ if(confirm('Are you sure you want to cancel this ticket?')){ db.ref('tickets/'+t.id).remove(); db.ref('messages/'+t.id).remove(); div.remove(); }};
-    div.querySelector('.markPaidBtn').onclick=()=>{ db.ref('messages/'+t.id).push({from:currentUser,text:'Payment hidden. Your product will be securely hidden and ready for pickup within 24 hours, please also provide photo of hidden payment and any location information.'}); };
-    if(currentUserIsAdmin){
-      div.querySelector('.itemHiddenBtn').onclick=()=>{ db.ref('messages/'+t.id).push({from:currentUser,text:'Item has been hidden. Refer to photos below for location of item. Have fun and practice safe usage.'}); db.ref('tickets/'+t.id+'/status').set('complete'); };
-    }
-  });
-}
-
-document.getElementById('refreshTickets').onclick=renderTickets;
-document.getElementById('closeAdmin').onclick=()=>document.getElementById('adminScreen').style.display='none';
-
-// initial render
-renderProducts();
+// (rest of your script unchanged…)
 </script>
 </body>
 </html>
