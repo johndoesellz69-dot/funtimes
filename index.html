@@ -32,7 +32,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 .hidden{display:none !important;}
 #adminScreen{position:fixed;inset:0;background:rgba(0,0,0,.95);color:#111;padding:16px;overflow:auto;display:none;z-index:3000}
 #adminScreen h2{margin-top:0;color:var(--accent)}
-/* small visual for disabled options (browser support varies) */
 select option[disabled] { color: #999; }
 </style>
 </head>
@@ -90,22 +89,23 @@ select option[disabled] { color: #999; }
   </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
-  authDomain: "easy-green-website.firebaseapp.com",
-  databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com",
-  projectId: "easy-green-website",
-  storageBucket: "easy-green-website.firebasestorage.app",
-  messagingSenderId: "988776675269",
-  appId: "1:988776675269:web:f2245f84a726d01f3e3dac",
-  measurementId: "G-PR35QWS2T6"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-</script>
+<div id="aboutModal" class="modal-back hidden">
+  <div class="modal">
+    <h3>About Easy Green</h3>
+    <p>
+      Welcome to Easy Green! We are proud to be the only local Cannabis service that is fully anonymous. 
+      If you wish to obtain cannabis discreetly—without meeting a random sketchy dealer in person, or if you 
+      do not have access to a nearby dispensary—Easy Green is here for you. Simply select a pickup location 
+      nearest to you and enjoy our secure and simple exchange process.  
+      We are based in Arlington Heights and proudly serve anyone in or near the area.  
+      Take advantage of our exceptional deals and competitive pricing, as we believe everyone should have access to quality cannabis regardless of budget.  
+      We are continually expanding our product selection and pickup locations, and will soon offer additional items beyond cannabis.  
+      Enjoy Easy Green, and please consider sharing our website!
+    </p>
+    <button class="btn" id="closeAbout">Close</button>
+  </div>
+</div>
+
 <div class="wrap hidden" id="mainWrap">
   <header>
     <h1>Easy Green — Anonymous Cannabis</h1>
@@ -165,15 +165,30 @@ const db = firebase.database();
   <h3>All Tickets</h3>
   <div id="allTicketsArea"></div>
 </div>
-
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 <script>
+const firebaseConfig = {
+  apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
+  authDomain: "easy-green-website.firebaseapp.com",
+  databaseURL: "https://easy-green-website-default-rtdb.firebaseio.com",
+  projectId: "easy-green-website",
+  storageBucket: "easy-green-website.firebasestorage.app",
+  messagingSenderId: "988776675269",
+  appId: "1:988776675269:web:f2245f84a726d01f3e3dac",
+  measurementId: "G-PR35QWS2T6"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+/* === Global Variables === */
 let currentUser = null;
 let currentUserIsAdmin = false;
 let cart = [];
 let userRefCode = null;
-let stockCache = {}; // Part B support
+let stockCache = {};
 
-/* --- Generate Referral Code --- */
+/* --- Referral Code Generator --- */
 function generateReferralCode() {
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const letter = letters[Math.floor(Math.random() * letters.length)];
@@ -181,55 +196,54 @@ function generateReferralCode() {
   return letter + number;
 }
 
-/* --- Update Referral UI --- */
+/* --- Update referral display --- */
 function updateReferralUI() {
   document.getElementById('refCode').innerText = userRefCode || '--';
 }
 
-/* --- Update Ticket Count UI --- */
+/* --- Update ticket count display --- */
 function updateTicketCountUI() {
-  if(!currentUser) return;
-  db.ref('raffleTickets').orderByChild('owner').equalTo(userRefCode).on('value', snap=>{
+  if (!currentUser) return;
+  db.ref('raffleTickets').orderByChild('owner').equalTo(userRefCode).on('value', snap => {
     const tickets = snap.val() || {};
     const count = Object.keys(tickets).length;
     document.getElementById('ticketCount').innerText = count;
   });
 }
 
-/* --- Create Account --- */
+/* --- Login / Create Account --- */
 document.getElementById('createCodeBtn').onclick = () => {
-  const code = 'user-' + Math.random().toString(36).substr(2,6);
+  const code = 'user-' + Math.random().toString(36).substr(2, 6);
   const refCode = generateReferralCode();
-  db.ref('users/' + code).set({created:Date.now(), referralCode: refCode});
+  db.ref('users/' + code).set({ created: Date.now(), referralCode: refCode });
   alert('Your code: ' + code);
   document.getElementById('loginCode').value = code;
 };
 
-/* --- Login --- */
 document.getElementById('loginBtn').onclick = () => {
   const code = document.getElementById('loginCode').value.trim();
-  if(!code) return alert('Enter a code');
+  if (!code) return alert('Enter a code');
 
   db.ref('users/' + code).once('value', snapshot => {
     const user = snapshot.val();
-    if(!user) return alert('Invalid code');
+    if (!user) return alert('Invalid code');
+
     currentUser = code;
     currentUserIsAdmin = (code === 'user-9e21mr');
     document.getElementById('acctCode').innerText = code;
 
-    if(!user.referralCode){
+    if (!user.referralCode) {
       userRefCode = generateReferralCode();
       db.ref('users/' + code + '/referralCode').set(userRefCode);
     } else {
       userRefCode = user.referralCode;
     }
-    updateReferralUI();
 
+    updateReferralUI();
     document.getElementById('loginModal').classList.add('hidden');
 
-    if(currentUserIsAdmin) {
+    if (currentUserIsAdmin) {
       document.getElementById('adminScreen').style.display = 'block';
-      initAdminUI(); // Part E
     }
 
     document.getElementById('warningModal').classList.toggle('hidden', currentUserIsAdmin);
@@ -241,53 +255,78 @@ document.getElementById('loginBtn').onclick = () => {
 
 /* --- Warning Modal --- */
 document.getElementById('ackBtn').onclick = () => {
-  if(!document.getElementById('ackCheck').checked) return alert('Check agree');
+  if (!document.getElementById('ackCheck').checked) return alert('Check agree');
   document.getElementById('warningModal').classList.add('hidden');
   document.getElementById('mainWrap').classList.remove('hidden');
   renderTickets();
   renderProducts();
 };
 
-/* --- Help & About --- */
+/* --- Help & About Buttons --- */
 document.getElementById('closeHelp').onclick = () => document.getElementById('helpModal').classList.add('hidden');
 document.getElementById('helpBtn').onclick = () => document.getElementById('helpModal').classList.remove('hidden');
 document.getElementById('logoutBtn').onclick = () => location.reload();
-document.getElementById('clearBtn').onclick = () => { cart=[]; renderCart(); };
+document.getElementById('clearBtn').onclick = () => { cart = []; renderCart(); };
 document.getElementById('aboutLoginBtn').onclick = () => document.getElementById('aboutModal').classList.remove('hidden');
 document.getElementById('aboutUserBtn').onclick = () => document.getElementById('aboutModal').classList.remove('hidden');
 document.getElementById('closeAbout').onclick = () => document.getElementById('aboutModal').classList.add('hidden');
-/* --- Render Products (Part B) --- */
+/* --- Render Products with Stock Check --- */
 function renderProducts() {
   const grid = document.getElementById('productsGrid');
   grid.innerHTML = '';
-  db.ref('products').once('value', snap => {
-    const products = snap.val() || {};
-    for(const id in products){
-      const p = products[id];
-      stockCache[id] = p.stock || 0; // cache stock
 
-      const div = document.createElement('div');
-      div.className = 'product';
-      div.innerHTML = `
-        <h3>${p.name}</h3>
-        <div class="small">${p.description || ''}</div>
-        <div class="row">
-          <label>Qty</label>
-          <input type="number" min="1" max="${p.stock||0}" value="1" id="qty_${id}" ${p.stock===0?'disabled':''}>
-        </div>
-        <div class="small">Price: $${p.price}</div>
-        <button class="btn" id="add_${id}" ${p.stock===0?'disabled':''}>Add to Cart</button>
-      `;
-      grid.appendChild(div);
+  const sample = [
+    { id: 'bud1', name: 'Edibles (Buy 3 get 1 free)', price: 20, flavors: ['Sour Patch','Skittles','Swedish fish','Watermelon Sour Patch','Starburst','Trolli','Peach Rings'] },
+    { id: 'cart1', name: '2g Muha Meds Carts (Buy 1 get 1 $5 off)', price: 30, flavors: ['Sugar Daddy Punch','Pineapple Runtz','Blueberry Muffin','Blue Slushie','Candy Apple'] }
+  ];
 
-      document.getElementById('add_' + id).onclick = () => {
-        const qty = parseInt(document.getElementById('qty_' + id).value);
-        if(qty > stockCache[id]) return alert('Not enough stock');
-        const item = {id, name:p.name, qty, price:p.price};
-        cart.push(item);
-        renderCart();
-      };
-    }
+  sample.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'product';
+
+    const title = document.createElement('h3');
+    title.textContent = p.name;
+
+    const priceDiv = document.createElement('div');
+    priceDiv.textContent = `$${p.price}`;
+
+    const select = document.createElement('select');
+    const defOpt = document.createElement('option');
+    defOpt.value = '';
+    defOpt.textContent = 'Select Flavor';
+    select.appendChild(defOpt);
+
+    p.flavors.forEach(f => {
+      const option = document.createElement('option');
+      option.value = f;
+      option.textContent = f;
+      select.appendChild(option);
+    });
+
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.textContent = 'Add';
+
+    // Fetch stock status from Firebase cache
+    db.ref('stock/' + p.id).once('value', snap => {
+      const val = snap.val();
+      stockCache[p.id] = val || 'in';
+      if (stockCache[p.id] === 'out') btn.disabled = true;
+    });
+
+    btn.onclick = () => {
+      const flavor = select.value || 'None';
+      if (!flavor) return alert('Select a flavor');
+      if (stockCache[p.id] === 'out') return alert('Out of stock');
+      cart.push({ ...p, selectedFlavor: flavor });
+      renderCart();
+    };
+
+    div.appendChild(title);
+    div.appendChild(priceDiv);
+    div.appendChild(select);
+    div.appendChild(btn);
+    grid.appendChild(div);
   });
 }
 
@@ -295,206 +334,112 @@ function renderProducts() {
 function renderCart() {
   const list = document.getElementById('cartList');
   list.innerHTML = '';
-  let total = 0;
-  cart.forEach((item,i)=>{
-    total += item.qty*item.price;
-    const div = document.createElement('div');
-    div.className='cart-item';
-    div.innerHTML = `${item.name} x ${item.qty} = $${item.qty*item.price} <button class="btn ghost" id="remove_${i}">Remove</button>`;
-    list.appendChild(div);
-    document.getElementById('remove_' + i).onclick = ()=>{
-      cart.splice(i,1);
-      renderCart();
-    };
+  let total = 0, ediblesCount = 0, muhaCount = 0;
+  cart.forEach(c => {
+    if (c.name.includes('Edibles')) ediblesCount++;
+    if (c.name.includes('Muha Meds')) muhaCount++;
+    total += c.price;
   });
-  document.getElementById('cartTotal').innerText = 'Total: $' + total;
+  total -= Math.floor(ediblesCount / 4) * 20;
+  total -= Math.floor(muhaCount / 2) * 5;
+
+  cart.forEach(c => {
+    const row = document.createElement('div');
+    row.className = 'cart-item';
+    row.innerHTML = `<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price}</span>`;
+    list.appendChild(row);
+  });
+  document.getElementById('cartTotal').innerText = 'Total $' + total;
+}
+/* --- Purchase Button & Raffle Ticket Creation --- */
+let raffleCounter = 1; // Counter for numbering raffle tickets
+
+function createRaffleTicket(userCode) {
+  const ticketId = 'raffle-' + raffleCounter++;
+  const ticket = {
+    id: ticketId,
+    total: 0,
+    location: 'RAFFLE',
+    status: 'winner',
+    items: [],
+    user: userCode
+  };
+  db.ref('tickets/' + ticketId).set(ticket);
+  db.ref('messages/' + ticketId).push({ from: currentUser, text: 'RAFFLE WINNER! You have won the raffle.' });
+  return ticketId;
 }
 
-/* --- Create Raffle Ticket --- */
-function createRaffleTicket(owner, items, location){
-  return db.ref('raffleTickets').push({
-    owner,
-    items,
-    location,
-    status: 'pending',
-    created: Date.now()
-  });
-}
-
-/* --- Purchase Button (Part C) --- */
 document.getElementById('purchaseBtn').onclick = () => {
-  if(cart.length===0) return alert('Cart empty');
-  const location = document.getElementById('locationSelect').value;
-  createRaffleTicket(userRefCode, cart, location).then(()=>{
-    alert('Purchase complete! Ticket generated.');
-    cart=[];
-    renderCart();
-    updateTicketCountUI();
-    renderTickets();
+  if (!cart.length) return alert('Empty cart');
+
+  let total = 0, ediblesCount = 0, muhaCount = 0;
+  cart.forEach(c => {
+    total += c.price;
+    if (c.name.includes('Edibles')) ediblesCount++;
+    if (c.name.includes('Muha Meds')) muhaCount++;
   });
+  total -= Math.floor(ediblesCount / 4) * 20;
+  total -= Math.floor(muhaCount / 2) * 5;
+
+  const ticketId = 'tkt-' + Date.now();
+  const ticket = {
+    id: ticketId,
+    total: total,
+    location: document.getElementById('locationSelect').value,
+    status: 'pending',
+    items: cart,
+    user: currentUser
+  };
+
+  db.ref('tickets/' + ticketId).set(ticket);
+  db.ref('messages/' + ticketId).push({ from: currentUser, text: 'Ticket created' });
+
+  // Do NOT add raffle ticket yet; only add when admin marks item as hidden + complete order
+  cart = [];
+  renderCart();
 };
-/* --- Show Item Received / Referral (Part D) --- */
-function showItemReceived(ticketId){
-  const modalBack = document.createElement('div');
-  modalBack.className='modal-back';
-  modalBack.style.zIndex=2000;
-  modalBack.innerHTML=`
-    <div class="modal">
-      <h3>Item Received</h3>
-      <p>Did a friend refer you?</p>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="btn" id="yesReferralBtn">Yes</button>
-        <button class="btn ghost" id="noReferralBtn">No</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modalBack);
 
-  modalBack.querySelector('#noReferralBtn').onclick=()=>{
-    modalBack.remove();
-    db.ref('tickets/'+ticketId).remove();
-  };
+/* --- Admin: Item Hidden + Complete Order --- */
+function initAdminUI() {
+  document.querySelectorAll('.itemHiddenBtn').forEach(btn => {
+    btn.onclick = () => {
+      const ticketId = btn.closest('.ticket').querySelector('strong').innerText;
+      db.ref('messages/' + ticketId).push({ from: currentUser, text: 'Item has been hidden. Refer to photos below for location of item.' });
+      db.ref('tickets/' + ticketId + '/status').set('readyForReceived');
+    };
+  });
 
-  modalBack.querySelector('#yesReferralBtn').onclick=()=>{
-    const entryDiv=document.createElement('div');
-    entryDiv.style.marginTop='12px';
-    entryDiv.innerHTML=`
-      <label>Enter referral code: <input type="text" id="friendCode"></label>
-      <div id="refWarning" style="color:red;font-size:0.85rem;margin-top:4px"></div>
-      <button class="btn" id="submitReferral">Submit</button>
-    `;
-    modalBack.querySelector('.modal').appendChild(entryDiv);
+  const completeBtn = document.createElement('button');
+  completeBtn.className = 'btn';
+  completeBtn.innerText = 'Complete Order';
+  document.getElementById('allTicketsArea').parentNode.insertBefore(completeBtn, document.getElementById('allTicketsArea'));
 
-    modalBack.querySelector('#submitReferral').onclick=()=>{
-      const codeInput = modalBack.querySelector('#friendCode').value.trim();
-      const warning = modalBack.querySelector('#refWarning');
-      if(!codeInput) return warning.innerText='Enter a code';
-      if(codeInput===userRefCode) return warning.innerText='You cannot use your own code';
-
-      // Part D: Add raffle ticket to friend
-      createRaffleTicket(codeInput, [], 'REFERRAL').then(()=>{
-        modalBack.remove();
-        db.ref('tickets/'+ticketId).remove();
+  completeBtn.onclick = () => {
+    db.ref('tickets').once('value', snap => {
+      const tickets = snap.val() || {};
+      Object.keys(tickets).forEach(tid => {
+        const t = tickets[tid];
+        if (t.status === 'readyForReceived') {
+          db.ref('tickets/' + tid + '/status').set('complete');
+          // Give user their raffle ticket for this purchase
+          createRaffleTicket(t.user);
+        }
       });
-    };
-  };
-}
-
-/* --- Render Tickets with Chat --- */
-function renderTickets(){
-  const area = document.getElementById(currentUserIsAdmin ? 'allTicketsArea' : 'ticketsArea');
-  area.innerHTML='';
-  db.ref('tickets').on('child_added', snap=>{
-    const t = snap.val();
-    if(!t.user) t.user='';
-    if(!currentUserIsAdmin && t.user!==currentUser) return;
-
-    const div = document.createElement('div');
-    div.className='ticket';
-    const itemsText = (t.items||[]).map(i=>`${i.name} x ${i.qty}`).join(', ');
-    div.innerHTML=`
-      <div><strong>${t.id}</strong> @ ${t.location} | Status ${t.status}</div>
-      <div><em>Items: ${itemsText}</em></div>
-      <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
-      <div style="display:flex;gap:4px;margin-top:4px">
-        <input type="text" class="msgInput" style="flex:1">
-        <input type="file" class="imgInput">
-        <button class="btn sendBtn">Send</button>
-        <button class="btn ghost cancelTicketBtn">Cancel Ticket</button>
-        <button class="btn ghost markPaidBtn">Mark Paid</button>
-        ${currentUserIsAdmin?'<button class="btn ghost itemHiddenBtn">Item Hidden</button>':''}
-      </div>
-    `;
-    area.appendChild(div);
-
-    const chatEl = document.getElementById('chat-'+t.id);
-    db.ref('messages/'+t.id).on('value', ms=>{
-      const msgs = ms.val()||{};
-      chatEl.innerHTML = Object.values(msgs).map(m=>{
-        const displayName=(m.from==='user-9e21mr' && currentUser!=='user-9e21mr')?'admin':m.from;
-        return `<div><strong>${displayName}:</strong> ${m.text||''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`;
-      }).join('');
-      chatEl.scrollTop=chatEl.scrollHeight;
     });
+  };
 
-    div.querySelector('.sendBtn').onclick=()=>{
-      const inp = div.querySelector('.msgInput');
-      const fileInp = div.querySelector('.imgInput');
-      const txt = inp.value.trim();
-
-      if(fileInp.files.length>0){
-        const file = fileInp.files[0];
-        const reader = new FileReader();
-        reader.onload=function(e){
-          db.ref('messages/'+t.id).push({from:currentUser,image:e.target.result});
-        };
-        reader.readAsDataURL(file);
-        fileInp.value='';
-      }
-
-      if(txt) db.ref('messages/'+t.id).push({from:currentUser,text:txt});
-      inp.value='';
-    };
-
-    div.querySelector('.cancelTicketBtn').onclick=()=>{
-      if(confirm('Are you sure you want to cancel this ticket?')){
-        db.ref('tickets/'+t.id).remove();
-        db.ref('messages/'+t.id).remove();
-        div.remove();
-      }
-    };
-
-    div.querySelector('.markPaidBtn').onclick=()=>{
-      db.ref('messages/'+t.id).push({from:currentUser,text:'Payment hidden. Product will be securely hidden and ready for pickup.'});
-    };
-
-    if(currentUserIsAdmin){
-      div.querySelector('.itemHiddenBtn').onclick=()=>{
-        db.ref('messages/'+t.id).push({from:currentUser,text:'Item has been hidden. Refer to photos below for location.'});
-        db.ref('tickets/'+t.id+'/status').set('readyForReceived'); // Admin hides item
-      };
-    }
-  });
-}
-/* --- Admin UI & Buttons (Part E & F) --- */
-function initAdminUI(){
-  if(!currentUserIsAdmin) return;
-
-  const adminButtonsDiv = document.getElementById('refreshTickets').parentNode;
-
-  // Complete Order Button per ticket
-  db.ref('tickets').on('child_added', snap=>{
-    const t = snap.val();
-    const ticketDiv = document.querySelector(`.ticket div strong:contains("${t.id}")`)?.parentNode?.parentNode;
-    if(!ticketDiv) return;
-
-    if(!ticketDiv.querySelector('.completeOrderBtn')){
-      const btn = document.createElement('button');
-      btn.className = 'btn completeOrderBtn';
-      btn.innerText = 'Complete Order';
-      btn.style.marginTop = '6px';
-      ticketDiv.appendChild(btn);
-
-      btn.onclick = ()=>{
-        db.ref('tickets/'+t.id+'/status').set('complete');
-        db.ref('raffleTickets').push({owner:t.user, code:userRefCode}); // Give raffle ticket now
-        btn.disabled = true;
-        btn.style.background='#ccc';
-      };
-    }
-  });
-
-  // Raffle Winner Button
+  // Admin Raffle Winner Button
   const raffleBtn = document.createElement('button');
-  raffleBtn.className='btn';
-  raffleBtn.innerText='Raffle Winner';
+  raffleBtn.className = 'btn';
+  raffleBtn.innerText = 'Raffle Winner';
+  const adminButtonsDiv = document.getElementById('refreshTickets').parentNode;
   adminButtonsDiv.appendChild(raffleBtn);
 
-  raffleBtn.onclick=()=>{
+  raffleBtn.onclick = () => {
     const modalBack = document.createElement('div');
-    modalBack.className='modal-back';
-    modalBack.style.zIndex=2000;
-    modalBack.innerHTML=`
+    modalBack.className = 'modal-back';
+    modalBack.style.zIndex = 2000;
+    modalBack.innerHTML = `
       <div class="modal">
         <h3>Raffle Winner</h3>
         <label>Enter user code: <input type="text" id="winnerCodeInput"></label>
@@ -506,114 +451,22 @@ function initAdminUI(){
     `;
     document.body.appendChild(modalBack);
 
-    modalBack.querySelector('#closeWinnerModal').onclick = ()=>modalBack.remove();
-
-    modalBack.querySelector('#submitWinnerBtn').onclick = ()=>{
+    modalBack.querySelector('#closeWinnerModal').onclick = () => modalBack.remove();
+    modalBack.querySelector('#submitWinnerBtn').onclick = () => {
       const winnerCode = modalBack.querySelector('#winnerCodeInput').value.trim();
-      if(!winnerCode) return alert('Enter a user code');
-
-      const ticketId = 'raffle-' + Date.now();
-      const ticket = {id:ticketId,total:0,location:'RAFFLE',status:'winner',items:[],user:winnerCode};
-      db.ref('tickets/'+ticketId).set(ticket);
-      db.ref('messages/'+ticketId).push({from:currentUser,text:'RAFFLE WINNER! You have won the raffle.'});
+      if (!winnerCode) return alert('Enter a user code');
+      createRaffleTicket(winnerCode);
       alert('Raffle winner ticket created for ' + winnerCode);
       modalBack.remove();
     };
   };
 }
-
-// Call Admin UI init when admin logs in
-if(currentUserIsAdmin){
-  document.getElementById('adminScreen').style.display='block';
-  initAdminUI();
-}
-/* --- Part B: Updated renderProducts() with stock check --- */
-let stockCache = {}; // cache for product stock from Firebase
-
-function renderProducts(){
-  const grid = document.getElementById('productsGrid');
-  grid.innerHTML='';
-
-  // Sample products (keep original product data)
-  const sample = [
-    {id:'bud1',name:'Edibles (Buy 3 get 1 free)',price:20,flavors:['Sour Patch','Skittles','Swedish fish','Watermelon Sour Patch','Starburst','Trolli','Peach Rings']},
-    {id:'cart1',name:'2g Muha Meds Carts (Buy 1 get 1 $5 off)',price:30,flavors:['Sugar Daddy Punch','Pineapple Runtz','Blueberry Muffin','Blue Slushie','Candy Apple']}
-  ];
-
-  // Listen for stock updates
-  db.ref('stock').on('value', snap=>{
-    stockCache = snap.val() || {};
-  });
-
-  sample.forEach(p=>{
-    const div = document.createElement('div');
-    div.className='product';
-
-    const title = document.createElement('h3');
-    title.textContent = p.name;
-
-    // Check stock
-    const isOut = stockCache[p.id]==='out';
-    const priceDiv = document.createElement('div');
-    priceDiv.textContent=`$${p.price}` + (isOut ? ' (Out of Stock)' : '');
-
-    const select = document.createElement('select');
-    const defOpt = document.createElement('option');
-    defOpt.value=''; defOpt.textContent='Select Flavor'; select.appendChild(defOpt);
-    p.flavors.forEach(f=>{
-      const option=document.createElement('option'); option.value=f; option.textContent=f;
-      select.appendChild(option);
-    });
-
-    const btn=document.createElement('button');
-    btn.className='btn'; btn.textContent='Add';
-    btn.disabled = isOut;
-    btn.onclick=()=>{
-      const flavor = select.value || 'None';
-      if(!flavor) return alert('Select a flavor');
-      cart.push({...p,selectedFlavor:flavor});
-      renderCart();
-    };
-
-    div.appendChild(title);
-    div.appendChild(priceDiv);
-    div.appendChild(select);
-    div.appendChild(btn);
-
-    grid.appendChild(div);
-  });
-}
-
-/* --- Part C: Updated purchaseBtn onclick with numbered raffle tickets --- */
-let raffleCounter = 0; // numbered raffle tickets
-
-document.getElementById('purchaseBtn').onclick=()=>{
-  if(!cart.length) return alert('Empty cart');
-
-  const ticketId='tkt-'+Date.now();
-  let total=0,ediblesCount=0,muhaCount=0;
-  cart.forEach(c=>{ total+=c.price; if(c.name.includes('Edibles')) ediblesCount++; if(c.name.includes('Muha Meds')) muhaCount++; });
-  total-=Math.floor(ediblesCount/4)*20;
-  total-=Math.floor(muhaCount/2)*5;
-
-  const ticket = {id:ticketId,total:total,location:document.getElementById('locationSelect').value,status:'pending',items:cart,user:currentUser};
-
-  // Save ticket
-  db.ref('tickets/'+ticketId).set(ticket);
-  db.ref('messages/'+ticketId).push({from:currentUser,text:'Ticket created'});
-
-  // Increment raffle counter and create raffle ticket with number
-  raffleCounter++;
-  db.ref('raffleTickets/'+raffleCounter).set({owner:currentUser,code:userRefCode});
-
-  cart=[]; renderCart();
-};
-/* --- Part D: Update showItemReceived referral submission --- */
-function showItemReceived(ticketId){
+/* --- Item Received & Referral Logic --- */
+function showItemReceived(ticketId) {
   const modalBack = document.createElement('div');
-  modalBack.className='modal-back';
-  modalBack.style.zIndex=2000;
-  modalBack.innerHTML=`
+  modalBack.className = 'modal-back';
+  modalBack.style.zIndex = 2000;
+  modalBack.innerHTML = `
     <div class="modal">
       <h3>Item Received</h3>
       <p>Did a friend refer you?</p>
@@ -625,124 +478,150 @@ function showItemReceived(ticketId){
   `;
   document.body.appendChild(modalBack);
 
-  modalBack.querySelector('#noReferralBtn').onclick=()=>{
+  modalBack.querySelector('#noReferralBtn').onclick = () => {
     modalBack.remove();
-    db.ref('tickets/'+ticketId).remove();
+    db.ref('tickets/' + ticketId).remove();
   };
 
-  modalBack.querySelector('#yesReferralBtn').onclick=()=>{
-    const entryDiv=document.createElement('div');
-    entryDiv.style.marginTop='12px';
-    entryDiv.innerHTML=`
+  modalBack.querySelector('#yesReferralBtn').onclick = () => {
+    const entryDiv = document.createElement('div');
+    entryDiv.style.marginTop = '12px';
+    entryDiv.innerHTML = `
       <label>Enter referral code: <input type="text" id="friendCode"></label>
       <div id="refWarning" style="color:red;font-size:0.85rem;margin-top:4px"></div>
       <button class="btn" id="submitReferral">Submit</button>
     `;
     modalBack.querySelector('.modal').appendChild(entryDiv);
 
-    modalBack.querySelector('#submitReferral').onclick=()=>{
+    modalBack.querySelector('#submitReferral').onclick = () => {
       const codeInput = modalBack.querySelector('#friendCode').value.trim();
       const warning = modalBack.querySelector('#refWarning');
-      if(!codeInput) return warning.innerText='Enter a code';
-      if(codeInput===userRefCode) return warning.innerText='You cannot use your own code';
 
-      // Only now give the referred friend a raffle ticket
-      raffleCounter++;
-      db.ref('raffleTickets/'+raffleCounter).set({owner: codeInput, referredBy: userRefCode});
+      if (!codeInput) return warning.innerText = 'Enter a code';
+      if (codeInput === userRefCode) return warning.innerText = 'You cannot use your own code';
+
+      // Give friend their raffle ticket
+      createRaffleTicket(codeInput);
 
       modalBack.remove();
-      db.ref('tickets/'+ticketId).remove();
+      db.ref('tickets/' + ticketId).remove();
     };
   };
 }
-/* --- Part E: Admin Complete Order Button & initAdminUI --- */
-function initAdminUI(){
-  if(!currentUserIsAdmin) return;
-
-  // Insert per-ticket Complete Order buttons in allTicketsArea
-  const ticketsArea = document.getElementById('allTicketsArea');
-
-  db.ref('tickets').on('child_added', snap=>{
-    const t = snap.val();
-    if(!t.id) t.id = snap.key;
-
-    let ticketDiv = document.getElementById('admin-ticket-'+t.id);
-    if(!ticketDiv){
-      ticketDiv = document.createElement('div');
-      ticketDiv.id = 'admin-ticket-'+t.id;
-      ticketDiv.className = 'ticket';
-      const itemsText = (t.items||[]).map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
-      ticketDiv.innerHTML=`
-        <div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
-        <div><em>Items: ${itemsText}</em></div>
-        <button class="btn completeOrderBtn" style="margin-top:6px;background:#ccc" disabled>Complete Order</button>
-      `;
-      ticketsArea.appendChild(ticketDiv);
-    }
-
-    // Wire Complete Order button
-    const btn = ticketDiv.querySelector('.completeOrderBtn');
-    db.ref('tickets/'+t.id+'/readyForReceived').on('value', snap=>{
-      const val = snap.val();
-      if(val){ btn.disabled=false; btn.style.background='green'; }
-      else { btn.disabled=true; btn.style.background='#ccc'; }
-    });
-
-    btn.onclick=()=>{
-      // Only allow giving raffle ticket if item is marked retrieved
-      raffleCounter++;
-      db.ref('raffleTickets/'+raffleCounter).set({owner: t.user, referredBy: t.user}); // Self-entry ticket
-      db.ref('tickets/'+t.id).remove();
-      ticketDiv.remove();
-    };
-  });
-}
-
-// Call initAdminUI after showing admin screen
-// Replace this line in your login handler:
-// document.getElementById('adminScreen').style.display = 'block';
-// With this:
-document.getElementById('adminScreen').style.display = 'block';
-initAdminUI();
-/* --- Part F: User-side Render Tickets with Item Received --- */
-function renderTicketsWithReceived(){
+/* --- Render Tickets with Item Received Button & Admin Complete Order --- */
+function renderTicketsWithReceived() {
   const area = document.getElementById('ticketsArea');
-  area.innerHTML='';
+  area.innerHTML = '';
 
-  db.ref('tickets').on('child_added', snap=>{
+  db.ref('tickets').on('child_added', snap => {
     const t = snap.val();
-    if(!t.user || t.user !== currentUser) return;
+    if (!t.user || t.user !== currentUser) return;
 
     const div = document.createElement('div');
-    div.className='ticket';
-    div.id = 'user-ticket-' + t.id;
-
-    const itemsText = (t.items||[]).map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
-
-    div.innerHTML=`
+    div.className = 'ticket';
+    const itemsText = t.items.map(i => `${i.name} (${i.selectedFlavor})`).join(', ');
+    div.innerHTML = `
       <div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
       <div><em>Items: ${itemsText}</em></div>
       <button class="btn itemReceivedBtn" style="margin-top:6px;background:#ccc" disabled>Item Received</button>
     `;
-
     area.appendChild(div);
 
-    const btn = div.querySelector('.itemReceivedBtn');
-
-    // Enable button if admin marked ticket ready
-    db.ref('tickets/'+t.id+'/readyForReceived').on('value', snap=>{
+    // Listen if readyForReceived turns true
+    db.ref('tickets/' + t.id + '/readyForReceived').on('value', snap => {
       const val = snap.val();
-      if(val){ btn.disabled=false; btn.style.background='green'; }
-      else { btn.disabled=true; btn.style.background='#ccc'; }
+      const btn = div.querySelector('.itemReceivedBtn');
+      if (val) { btn.disabled = false; btn.style.background = 'green'; }
+      else { btn.disabled = true; btn.style.background = '#ccc'; }
     });
 
-    btn.onclick = () => showItemReceived(t.id);
+    div.querySelector('.itemReceivedBtn').onclick = () => showItemReceived(t.id);
   });
 }
 
-// Initial call after login
-renderTicketsWithReceived();
-  </script/>
-  </base>
-  </html>
-  
+/* --- Admin UI Init & Complete Order Button --- */
+function initAdminUI() {
+  // Add Complete Order Button
+  const compBtn = document.createElement('button');
+  compBtn.className = 'btn';
+  compBtn.innerText = 'Complete Order';
+  const allTicketsArea = document.getElementById('allTicketsArea');
+  allTicketsArea.parentNode.insertBefore(compBtn, allTicketsArea);
+
+  compBtn.onclick = () => {
+    db.ref('tickets').once('value', snap => {
+      const tickets = snap.val() || {};
+      Object.keys(tickets).forEach(tid => {
+        db.ref('tickets/' + tid + '/readyForReceived').set(true);
+      });
+    });
+  };
+}
+
+// Call admin UI init when admin logs in
+if (currentUserIsAdmin) {
+  initAdminUI();
+}
+/* === Admin: Raffle Winner Button & Sequential Raffle Numbers === */
+if (currentUserIsAdmin) {
+  const raffleBtn = document.createElement('button');
+  raffleBtn.className = 'btn';
+  raffleBtn.innerText = 'Raffle Winner';
+  const adminButtonsDiv = document.getElementById('refreshTickets').parentNode;
+  adminButtonsDiv.appendChild(raffleBtn);
+
+  // Track raffle numbers sequentially
+  let raffleCounter = 1;
+  db.ref('raffleTickets').once('value', snap => {
+    const allTickets = snap.val() || {};
+    const maxNum = Object.values(allTickets)
+      .map(t => t.number || 0)
+      .reduce((a, b) => Math.max(a, b), 0);
+    raffleCounter = maxNum + 1;
+  });
+
+  raffleBtn.onclick = () => {
+    const modalBack = document.createElement('div');
+    modalBack.className = 'modal-back';
+    modalBack.style.zIndex = 2000;
+    modalBack.innerHTML = `
+      <div class="modal">
+        <h3>Raffle Winner</h3>
+        <label>Enter user code: <input type="text" id="winnerCodeInput"></label>
+        <div style="margin-top:8px;display:flex;justify-content:flex-end;gap:8px">
+          <button class="btn" id="submitWinnerBtn">Submit</button>
+          <button class="btn ghost" id="closeWinnerModal">Close</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modalBack);
+
+    modalBack.querySelector('#closeWinnerModal').onclick = () => modalBack.remove();
+
+    modalBack.querySelector('#submitWinnerBtn').onclick = () => {
+      const winnerCode = modalBack.querySelector('#winnerCodeInput').value.trim();
+      if (!winnerCode) return alert('Enter a user code');
+
+      // Sequential raffle number assignment
+      const ticketId = 'raffle-' + Date.now();
+      const ticket = {
+        id: ticketId,
+        total: 0,
+        location: 'RAFFLE',
+        status: 'winner',
+        items: [],
+        user: winnerCode,
+        raffleNumber: raffleCounter
+      };
+      db.ref('tickets/' + ticketId).set(ticket);
+      db.ref('messages/' + ticketId).push({ from: currentUser, text: 'RAFFLE WINNER! You have won the raffle.' });
+
+      // Also add to raffleTickets node for proper numbering
+      db.ref('raffleTickets').push({ owner: winnerCode, number: raffleCounter });
+
+      alert('Raffle winner ticket created for ' + winnerCode + ' with raffle number ' + raffleCounter);
+      raffleCounter++; // increment for next raffle
+      modalBack.remove();
+    };
+  };
+}
