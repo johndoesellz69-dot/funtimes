@@ -1,4 +1,4 @@
-<!doctype html> 
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -32,7 +32,6 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 .hidden{display:none !important;}
 #adminScreen{position:fixed;inset:0;background:rgba(0,0,0,.95);color:#111;padding:16px;overflow:auto;display:none;z-index:3000}
 #adminScreen h2{margin-top:0;color:var(--accent)}
-/* small visual for disabled options (browser support varies) */
 select option[disabled] { color: #999; }
 </style>
 </head>
@@ -93,16 +92,7 @@ select option[disabled] { color: #999; }
 <div id="aboutModal" class="modal-back hidden">
   <div class="modal">
     <h3>About Easy Green</h3>
-    <p>
-      Welcome to Easy Green! We are proud to be the only local Cannabis service that is fully anonymous. 
-      If you wish to obtain cannabis discreetly—without meeting a random sketchy dealer in person, or if you 
-      do not have access to a nearby dispensary—Easy Green is here for you. Simply select a pickup location 
-      nearest to you and enjoy our secure and simple exchange process.  
-      We are based in Arlington Heights and proudly serve anyone in or near the area.  
-      Take advantage of our exceptional deals and competitive pricing, as we believe everyone should have access to quality cannabis regardless of budget.  
-      We are continually expanding our product selection and pickup locations, and will soon offer additional items beyond cannabis.  
-      Enjoy Easy Green, and please consider sharing our website!
-    </p>
+    <p> Welcome to Easy Green! We are proud to be the only local Cannabis service that is fully anonymous. If you wish to obtain cannabis discreetly—without meeting a random sketchy dealer in person, or if you do not have access to a nearby dispensary—Easy Green is here for you. Simply select a pickup location nearest to you and enjoy our secure and simple exchange process. We are based in Arlington Heights and proudly serve anyone in or near the area. Take advantage of our exceptional deals and competitive pricing, as we believe everyone should have access to quality cannabis regardless of budget. We are continually expanding our product selection and pickup locations, and will soon offer additional items beyond cannabis. Enjoy Easy Green, and please consider sharing our website! </p>
     <button class="btn" id="closeAbout">Close</button>
   </div>
 </div>
@@ -112,16 +102,21 @@ select option[disabled] { color: #999; }
     <h1>Easy Green — Anonymous Cannabis</h1>
     <button class="btn ghost" id="logoutBtn" style="margin-left:auto">Log Out</button>
   </header>
+
   <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
     <div class="small">(Write this down) Your account code: <span id="acctCode"></span></div>
+    <div class="small" style="margin-left:12px">Your referral code: <span id="refCode">--</span></div>
+    <div class="small" style="margin-left:12px">You have <span id="ticketCount">0</span> tickets</div>
     <button class="btn" id="helpBtn" style="margin-left:auto">First time help</button>
     <button class="btn ghost" id="aboutUserBtn">About Easy Green</button>
   </div>
+
   <div class="grid" role="main">
     <section class="card">
       <h2>Products</h2>
       <div class="products" id="productsGrid"></div>
     </section>
+
     <aside class="card">
       <h2>Cart & Pickup</h2>
       <div>
@@ -138,6 +133,7 @@ select option[disabled] { color: #999; }
           <option value="Centennial Park">Centennial Park</option>
         </select>
       </div>
+
       <div style="margin-top:12px">
         <div id="cartList"></div>
         <div class="cart-total small" id="cartTotal"></div>
@@ -146,13 +142,17 @@ select option[disabled] { color: #999; }
         <button class="btn" id="purchaseBtn">Purchase</button>
         <button class="btn ghost" id="clearBtn">Clear</button>
       </div>
+
       <div style="margin-top:12px">
         <div class="small">Tickets </div>
         <div id="ticketsArea" style="margin-top:8px"></div>
       </div>
     </aside>
   </div>
-  <footer> Easy Green only accepts cash payments. </footer>
+
+  <footer>
+    Easy Green only accepts cash payments.
+  </footer>
 </div>
 
 <div id="adminScreen">
@@ -167,7 +167,11 @@ select option[disabled] { color: #999; }
 
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
 <script>
+/* =========================
+   Firebase init
+   ========================= */
 const firebaseConfig = {
   apiKey: "AIzaSyA1JdHEgkIQKzX_FKZKNgLW6YEqAqMiRDo",
   authDomain: "easy-green-website.firebaseapp.com",
@@ -180,60 +184,81 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-</script>
 
-<script>
-/* === Keep everything else unchanged except stock reading logic below === */
-
+/* =========================
+   App state
+   ========================= */
 let currentUser = null;
 let currentUserIsAdmin = false;
 let cart = [];
+let userReferralCode = null; // stores the logged-in user's referral code (string)
+let stockMap = {}; // flavor -> "in" or "out"
 
-/* We will read stock from: stock/{productId}/{flavor}
-   Value: "in" or "out"
-   If a flavor key is missing, we treat it as "in" (default infinite). */
+/* =========================
+   Utility: referral code generator
+   ========================= */
+function generateReferralCode() {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const letter = letters[Math.floor(Math.random() * letters.length)];
+  const number = Math.floor(10000 + Math.random() * 90000); // 5 digit
+  return letter + number;
+}
 
-let stockCache = {}; // will hold the entire stock tree for quick checks
-
-// listen for stock changes in real time and update cache + UI
-db.ref('stock').on('value', snap => {
-  stockCache = snap.val() || {};
-  // if products are already rendered, re-render so changes show up immediately
-  // this call leaves everything else intact
-  try { renderProducts(); } catch(e){ /* ignore during early load */ }
-});
-
-// Account creation
+/* =========================
+   Account creation & login
+   ========================= */
 document.getElementById('createCodeBtn').onclick = () => {
   const code = 'user-' + Math.random().toString(36).substr(2,6);
-  db.ref('users/' + code).set({created:Date.now()});
+  const refCode = generateReferralCode();
+  db.ref('users/' + code).set({created:Date.now(), referralCode: refCode});
   alert('Your code: ' + code);
   document.getElementById('loginCode').value = code;
 };
 
-// Login
 document.getElementById('loginBtn').onclick = () => {
   const code = document.getElementById('loginCode').value.trim();
   if(!code) return alert('Enter a code');
-
   db.ref('users/' + code).once('value', snapshot => {
     const user = snapshot.val();
     if(!user) return alert('Invalid code');
     currentUser = code;
-    currentUserIsAdmin = (code === 'user-9e21mr'); // Only this account is admin
+    currentUserIsAdmin = (code === 'user-9e21mr'); // admin account
     document.getElementById('acctCode').innerText = code;
-    document.getElementById('loginModal').classList.add('hidden');
 
-    if(currentUserIsAdmin) {
-      document.getElementById('adminScreen').style.display = 'block';
+    // ensure referral code exists
+    if(!user.referralCode){
+      const newRef = generateReferralCode();
+      db.ref('users/' + code + '/referralCode').set(newRef).then(()=> {
+        userReferralCode = newRef;
+        updateReferralUI();
+        postLoginShow();
+      });
+    } else {
+      userReferralCode = user.referralCode;
+      updateReferralUI();
+      postLoginShow();
     }
-
-    document.getElementById('warningModal').classList.toggle('hidden', currentUserIsAdmin);
-    renderTickets();
   });
 };
 
-// Warning modal
+function postLoginShow(){
+  document.getElementById('loginModal').classList.add('hidden');
+  if(currentUserIsAdmin) {
+    document.getElementById('adminScreen').style.display = 'block';
+    document.getElementById('warningModal').classList.add('hidden');
+    document.getElementById('mainWrap').classList.remove('hidden');
+  } else {
+    document.getElementById('warningModal').classList.toggle('hidden', false);
+  }
+  // render things
+  renderProducts();
+  renderTickets(); // both admin & user rendering
+  updateRaffleTicketCountUI();
+}
+
+/* =========================
+   Warning modal ack
+   ========================= */
 document.getElementById('ackBtn').onclick = () => {
   if(!document.getElementById('ackCheck').checked) return alert('Check agree');
   document.getElementById('warningModal').classList.add('hidden');
@@ -242,7 +267,9 @@ document.getElementById('ackBtn').onclick = () => {
   renderProducts();
 };
 
-// Help & About
+/* =========================
+   Help & basic UI controls
+   ========================= */
 document.getElementById('closeHelp').onclick = () => document.getElementById('helpModal').classList.add('hidden');
 document.getElementById('helpBtn').onclick = () => document.getElementById('helpModal').classList.remove('hidden');
 document.getElementById('logoutBtn').onclick = () => location.reload();
@@ -251,11 +278,23 @@ document.getElementById('aboutLoginBtn').onclick = () => document.getElementById
 document.getElementById('aboutUserBtn').onclick = () => document.getElementById('aboutModal').classList.remove('hidden');
 document.getElementById('closeAbout').onclick = () => document.getElementById('aboutModal').classList.add('hidden');
 
-/* --- Products & Cart (unchanged flavors & names exactly as you provided) --- */
+/* =========================
+   Stock listener (live): expects db /stock node where keys are flavor names, values "in" or "out"
+   Example: { "Sugar Daddy Punch": "in", "Pineapple Runtz": "out" }
+   ========================= */
+db.ref('stock').on('value', snap => {
+  stockMap = snap.val() || {};
+  // re-render products to reflect stock changes if products on page
+  renderProducts();
+});
+
+/* =========================
+   Products & Cart
+   ========================= */
 function renderProducts(){
   const grid = document.getElementById('productsGrid');
   grid.innerHTML = '';
-
+  // sample products (kept same as original)
   const sample = [
     {id:'bud1',name:'Edibles (Buy 3 get 1 free)',price:20,flavors:['Sour Patch','Skittles','Swedish fish','Watermelon Sour Patch','Starburst','Trolli','Peach Rings']},
     {id:'cart1',name:'2g Muha Meds Carts (Buy 1 get 1 $5 off)',price:30,flavors:['Sugar Daddy Punch','Pineapple Runtz','Blueberry Muffin','Blue Slushie','Candy Apple']}
@@ -263,29 +302,26 @@ function renderProducts(){
 
   sample.forEach(p=>{
     const div = document.createElement('div');
-    div.className='product';
-
-    // create title and price
+    div.className = 'product';
     const title = document.createElement('h3');
     title.textContent = p.name;
     const priceDiv = document.createElement('div');
     priceDiv.textContent = `$${p.price}`;
-
-    // create select and populate flavors, checking stockCache for each flavor
     const select = document.createElement('select');
     const defOpt = document.createElement('option');
-    defOpt.value = '';
-    defOpt.textContent = 'Select Flavor';
+    defOpt.value='';
+    defOpt.textContent='Select Flavor';
     select.appendChild(defOpt);
 
     p.flavors.forEach(f=>{
       const option = document.createElement('option');
       option.value = f;
-      // decide stock status: default to 'in' if missing
-      const status = (stockCache[p.id] && typeof stockCache[p.id][f] !== 'undefined') ? stockCache[p.id][f] : 'in';
+      // mark out-of-stock flavors
+      const status = stockMap[f];
       if(status === 'out'){
         option.disabled = true;
-        option.textContent = `${f} (Out of Stock)`;
+        option.textContent = `${f} (OUT)`;
+        option.setAttribute('data-stock','out');
       } else {
         option.textContent = f;
       }
@@ -295,68 +331,110 @@ function renderProducts(){
     const btn = document.createElement('button');
     btn.className = 'btn';
     btn.textContent = 'Add';
-    btn.onclick = ()=>{
-      const flavor = select.value || "None";
-      // prevent adding an out-of-stock flavor (shouldn't be selectable, but safety)
+    btn.onclick = () => {
+      const flavor = select.value || '';
       if(!flavor) return alert('Select a flavor');
-      // final stock check: if flavor is out in cache, prevent add
-      const curStatus = (stockCache[p.id] && typeof stockCache[p.id][flavor] !== 'undefined') ? stockCache[p.id][flavor] : 'in';
-      if(curStatus === 'out') return alert('That flavor is currently out of stock.');
-      cart.push({...p,selectedFlavor:flavor});
+      // if the selected option is disabled (browser sometimes prevents selecting, but check)
+      const opt = Array.from(select.options).find(o=>o.value===flavor);
+      if(opt && opt.disabled) return alert('Selected flavor is out of stock');
+      cart.push({...p, selectedFlavor: flavor});
       renderCart();
     };
 
-    // append to product div (preserves original layout)
     div.appendChild(title);
     div.appendChild(priceDiv);
     div.appendChild(select);
     div.appendChild(btn);
-
     grid.appendChild(div);
   });
 }
 
 function renderCart(){
-  const list=document.getElementById('cartList');
-  list.innerHTML='';
-  let total=0,ediblesCount=0,muhaCount=0;
-  cart.forEach(c=>{ if(c.name.includes('Edibles')) ediblesCount++; if(c.name.includes('Muha Meds')) muhaCount++; total+=c.price; });
+  const list = document.getElementById('cartList');
+  list.innerHTML = '';
+  let total = 0, ediblesCount = 0, muhaCount = 0;
+  cart.forEach(c=>{
+    if(c.name.includes('Edibles')) ediblesCount++;
+    if(c.name.includes('Muha Meds')) muhaCount++;
+    total += c.price;
+  });
   total -= Math.floor(ediblesCount/4)*20;
   total -= Math.floor(muhaCount/2)*5;
-  cart.forEach(c=>{
-    const row=document.createElement('div');
-    row.className='cart-item';
-    row.innerHTML=`<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price}</span>`;
+
+  cart.forEach((c, idx)=>{
+    const row = document.createElement('div');
+    row.className = 'cart-item';
+    row.innerHTML = `<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price} <button class="btn ghost" data-idx="${idx}" style="margin-left:8px">Remove</button></span>`;
     list.appendChild(row);
+    row.querySelector('button').onclick = (e)=>{
+      const i = parseInt(e.target.getAttribute('data-idx'));
+      cart.splice(i,1);
+      renderCart();
+    };
   });
-  document.getElementById('cartTotal').innerText='Total $'+total;
+
+  document.getElementById('cartTotal').innerText = 'Total $' + total;
 }
 
-// Purchase -> ticket
-document.getElementById('purchaseBtn').onclick = ()=>{
+/* =========================
+   Purchase -> create ticket
+   Also: **Do not** auto-award raffle on purchase here; raffle awarding happens on admin item hidden
+   (However earlier code auto-awarded on purchase; user description suggested raffle awarding when ticket is completed/admin hidden.
+   To satisfy previous successful pieces that exist in DB already, this implementation will NOT create an extra raffle here.)
+   ========================= */
+document.getElementById('purchaseBtn').onclick = () => {
   if(!cart.length) return alert('Empty cart');
-  const id='tkt-'+Date.now();
-  let total=0,ediblesCount=0,muhaCount=0;
-  cart.forEach(c=>{ total+=c.price; if(c.name.includes('Edibles')) ediblesCount++; if(c.name.includes('Muha Meds')) muhaCount++; });
-  total-=Math.floor(ediblesCount/4)*20; total-=Math.floor(muhaCount/2)*5;
-  const ticket={id,total,location:document.getElementById('locationSelect').value,status:'pending',items:cart,user:currentUser};
-  // Save ticket and send initial message
-  db.ref('tickets/'+id).set(ticket);
-  db.ref('messages/'+id).push({from:currentUser,text:'Ticket created'});
-  cart=[]; renderCart();
+  if(!currentUser) return alert('Please login first');
+  const ticketId = 'tkt-' + Date.now();
+  let total = 0, ediblesCount = 0, muhaCount = 0;
+  cart.forEach(c=>{
+    total += c.price;
+    if(c.name.includes('Edibles')) ediblesCount++;
+    if(c.name.includes('Muha Meds')) muhaCount++;
+  });
+  total -= Math.floor(ediblesCount/4)*20;
+  total -= Math.floor(muhaCount/2)*5;
+  const ticket = {
+    id: ticketId,
+    total: total,
+    location: document.getElementById('locationSelect').value,
+    status: 'pending',
+    items: cart,
+    user: currentUser
+  };
+  db.ref('tickets/' + ticketId).set(ticket);
+  db.ref('messages/' + ticketId).push({from: currentUser, text: 'Ticket created'});
+  cart = [];
+  renderCart();
+  alert('Ticket created: ' + ticketId);
 };
 
-// Tickets & chat
+/* =========================
+   Tickets & Chat rendering (combined admin + user)
+   - admin sees all tickets and has Item Hidden button
+   - user sees own tickets and Item Received button, disabled until admin sets readyForReceived
+   ========================= */
 function renderTickets(){
-  const area=document.getElementById(currentUserIsAdmin ? 'allTicketsArea' : 'ticketsArea');
-  area.innerHTML='';
+  // Clear current areas
+  document.getElementById('allTicketsArea').innerHTML = '';
+  document.getElementById('ticketsArea').innerHTML = '';
+
+  // Remove any previous listeners on tickets
   db.ref('tickets').off();
-  db.ref('tickets').on('child_added',snap=>{
-    const t=snap.val(); if(!t.id) t.id=snap.key; if(!t.user) t.user='';
-    if(!currentUserIsAdmin && t.user!==currentUser) return;
-    const itemsText=t.items.map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
-    const div=document.createElement('div'); div.className='ticket';
-    div.innerHTML=`<div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>      <div><em>Items: ${itemsText}</em></div>
+
+  // Listen to tickets
+  db.ref('tickets').on('child_added', snap => {
+    const t = snap.val();
+    if(!t.id) t.id = snap.key;
+    if(!t.user) t.user = '';
+
+    // Create ticket UI block
+    const div = document.createElement('div');
+    div.className = 'ticket';
+    const itemsText = (t.items || []).map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
+    div.innerHTML = `
+      <div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status || ''}</div>
+      <div><em>Items: ${itemsText}</em></div>
       <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
       <div style="display:flex;gap:4px;margin-top:4px">
         <input type="text" class="msgInput" style="flex:1">
@@ -365,43 +443,304 @@ function renderTickets(){
         <button class="btn ghost cancelTicketBtn">Cancel Ticket</button>
         <button class="btn ghost markPaidBtn">Mark Paid</button>
         ${currentUserIsAdmin?'<button class="btn ghost itemHiddenBtn">Item Hidden</button>':''}
-      </div>`;    area.appendChild(div);
+      </div>
+    `;
 
-    const chatEl=document.getElementById('chat-'+t.id);
-    db.ref('messages/'+t.id).off();
-    db.ref('messages/'+t.id).on('value',ms=>{
-      const msgs=ms.val()||{};
-      chatEl.innerHTML=Object.values(msgs).map(m=>{
+    // append to proper area
+    if(currentUserIsAdmin){
+      document.getElementById('allTicketsArea').appendChild(div);
+    } else {
+      if(t.user === currentUser){
+        // For users, append to tickets area
+        // but show additional Item Received button below the controls:
+        const receiveBtn = document.createElement('button');
+        receiveBtn.className = 'btn itemReceivedBtn';
+        receiveBtn.style.marginTop = '6px';
+        receiveBtn.style.background = '#ccc';
+        receiveBtn.disabled = true;
+        receiveBtn.innerText = 'Item Received';
+        div.appendChild(receiveBtn);
+        document.getElementById('ticketsArea').appendChild(div);
+
+        // Listen to readyForReceived flag for this ticket
+        db.ref('tickets/' + t.id + '/readyForReceived').on('value', rss=>{
+          const val = rss.val();
+          if(val){
+            receiveBtn.disabled = false;
+            receiveBtn.style.background = 'green';
+          } else {
+            receiveBtn.disabled = true;
+            receiveBtn.style.background = '#ccc';
+          }
+        });
+
+        receiveBtn.onclick = () => {
+          // show popup that asks "Did a friend refer you?"
+          showItemReceived(t.id, t.user);
+        };
+      }
+    }
+
+    // Chat section: listen for messages for this ticket
+    const chatEl = div.querySelector('#chat-' + t.id);
+    db.ref('messages/' + t.id).off();
+    db.ref('messages/' + t.id).on('value', ms=>{
+      const msgs = ms.val() || {};
+      chatEl.innerHTML = Object.values(msgs).map(m=>{
         const displayName = (m.from === 'user-9e21mr' && currentUser !== 'user-9e21mr') ? 'admin' : m.from;
-        return `<div><strong>${displayName}:</strong> ${m.text || ''}${m.image ? '<br><img src="'+m.image+'" style="max-width:100px">' : ''}</div>`;
+        return `<div><strong>${displayName}:</strong> ${m.text || ''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`;
       }).join('');
-      chatEl.scrollTop=chatEl.scrollHeight;
+      chatEl.scrollTop = chatEl.scrollHeight;
     });
 
-    div.querySelector('.sendBtn').onclick=()=>{
-      const inp=div.querySelector('.msgInput'); const fileInp=div.querySelector('.imgInput'); const txt=inp.value.trim();
-      if(fileInp.files.length>0){
-        const file=fileInp.files[0];
-        const reader=new FileReader();
-        reader.onload=function(e){ db.ref('messages/'+t.id).push({from:currentUser,image:e.target.result}); };
-        reader.readAsDataURL(file); fileInp.value='';
+    // Buttons
+    div.querySelector('.sendBtn').onclick = ()=>{
+      const inp = div.querySelector('.msgInput');
+      const fileInp = div.querySelector('.imgInput');
+      const txt = inp.value.trim();
+      if(fileInp.files.length > 0){
+        const file = fileInp.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e){
+          db.ref('messages/' + t.id).push({from: currentUser, image: e.target.result});
+        };
+        reader.readAsDataURL(file);
+        fileInp.value = '';
       }
-      if(txt) db.ref('messages/'+t.id).push({from:currentUser,text:txt}); inp.value='';
+      if(txt) db.ref('messages/' + t.id).push({from: currentUser, text: txt});
+      inp.value = '';
     };
 
-    div.querySelector('.cancelTicketBtn').onclick=()=>{ if(confirm('Are you sure you want to cancel this ticket?')){ db.ref('tickets/'+t.id).remove(); db.ref('messages/'+t.id).remove(); div.remove(); }};
-    div.querySelector('.markPaidBtn').onclick=()=>{ db.ref('messages/'+t.id).push({from:currentUser,text:'Payment hidden. Your product will be securely hidden and ready for pickup within 24 hours, please also provide photo of hidden payment and any location information.'}); };
+    div.querySelector('.cancelTicketBtn').onclick = ()=>{
+      if(confirm('Are you sure you want to cancel this ticket?')){
+        db.ref('tickets/' + t.id).remove();
+        db.ref('messages/' + t.id).remove();
+        div.remove();
+      }
+    };
+
+    div.querySelector('.markPaidBtn').onclick = ()=>{
+      db.ref('messages/' + t.id).push({from: currentUser, text:'Payment hidden. Your product will be securely hidden and ready for pickup within 24 hours, please also provide photo of hidden payment and any location information.'});
+    };
+
+    // Admin "Item Hidden" button logic: sets readyForReceived true for THAT ticket and awards purchaser a raffle ticket (owner = purchaser referralCode)
     if(currentUserIsAdmin){
-      div.querySelector('.itemHiddenBtn').onclick=()=>{ db.ref('messages/'+t.id).push({from:currentUser,text:'Item has been hidden. Refer to photos below for location of item. Have fun and practice safe usage.'}); db.ref('tickets/'+t.id+'/status').set('complete'); };
+      const itBtn = div.querySelector('.itemHiddenBtn');
+      itBtn.onclick = async () => {
+        // update ticket flag
+        db.ref('tickets/' + t.id + '/readyForReceived').set(true);
+        // message admin
+        db.ref('messages/' + t.id).push({from: currentUser, text:'Item has been hidden. Refer to photos below for location of item. Have fun and practice safe usage.'});
+        // set ticket status to 'hidden' (not complete until user receives)
+        db.ref('tickets/' + t.id + '/status').set('hidden');
+
+        // Award raffle ticket to purchaser's referral code (if exists)
+        try {
+          const userSnap = await db.ref('users/' + t.user + '/referralCode').once('value');
+          const purchaserRefCode = userSnap.val();
+          if(purchaserRefCode){
+            db.ref('raffleTickets').push({owner: purchaserRefCode, reason: 'purchase-complete-by-admin', ticketId: t.id});
+          } else {
+            // If purchaser has no referral code, generate and set one, then award
+            const newRef = generateReferralCode();
+            await db.ref('users/' + t.user + '/referralCode').set(newRef);
+            db.ref('raffleTickets').push({owner: newRef, reason: 'purchase-complete-by-admin', ticketId: t.id});
+          }
+        } catch (err){
+          console.error('Error awarding raffle on Item Hidden:', err);
+        }
+      };
     }
+  });
+
+  // also handle updates & removals to keep UI in sync
+  db.ref('tickets').on('child_changed', snap=>{
+    // re-render everything for simplicity (keeps UI consistent)
+    renderTickets();
+  });
+  db.ref('tickets').on('child_removed', snap=>{
+    renderTickets();
   });
 }
 
-document.getElementById('refreshTickets').onclick=renderTickets;
-document.getElementById('closeAdmin').onclick=()=>document.getElementById('adminScreen').style.display='none';
+/* =========================
+   User: show Item Received flow (popup asks referral)
+   - When user clicks Item Received (button enabled by readyForReceived),
+     show popup "Did a friend refer you?" yes -> accept code -> award friend a raffle ticket (owner = friend code) and remove ticket
+     if no -> simply remove ticket
+   ========================= */
+function showItemReceived(ticketId, ticketUser){
+  const modalBack = document.createElement('div');
+  modalBack.className = 'modal-back';
+  modalBack.style.zIndex = 2000;
+  modalBack.innerHTML = `
+    <div class="modal">
+      <h3>Item Received</h3>
+      <p>Did a friend refer you?</p>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn" id="yesReferralBtn">Yes</button>
+        <button class="btn ghost" id="noReferralBtn">No</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modalBack);
 
-// initial render
+  modalBack.querySelector('#noReferralBtn').onclick = ()=>{
+    // remove ticket after marking received
+    db.ref('tickets/' + ticketId).remove();
+    modalBack.remove();
+  };
+
+  modalBack.querySelector('#yesReferralBtn').onclick = ()=>{
+    const entryDiv = document.createElement('div');
+    entryDiv.style.marginTop = '12px';
+    entryDiv.innerHTML = `
+      <label>Enter referral code: <input type="text" id="friendCode"></label>
+      <div id="refWarning" style="color:red;font-size:0.85rem;margin-top:4px"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+        <button class="btn" id="submitReferral">Submit</button>
+        <button class="btn ghost" id="cancelReferral">Cancel</button>
+      </div>
+    `;
+    modalBack.querySelector('.modal').appendChild(entryDiv);
+
+    modalBack.querySelector('#cancelReferral').onclick = ()=> {
+      modalBack.remove();
+    };
+
+    modalBack.querySelector('#submitReferral').onclick = async ()=>{
+      const codeInput = modalBack.querySelector('#friendCode').value.trim();
+      const warning = modalBack.querySelector('#refWarning');
+      if(!codeInput) return warning.innerText = 'Enter a code';
+      // Prevent using your own code
+      if(codeInput === userReferralCode) return warning.innerText = 'You cannot use your own code';
+      // Validate that friend code exists in users -> referralCode
+      try{
+        // We'll search users tree for referralCode === codeInput
+        const usersSnap = await db.ref('users').orderByChild('referralCode').equalTo(codeInput).once('value');
+        const users = usersSnap.val() || {};
+        if(Object.keys(users).length === 0){
+          return warning.innerText = 'Referral code not found';
+        }
+        // give friend a raffle ticket
+        db.ref('raffleTickets').push({owner: codeInput, referredBy: userReferralCode, ticketId: ticketId});
+        // remove ticket for this user (they've received)
+        db.ref('tickets/' + ticketId).remove();
+        modalBack.remove();
+      } catch(err){
+        console.error('Error validating referral code:', err);
+        warning.innerText = 'Error validating code';
+      }
+    };
+  };
+}
+
+/* =========================
+   Raffle ticket count UI
+   - Counts raffleTickets where owner === userReferralCode and shows in #ticketCount
+   ========================= */
+function updateRaffleTicketCountUI(){
+  // attach listener when userReferralCode exists
+  if(!userReferralCode) {
+    // If no referral yet, try to read from DB if logged in
+    if(currentUser){
+      db.ref('users/' + currentUser + '/referralCode').once('value', snap=>{
+        const val = snap.val();
+        if(val) {
+          userReferralCode = val;
+          document.getElementById('refCode').innerText = userReferralCode;
+          // attach listener
+          db.ref('raffleTickets').on('value', s=>{
+            const all = s.val() || {};
+            const count = Object.values(all).filter(rt => rt.owner === userReferralCode).length;
+            document.getElementById('ticketCount').innerText = count;
+          });
+        }
+      });
+    }
+    return;
+  }
+  document.getElementById('refCode').innerText = userReferralCode;
+  db.ref('raffleTickets').on('value', s=>{
+    const all = s.val() || {};
+    const count = Object.values(all).filter(rt => rt.owner === userReferralCode).length;
+    document.getElementById('ticketCount').innerText = count;
+  });
+}
+
+/* =========================
+   Admin: Complete Order button (originally in your code)
+   -> Will set readyForReceived=true for ALL tickets (keeps behavior you had)
+   ========================= */
+if(true){
+  // place button near admin area (only visible when admin logs in)
+  const adminButtonsDiv = document.getElementById('refreshTickets').parentNode;
+  const compBtn = document.createElement('button');
+  compBtn.className = 'btn';
+  compBtn.innerText = 'Complete Order';
+  adminButtonsDiv.appendChild(compBtn);
+  compBtn.onclick = ()=>{
+    db.ref('tickets').once('value', snap=>{
+      const tickets = snap.val() || {};
+      Object.keys(tickets).forEach(tid=>{
+        db.ref('tickets/' + tid + '/readyForReceived').set(true);
+      });
+      alert('All tickets set to ready for received');
+    });
+  };
+}
+
+/* =========================
+   Admin: Raffle Winner modal (left mostly unchanged)
+   ========================= */
+if(true){
+  const raffleBtn = document.createElement('button');
+  raffleBtn.className = 'btn';
+  raffleBtn.innerText = 'Raffle Winner';
+  const adminButtonsDiv = document.getElementById('refreshTickets').parentNode;
+  adminButtonsDiv.appendChild(raffleBtn);
+  raffleBtn.onclick = () => {
+    const modalBack = document.createElement('div');
+    modalBack.className = 'modal-back';
+    modalBack.style.zIndex = 2000;
+    modalBack.innerHTML = `
+      <div class="modal">
+        <h3>Raffle Winner</h3>
+        <label>Enter user code: <input type="text" id="winnerCodeInput"></label>
+        <div style="margin-top:8px;display:flex;justify-content:flex-end;gap:8px">
+          <button class="btn" id="submitWinnerBtn">Submit</button>
+          <button class="btn ghost" id="closeWinnerModal">Close</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modalBack);
+    modalBack.querySelector('#closeWinnerModal').onclick = () => modalBack.remove();
+    modalBack.querySelector('#submitWinnerBtn').onclick = async () => {
+      const winnerCode = modalBack.querySelector('#winnerCodeInput').value.trim();
+      if(!winnerCode) return alert('Enter a user code');
+      const ticketId = 'raffle-' + Date.now();
+      const ticket = { id: ticketId, total: 0, location: 'RAFFLE', status: 'winner', items: [], user: winnerCode };
+      await db.ref('tickets/' + ticketId).set(ticket);
+      db.ref('messages/' + ticketId).push({from: currentUser, text: 'RAFFLE WINNER! You have won the raffle.'});
+      alert('Raffle winner ticket created for ' + winnerCode);
+      modalBack.remove();
+    };
+  };
+}
+
+/* =========================
+   Admin Close button
+   ========================= */
+document.getElementById('closeAdmin').onclick = ()=>document.getElementById('adminScreen').style.display='none';
+document.getElementById('refreshTickets').onclick = renderTickets;
+
+/* =========================
+   Initial render for non-logged-in state
+   ========================= */
 renderProducts();
+renderCart();
+updateRaffleTicketCountUI();
+
 </script>
 </body>
 </html>
