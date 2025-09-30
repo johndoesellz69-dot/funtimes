@@ -33,6 +33,10 @@ footer{margin-top:12px;color:var(--muted);font-size:.82rem}
 #adminScreen{position:fixed;inset:0;background:rgba(0,0,0,.95);color:#111;padding:16px;overflow:auto;display:none;z-index:3000}
 #adminScreen h2{margin-top:0;color:var(--accent)}
 select option[disabled]{ color: #999; }
+
+/* Item Retrieved button states */
+.itemRetrievedBtn.disabled{background:#ccc;color:#666;cursor:not-allowed;border-radius:8px;padding:8px 12px}
+.itemRetrievedBtn.enabled{background:green;color:#fff;cursor:pointer;border-radius:8px;padding:8px 12px}
 </style>
 </head>
 <body>
@@ -162,6 +166,7 @@ select option[disabled]{ color: #999; }
 <h3>All Tickets</h3>
 <div id="allTicketsArea"></div>
 </div>
+
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 <script>
@@ -198,7 +203,7 @@ function updateReferralUI() {
   document.getElementById('refCode').innerText = userRefCode || '--';
 }
 
-// Update ticket count UI
+// Update ticket count UI (keeps original behavior)
 function updateTicketCountUI() {
   if(!currentUser) return;
   db.ref('raffleTickets').orderByChild('owner').equalTo(currentUser).on('value', snap => {
@@ -305,12 +310,94 @@ document.getElementById('purchaseBtn').onclick=()=>{
   const ticket={ id: ticketId, total: total, location: document.getElementById('locationSelect').value, status:'pending', items: cart, user: currentUser };
   db.ref('tickets/'+ticketId).set(ticket);
   db.ref('messages/'+ticketId).push({from:currentUser,text:'Ticket created'});
-  // Add raffle ticket automatically for purchaser
+  // Add raffle ticket automatically for purchaser (keeps previous behavior)
   db.ref('raffleTickets').push().set({owner: currentUser, code: userRefCode});
   cart=[]; renderCart();
 };
 
-/* --- Render Tickets & Chat --- */
+/* --- Helper: show Item Retrieved modal/prompt flow --- */
+function showItemRetrievedModal(ticketId){
+  // modal container
+  const modalBack = document.createElement('div');
+  modalBack.className = 'modal-back';
+  modalBack.style.zIndex = 2000;
+  modalBack.innerHTML = `
+    <div class="modal">
+      <h3>Item Received</h3>
+      <p>Did a friend refer you?</p>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn" id="yesReferralBtn">Yes</button>
+        <button class="btn ghost" id="noReferralBtn">No</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modalBack);
+
+  modalBack.querySelector('#noReferralBtn').onclick = () => {
+    // give the user their raffle ticket anyway, then remove ticket
+    if(currentUser){
+      db.ref('raffleTickets').push().set({owner: currentUser, code: userRefCode, reason:'finalize'});
+    }
+    // remove ticket and messages so it disappears
+    db.ref('tickets/'+ticketId).remove();
+    db.ref('messages/'+ticketId).remove();
+    modalBack.remove();
+  };
+
+  modalBack.querySelector('#yesReferralBtn').onclick = () => {
+    // show input
+    const entryDiv = document.createElement('div');
+    entryDiv.style.marginTop = '12px';
+    entryDiv.innerHTML = `
+      <label>Enter referral code: <input type="text" id="friendCode"></label>
+      <div id="refWarning" style="color:red;font-size:0.85rem;margin-top:6px"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+        <button class="btn" id="submitReferral">Submit</button>
+        <button class="btn ghost" id="cancelReferral">Cancel</button>
+      </div>
+    `;
+    modalBack.querySelector('.modal').appendChild(entryDiv);
+
+    modalBack.querySelector('#cancelReferral').onclick = () => {
+      modalBack.remove();
+    };
+
+    modalBack.querySelector('#submitReferral').onclick = async () => {
+      const codeInput = modalBack.querySelector('#friendCode').value.trim();
+      const warning = modalBack.querySelector('#refWarning');
+      if(!codeInput) return warning.innerText = 'Enter a code';
+
+      // Prevent using own referral code
+      if(codeInput === userRefCode) return warning.innerText = 'You cannot use your own code';
+
+      try {
+        // find user account that has referralCode === codeInput
+        const snap = await db.ref('users').orderByChild('referralCode').equalTo(codeInput).once('value');
+        const users = snap.val() || {};
+        const userIds = Object.keys(users);
+        if(userIds.length === 0){
+          return warning.innerText = 'Referral code not found';
+        }
+        const friendAccount = userIds[0]; // first match
+        // Give friend a raffle ticket (owner = friend's account)
+        db.ref('raffleTickets').push().set({owner: friendAccount, code: codeInput, referredBy: currentUser});
+        // Give current user their own raffle ticket
+        if(currentUser){
+          db.ref('raffleTickets').push().set({owner: currentUser, code: userRefCode, reason:'finalize'});
+        }
+        // remove the ticket and messages so it disappears
+        db.ref('tickets/'+ticketId).remove();
+        db.ref('messages/'+ticketId).remove();
+        modalBack.remove();
+      } catch(err){
+        console.error('Referral lookup error', err);
+        warning.innerText = 'Error validating code';
+      }
+    };
+  };
+}
+
+/* --- Render Tickets & Chat (modified to add Complete Order & Item Retrieved) --- */
 function renderTickets(){
   const area=document.getElementById(currentUserIsAdmin?'allTicketsArea':'ticketsArea');
   area.innerHTML='';
@@ -320,10 +407,10 @@ function renderTickets(){
     if(!t.id) t.id=snap.key;
     if(!t.user) t.user='';
     if(!currentUserIsAdmin && t.user!==currentUser) return;
-    const itemsText=t.items.map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
+    const itemsText=(t.items||[]).map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
     const div=document.createElement('div'); div.className='ticket';
     div.innerHTML=`
-      <div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status}</div>
+      <div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status||''}</div>
       <div><em>Items: ${itemsText}</em></div>
       <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
       <div style="display:flex;gap:4px;margin-top:4px">
@@ -332,10 +419,12 @@ function renderTickets(){
         <button class="btn sendBtn">Send</button>
         <button class="btn ghost cancelTicketBtn">Cancel Ticket</button>
         <button class="btn ghost markPaidBtn">Mark Paid</button>
-        ${currentUserIsAdmin?'<button class="btn ghost itemHiddenBtn">Item Hidden</button>':''}
+        ${currentUserIsAdmin?'<button class="btn ghost completeOrderBtn">Complete Order</button><button class="btn ghost itemHiddenBtn">Item Hidden</button>':''}
+        ${!currentUserIsAdmin?'<button class="itemRetrievedBtn disabled">Item Retrieved</button>':''}
       </div>`;
     area.appendChild(div);
 
+    // Chat stream
     const chatEl=document.getElementById('chat-'+t.id);
     db.ref('messages/'+t.id).off();
     db.ref('messages/'+t.id).on('value', ms=>{
@@ -347,6 +436,7 @@ function renderTickets(){
       chatEl.scrollTop=chatEl.scrollHeight;
     });
 
+    // Send button
     div.querySelector('.sendBtn').onclick=()=>{
       const inp=div.querySelector('.msgInput'); const fileInp=div.querySelector('.imgInput'); const txt=inp.value.trim();
       if(fileInp.files.length>0){
@@ -359,18 +449,59 @@ function renderTickets(){
       inp.value='';
     };
 
+    // Cancel ticket
     div.querySelector('.cancelTicketBtn').onclick=()=>{ if(confirm('Are you sure you want to cancel this ticket?')){ db.ref('tickets/'+t.id).remove(); db.ref('messages/'+t.id).remove(); div.remove(); } };
+
+    // Mark paid
     div.querySelector('.markPaidBtn').onclick=()=>{ db.ref('messages/'+t.id).push({from:currentUser,text:'Payment hidden. Your product will be securely retrieved.'}); db.ref('tickets/'+t.id+'/status').set('paid'); };
+
+    // Admin: Complete Order button behavior
     if(currentUserIsAdmin){
+      div.querySelector('.completeOrderBtn').onclick=()=> {
+        // Mark ready flag so the user button can enable
+        db.ref('tickets/'+t.id+'/readyForReceived').set(true);
+        db.ref('tickets/'+t.id+'/status').set('ready_for_retrieval');
+        // Push admin message
+        db.ref('messages/'+t.id).push({from:currentUser,text:"Admin has hidden your product. Once you retrieve it, please click the 'Item Retrieved' button to finalize your order."});
+      };
+      // Keep original itemHiddenBtn if you still want it
       div.querySelector('.itemHiddenBtn').onclick=()=>{ db.ref('tickets/'+t.id+'/status').set('item hidden'); alert('Marked item hidden/collected'); };
+    }
+
+    // User: Item Retrieved button enable + click flow
+    if(!currentUserIsAdmin){
+      const itemBtn = div.querySelector('.itemRetrievedBtn');
+      // default disabled state
+      itemBtn.classList.add('disabled');
+      itemBtn.disabled = true;
+
+      // Listen for readyForReceived changes
+      const readyRef = db.ref('tickets/'+t.id+'/readyForReceived');
+      readyRef.on('value', s => {
+        const val = s.val();
+        if(val){
+          // enable
+          itemBtn.classList.remove('disabled');
+          itemBtn.classList.add('enabled');
+          itemBtn.disabled = false;
+          itemBtn.onclick = () => {
+            // Show modal/prompt flow
+            showItemRetrievedModal(t.id);
+          };
+        } else {
+          itemBtn.classList.remove('enabled');
+          itemBtn.classList.add('disabled');
+          itemBtn.disabled = true;
+        }
+      });
     }
   });
 }
 
-// Admin console
+document.getElementById('refreshTickets').onclick=renderTickets;
 document.getElementById('closeAdmin').onclick=()=>{document.getElementById('adminScreen').style.display='none';};
 
-// Initial render
+// initial render
 renderProducts();
 </script>
 </body>
