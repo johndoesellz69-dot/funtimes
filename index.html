@@ -19,7 +19,7 @@ header h1{margin:0;color:var(--accent);font-size:1.3rem}
 .product h3{margin:6px 0 4px}
 .row{display:flex;gap:8px;align-items:center}
 label{font-size:.92rem}
-select,input[type="number"],input[type="file"]{padding:6px;border-radius:8px;border:1px solid #ddd}
+select,input[type="number"],input[type="file"],input[type="text"]{padding:6px;border-radius:8px;border:1px solid #ddd}
 .btn{background:var(--accent);color:white;padding:8px 12px;border-radius:8px;border:0;cursor:pointer}
 .btn.ghost{background:#f3f3f3;color:#111}
 .small{font-size:.88rem;color:var(--muted)}
@@ -37,6 +37,9 @@ select option[disabled]{ color: #999; }
 /* Item Retrieved button states */
 .itemRetrievedBtn.disabled{background:#ccc;color:#666;cursor:not-allowed;border-radius:8px;padding:8px 12px}
 .itemRetrievedBtn.enabled{background:green;color:#fff;cursor:pointer;border-radius:8px;padding:8px 12px}
+
+/* WINNER button */
+.winnerBtn{background:gold;color:#111;cursor:pointer;border-radius:8px;padding:8px 12px;margin-top:4px}
 </style>
 </head>
 <body>
@@ -45,7 +48,7 @@ select option[disabled]{ color: #999; }
 <h3>Login</h3>
 <div style="margin-bottom:12px">
 <label>Enter your login code or Create Account if new: <input type="text" id="loginCode"></label>
-<div class="loginNotice">(Login codes are case-sensitive. Ensure the 'user' part is lowercase. EX: user-123abc)</div>
+<div class="loginNotice">(Login codes are case-sensitive. EX: user-123abc)</div>
 </div>
 <div style="margin-bottom:12px">or <button class="btn" id="createCodeBtn">Create new code</button></div>
 <div style="display:flex;justify-content:flex-end;gap:8px">
@@ -73,33 +76,6 @@ select option[disabled]{ color: #999; }
 </div>
 </div>
 
-<div id="helpModal" class="modal-back hidden">
-<div class="modal">
-<h3>First Time Help</h3>
-<p>Welcome to Easy Green! Here's how it works:</p>
-<ol>
-<li>Select products and flavors you want.</li>
-<li>Add items to your cart and choose pickup location.</li>
-<li>Click Purchase to generate a ticket for your order.</li>
-<li>Use the chat under your ticket to send messages or images to admin.</li>
-<li>Admin can respond and send images back.</li>
-<li>Place the specified cash amount in an Envelope and hide it.</li>
-<li>Mark as paid and send a photo of your envelope and the cash inside.</li>
-<li>Admin will message you with item retrieval details after your payment is collected.</li>
-<li>TIPS: It is recommended to hide payments out of the publics view and way, and ensure nobody sees you hiding your payment.</li>
-</ol>
-<button class="btn" id="closeHelp">Got it!</button>
-</div>
-</div>
-
-<div id="aboutModal" class="modal-back hidden">
-<div class="modal">
-<h3>About Easy Green</h3>
-<p> Welcome to Easy Green! We are proud to be the only local Cannabis service that is fully anonymous. If you wish to obtain cannabis discreetly—without meeting a random sketchy dealer in person, or if you do not have access to a nearby dispensary—Easy Green is here for you. Simply select a pickup location nearest to you and enjoy our secure and simple exchange process. We are based in Arlington Heights and proudly serve anyone in or near the area. Take advantage of our exceptional deals and competitive pricing, as we believe everyone should have access to quality cannabis regardless of budget. We are continually expanding our product selection and pickup locations, and will soon offer additional items beyond cannabis. Enjoy Easy Green, and please consider sharing our website! </p>
-<button class="btn" id="closeAbout">Close</button>
-</div>
-</div>
-
 <div class="wrap hidden" id="mainWrap">
 <header>
 <h1>Easy Green — Anonymous Cannabis</h1>
@@ -110,8 +86,6 @@ select option[disabled]{ color: #999; }
 <div class="small">(Write this down) Your account code: <span id="acctCode"></span></div>
 <div class="small" style="margin-left:12px">Your referral code: <span id="refCode">--</span></div>
 <div class="small" style="margin-left:12px">You have <span id="ticketCount">0</span> tickets</div>
-<button class="btn" id="helpBtn" style="margin-left:auto">First time help</button>
-<button class="btn ghost" id="aboutUserBtn">About Easy Green</button>
 </div>
 
 <div class="grid" role="main">
@@ -162,6 +136,7 @@ select option[disabled]{ color: #999; }
 <div style="margin-bottom:12px">
 <button class="btn" id="refreshTickets">Refresh Tickets</button>
 <button class="btn ghost" id="closeAdmin">Close Admin</button>
+<button class="winnerBtn" id="winnerBtn">Create WINNER Ticket</button>
 </div>
 <h3>All Tickets</h3>
 <div id="allTicketsArea"></div>
@@ -182,327 +157,119 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-</script>
 
-<script>
-let currentUser = null;
-let currentUserIsAdmin = false;
-let cart = [];
-let userRefCode = null;
+let currentUser=null,currentUserIsAdmin=false,cart=[],userRefCode=null;
 
-// Generate a random referral code (one letter + 5 digits)
-function generateReferralCode() {
-  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const letter = letters[Math.floor(Math.random() * letters.length)];
-  const number = Math.floor(10000 + Math.random() * 90000);
-  return letter + number;
-}
+// generate referral code
+function generateReferralCode(){const letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ';const letter=letters[Math.floor(Math.random()*letters.length)];const number=Math.floor(10000+Math.random()*90000);return letter+number;}
+function updateReferralUI(){document.getElementById('refCode').innerText=userRefCode||'--';}
+function updateTicketCountUI(){if(!currentUser)return;db.ref('raffleTickets').orderByChild('owner').equalTo(currentUser).on('value',snap=>{const tickets=snap.val()||{};document.getElementById('ticketCount').innerText=Object.keys(tickets).length;});}
 
-// Update referral code UI
-function updateReferralUI() {
-  document.getElementById('refCode').innerText = userRefCode || '--';
-}
-
-// Update ticket count UI (keeps original behavior)
-function updateTicketCountUI() {
-  if(!currentUser) return;
-  db.ref('raffleTickets').orderByChild('owner').equalTo(currentUser).on('value', snap => {
-    const tickets = snap.val() || {};
-    const count = Object.keys(tickets).length;
-    document.getElementById('ticketCount').innerText = count;
-  });
-}
-
-/* --- Account creation --- */
-document.getElementById('createCodeBtn').onclick = () => {
-  const code = 'user-' + Math.random().toString(36).substr(2,6);
-  const refCode = generateReferralCode();
-  db.ref('users/' + code).set({created:Date.now(), referralCode: refCode});
-  alert('Your code: ' + code);
-  document.getElementById('loginCode').value = code;
+// --- Create account ---
+document.getElementById('createCodeBtn').onclick=()=>{
+  const code='user-'+Math.random().toString(36).substr(2,6);
+  const refCode=generateReferralCode();
+  db.ref('users/'+code).set({created:Date.now(),referralCode:refCode});
+  alert('Your code: '+code);
+  document.getElementById('loginCode').value=code;
 };
 
-/* --- Login --- */
-document.getElementById('loginBtn').onclick = () => {
-  const code = document.getElementById('loginCode').value.trim();
-  if(!code) return alert('Enter a code');
-  db.ref('users/' + code).once('value', snapshot => {
-    const user = snapshot.val();
-    if(!user) return alert('Invalid code');
-    currentUser = code;
-    currentUserIsAdmin = (code === 'user-9e21mr'); // admin check
-    document.getElementById('acctCode').innerText = code;
-    // Load referral code
-    if(!user.referralCode){
-      userRefCode = generateReferralCode();
-      db.ref('users/' + code + '/referralCode').set(userRefCode);
-    } else {
-      userRefCode = user.referralCode;
-    }
+// --- Login ---
+document.getElementById('loginBtn').onclick=()=>{
+  const code=document.getElementById('loginCode').value.trim();
+  if(!code)return alert('Enter a code');
+  db.ref('users/'+code).once('value').then(snapshot=>{
+    const user=snapshot.val();
+    if(!user)return alert('Invalid code');
+    currentUser=code;
+    currentUserIsAdmin=(code==='user-9e21mr');
+    document.getElementById('acctCode').innerText=code;
+    userRefCode=user.referralCode||generateReferralCode();
+    if(!user.referralCode)db.ref('users/'+code+'/referralCode').set(userRefCode);
     updateReferralUI();
     document.getElementById('loginModal').classList.add('hidden');
-    if(currentUserIsAdmin) {
-      document.getElementById('adminScreen').style.display = 'block';
-    }
-    document.getElementById('warningModal').classList.toggle('hidden', currentUserIsAdmin);
+    if(currentUserIsAdmin)document.getElementById('adminScreen').style.display='block';
+    document.getElementById('warningModal').classList.toggle('hidden',currentUserIsAdmin);
     updateTicketCountUI();
     renderTickets();
+    renderProducts();
   });
 };
 
-// Warning modal
-document.getElementById('ackBtn').onclick = () => {
-  if(!document.getElementById('ackCheck').checked) return alert('Check agree');
+// --- Warning confirm ---
+document.getElementById('ackBtn').onclick=()=>{
+  if(!document.getElementById('ackCheck').checked)return alert('Check agree');
   document.getElementById('warningModal').classList.add('hidden');
   document.getElementById('mainWrap').classList.remove('hidden');
-  renderTickets();
-  renderProducts();
 };
 
-// Help & About
-document.getElementById('closeHelp').onclick = () => document.getElementById('helpModal').classList.add('hidden');
-document.getElementById('helpBtn').onclick = () => document.getElementById('helpModal').classList.remove('hidden');
-document.getElementById('logoutBtn').onclick = () => location.reload();
-document.getElementById('clearBtn').onclick = () => { cart=[]; renderCart(); };
-document.getElementById('aboutLoginBtn').onclick = () => document.getElementById('aboutModal').classList.remove('hidden');
-document.getElementById('aboutUserBtn').onclick = () => document.getElementById('aboutModal').classList.remove('hidden');
-document.getElementById('closeAbout').onclick = () => document.getElementById('aboutModal').classList.add('hidden');
+// --- Logout & clear ---
+document.getElementById('logoutBtn').onclick=()=>location.reload();
+document.getElementById('clearBtn').onclick=()=>{cart=[];renderCart();};
 
-/* --- Products & Cart --- */
-function renderProducts() {
-  const grid = document.getElementById('productsGrid');
-  grid.innerHTML = '';
-  const sample = [
+// --- Products & Cart ---
+function renderProducts(){
+  const grid=document.getElementById('productsGrid');grid.innerHTML='';
+  const sample=[
     {id:'bud1',name:'Edibles (Buy 3 get 1 free)',price:20,flavors:['Sour Patch','Skittles','Swedish fish','Watermelon Sour Patch','Starburst','Trolli','Peach Rings']},
     {id:'cart1',name:'2g Muha Meds Carts (Buy 1 get 1 $5 off)',price:30,flavors:['Sugar Daddy Punch','Pineapple Runtz','Blueberry Muffin','Blue Slushie','Candy Apple']}
   ];
-  sample.forEach(p => {
-    const div = document.createElement('div'); div.className='product';
-    const title = document.createElement('h3'); title.textContent=p.name;
-    const priceDiv = document.createElement('div'); priceDiv.textContent=`$${p.price}`;
-    const select = document.createElement('select');
-    const defOpt = document.createElement('option'); defOpt.value=''; defOpt.textContent='Select Flavor'; select.appendChild(defOpt);
-    p.flavors.forEach(f=>{ const option=document.createElement('option'); option.value=f; option.textContent=f; select.appendChild(option); });
-    const btn = document.createElement('button'); btn.className='btn'; btn.textContent='Add';
-    btn.onclick=()=>{ const flavor=select.value||'None'; if(!flavor) return alert('Select a flavor'); cart.push({...p,selectedFlavor:flavor}); renderCart(); };
-    div.appendChild(title); div.appendChild(priceDiv); div.appendChild(select); div.appendChild(btn); grid.appendChild(div);
+  sample.forEach(p=>{
+    const div=document.createElement('div');div.className='product';
+    const title=document.createElement('h3');title.textContent=p.name;
+    const priceDiv=document.createElement('div');priceDiv.textContent='$'+p.price;
+    const select=document.createElement('select');const defOpt=document.createElement('option');defOpt.value='';defOpt.textContent='Select Flavor';select.appendChild(defOpt);
+    p.flavors.forEach(f=>{const option=document.createElement('option');option.value=f;option.textContent=f;select.appendChild(option);});
+    const btn=document.createElement('button');btn.className='btn';btn.textContent='Add';
+    btn.onclick=()=>{const flavor=select.value||'None';if(!flavor)return alert('Select a flavor');cart.push({...p,selectedFlavor:flavor});renderCart();};
+    div.appendChild(title);div.appendChild(priceDiv);div.appendChild(select);div.appendChild(btn);grid.appendChild(div);
+  });
+}
+function renderCart(){
+  const list=document.getElementById('cartList');list.innerHTML='';let total=0,ediblesCount=0,muhaCount=0;
+  cart.forEach(c=>{if(c.name.includes('Edibles'))ediblesCount++;if(c.name.includes('Muha Meds'))muhaCount++;total+=c.price;});
+  total-=Math.floor(ediblesCount/4)*20;total-=Math.floor(muhaCount/2)*5;
+  document.getElementById('cartTotal').innerText='Total: $'+total;
+  cart.forEach((c,i)=>{
+    const div=document.createElement('div');div.className='cart-item';
+    div.textContent=c.name+' ('+c.selectedFlavor+') $'+c.price;
+    const rem=document.createElement('button');rem.className='btn ghost';rem.textContent='X';rem.onclick=()=>{cart.splice(i,1);renderCart();};
+    div.appendChild(rem);list.appendChild(div);
   });
 }
 
-function renderCart() {
-  const list=document.getElementById('cartList'); list.innerHTML='';
-  let total=0,ediblesCount=0,muhaCount=0;
-  cart.forEach(c=>{ if(c.name.includes('Edibles')) ediblesCount++; if(c.name.includes('Muha Meds')) muhaCount++; total+=c.price; });
-  total-=Math.floor(ediblesCount/4)*20;
-  total-=Math.floor(muhaCount/2)*5;
-  cart.forEach(c=>{ const row=document.createElement('div'); row.className='cart-item'; row.innerHTML=`<span>${c.name} (${c.selectedFlavor})</span><span>$${c.price}</span>`; list.appendChild(row); });
-  document.getElementById('cartTotal').innerText='Total $'+total;
-}
-
-/* --- Purchase -> Ticket + Raffle --- */
+// --- Purchase ticket ---
 document.getElementById('purchaseBtn').onclick=()=>{
-  if(!cart.length) return alert('Empty cart');
-  const ticketId='tkt-'+Date.now();
-  let total=0,ediblesCount=0,muhaCount=0;
-  cart.forEach(c=>{ total+=c.price; if(c.name.includes('Edibles')) ediblesCount++; if(c.name.includes('Muha Meds')) muhaCount++; });
-  total-=Math.floor(ediblesCount/4)*20;
-  total-=Math.floor(muhaCount/2)*5;
-  const ticket={ id: ticketId, total: total, location: document.getElementById('locationSelect').value, status:'pending', items: cart, user: currentUser };
-  db.ref('tickets/'+ticketId).set(ticket);
-  db.ref('messages/'+ticketId).push({from:currentUser,text:'Ticket created'});
-  // Add raffle ticket automatically for purchaser (keeps previous behavior)
-  db.ref('raffleTickets').push().set({owner: currentUser, code: userRefCode});
-  cart=[]; renderCart();
+  if(cart.length===0)return alert('Cart empty');
+  const ticketId='ticket-'+Date.now();
+  const ticket={id:ticketId,owner:currentUser,cart,location:document.getElementById('locationSelect').value,status:'pending',messages:[]};
+  db.ref('raffleTickets/'+ticketId).set(ticket);
+  cart=[];renderCart();updateTicketCountUI();renderTickets();
 };
 
-/* --- Helper: show Item Retrieved modal/prompt flow --- */
-function showItemRetrievedModal(ticketId){
-  // modal container
-  const modalBack = document.createElement('div');
-  modalBack.className = 'modal-back';
-  modalBack.style.zIndex = 2000;
-  modalBack.innerHTML = `
-    <div class="modal">
-      <h3>Item Received</h3>
-      <p>Did a friend refer you?</p>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="btn" id="yesReferralBtn">Yes</button>
-        <button class="btn ghost" id="noReferralBtn">No</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modalBack);
-
-  modalBack.querySelector('#noReferralBtn').onclick = () => {
-    // give the user their raffle ticket anyway, then remove ticket
-    if(currentUser){
-      db.ref('raffleTickets').push().set({owner: currentUser, code: userRefCode, reason:'finalize'});
-    }
-    // remove ticket and messages so it disappears
-    db.ref('tickets/'+ticketId).remove();
-    db.ref('messages/'+ticketId).remove();
-    modalBack.remove();
-  };
-
-  modalBack.querySelector('#yesReferralBtn').onclick = () => {
-    // show input
-    const entryDiv = document.createElement('div');
-    entryDiv.style.marginTop = '12px';
-    entryDiv.innerHTML = `
-      <label>Enter referral code: <input type="text" id="friendCode"></label>
-      <div id="refWarning" style="color:red;font-size:0.85rem;margin-top:6px"></div>
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
-        <button class="btn" id="submitReferral">Submit</button>
-        <button class="btn ghost" id="cancelReferral">Cancel</button>
-      </div>
-    `;
-    modalBack.querySelector('.modal').appendChild(entryDiv);
-
-    modalBack.querySelector('#cancelReferral').onclick = () => {
-      modalBack.remove();
-    };
-
-    modalBack.querySelector('#submitReferral').onclick = async () => {
-      const codeInput = modalBack.querySelector('#friendCode').value.trim();
-      const warning = modalBack.querySelector('#refWarning');
-      if(!codeInput) return warning.innerText = 'Enter a code';
-
-      // Prevent using own referral code
-      if(codeInput === userRefCode) return warning.innerText = 'You cannot use your own code';
-
-      try {
-        // find user account that has referralCode === codeInput
-        const snap = await db.ref('users').orderByChild('referralCode').equalTo(codeInput).once('value');
-        const users = snap.val() || {};
-        const userIds = Object.keys(users);
-        if(userIds.length === 0){
-          return warning.innerText = 'Referral code not found';
-        }
-        const friendAccount = userIds[0]; // first match
-        // Give friend a raffle ticket (owner = friend's account)
-        db.ref('raffleTickets').push().set({owner: friendAccount, code: codeInput, referredBy: currentUser});
-        // Give current user their own raffle ticket
-        if(currentUser){
-          db.ref('raffleTickets').push().set({owner: currentUser, code: userRefCode, reason:'finalize'});
-        }
-        // remove the ticket and messages so it disappears
-        db.ref('tickets/'+ticketId).remove();
-        db.ref('messages/'+ticketId).remove();
-        modalBack.remove();
-      } catch(err){
-        console.error('Referral lookup error', err);
-        warning.innerText = 'Error validating code';
-      }
-    };
-  };
-}
-
-/* --- Render Tickets & Chat (modified to add Complete Order & Item Retrieved) --- */
+// --- Tickets area ---
 function renderTickets(){
-  const area=document.getElementById(currentUserIsAdmin?'allTicketsArea':'ticketsArea');
-  area.innerHTML='';
-  db.ref('tickets').off();
-  db.ref('tickets').on('child_added', snap=>{
-    const t=snap.val();
-    if(!t.id) t.id=snap.key;
-    if(!t.user) t.user='';
-    if(!currentUserIsAdmin && t.user!==currentUser) return;
-    const itemsText=(t.items||[]).map(i=>`${i.name} (${i.selectedFlavor})`).join(', ');
-    const div=document.createElement('div'); div.className='ticket';
-    div.innerHTML=`
-      <div><strong>${t.id}</strong> @ ${t.location} | Total $${t.total} | Status ${t.status||''}</div>
-      <div><em>Items: ${itemsText}</em></div>
-      <div id="chat-${t.id}" style="height:100px;overflow:auto;border-top:1px dashed #ddd;margin-top:4px;padding-top:4px"></div>
-      <div style="display:flex;gap:4px;margin-top:4px">
-        <input type="text" class="msgInput" style="flex:1">
-        <input type="file" class="imgInput">
-        <button class="btn sendBtn">Send</button>
-        <button class="btn ghost cancelTicketBtn">Cancel Ticket</button>
-        <button class="btn ghost markPaidBtn">Mark Paid</button>
-        ${currentUserIsAdmin?'<button class="btn ghost completeOrderBtn">Complete Order</button><button class="btn ghost itemHiddenBtn">Item Hidden</button>':''}
-        ${!currentUserIsAdmin?'<button class="itemRetrievedBtn disabled">Item Retrieved</button>':''}
-      </div>`;
-    area.appendChild(div);
-
-    // Chat stream
-    const chatEl=document.getElementById('chat-'+t.id);
-    db.ref('messages/'+t.id).off();
-    db.ref('messages/'+t.id).on('value', ms=>{
-      const msgs=ms.val()||{};
-      chatEl.innerHTML=Object.values(msgs).map(m=>{
-        const displayName=(m.from==='user-9e21mr' && currentUser!=='user-9e21mr')?'admin':m.from;
-        return `<div><strong>${displayName}:</strong> ${m.text||''}${m.image?'<br><img src="'+m.image+'" style="max-width:100px">':''}</div>`;
-      }).join('');
-      chatEl.scrollTop=chatEl.scrollHeight;
+  const area=document.getElementById('ticketsArea');area.innerHTML='';
+  db.ref('raffleTickets').orderByChild('owner').equalTo(currentUser).once('value').then(snap=>{
+    const tickets=snap.val()||{};
+    Object.values(tickets).forEach(t=>{
+      const div=document.createElement('div');div.className='ticket';
+      div.innerHTML=`<strong>${t.id}</strong> Status: ${t.status} Location: ${t.location}`;
+      area.appendChild(div);
     });
-
-    // Send button
-    div.querySelector('.sendBtn').onclick=()=>{
-      const inp=div.querySelector('.msgInput'); const fileInp=div.querySelector('.imgInput'); const txt=inp.value.trim();
-      if(fileInp.files.length>0){
-        const file=fileInp.files[0];
-        const reader=new FileReader();
-        reader.onload=function(e){ db.ref('messages/'+t.id).push({from:currentUser,image:e.target.result}); };
-        reader.readAsDataURL(file); fileInp.value='';
-      }
-      if(txt) db.ref('messages/'+t.id).push({from:currentUser,text:txt});
-      inp.value='';
-    };
-
-    // Cancel ticket
-    div.querySelector('.cancelTicketBtn').onclick=()=>{ if(confirm('Are you sure you want to cancel this ticket?')){ db.ref('tickets/'+t.id).remove(); db.ref('messages/'+t.id).remove(); div.remove(); } };
-
-    // Mark paid
-    div.querySelector('.markPaidBtn').onclick=()=>{ db.ref('messages/'+t.id).push({from:currentUser,text:'Payment hidden. Your product will be securely retrieved.'}); db.ref('tickets/'+t.id+'/status').set('paid'); };
-
-    // Admin: Complete Order button behavior
-    if(currentUserIsAdmin){
-      div.querySelector('.completeOrderBtn').onclick=()=> {
-        // Mark ready flag so the user button can enable
-        db.ref('tickets/'+t.id+'/readyForReceived').set(true);
-        db.ref('tickets/'+t.id+'/status').set('ready_for_retrieval');
-        // Push admin message
-        db.ref('messages/'+t.id).push({from:currentUser,text:"Admin has hidden your product. Once you retrieve it, please click the 'Item Retrieved' button to finalize your order."});
-      };
-      // Keep original itemHiddenBtn if you still want it
-      div.querySelector('.itemHiddenBtn').onclick=()=>{ db.ref('tickets/'+t.id+'/status').set('item hidden'); alert('Marked item hidden/collected'); };
-    }
-
-    // User: Item Retrieved button enable + click flow
-    if(!currentUserIsAdmin){
-      const itemBtn = div.querySelector('.itemRetrievedBtn');
-      // default disabled state
-      itemBtn.classList.add('disabled');
-      itemBtn.disabled = true;
-
-      // Listen for readyForReceived changes
-      const readyRef = db.ref('tickets/'+t.id+'/readyForReceived');
-      readyRef.on('value', s => {
-        const val = s.val();
-        if(val){
-          // enable
-          itemBtn.classList.remove('disabled');
-          itemBtn.classList.add('enabled');
-          itemBtn.disabled = false;
-          itemBtn.onclick = () => {
-            // Show modal/prompt flow
-            showItemRetrievedModal(t.id);
-          };
-        } else {
-          itemBtn.classList.remove('enabled');
-          itemBtn.classList.add('disabled');
-          itemBtn.disabled = true;
-        }
-      });
-    }
   });
 }
 
-document.getElementById('refreshTickets').onclick=renderTickets;
-document.getElementById('closeAdmin').onclick=()=>{document.getElementById('adminScreen').style.display='none';};
+// --- Admin screen WINNER ---
+document.getElementById('winnerBtn').onclick=()=>{
+  const winnerId='winner-'+Date.now();
+  db.ref('winnerTickets/'+winnerId).set({id:winnerId,status:'winner',user:'',messages:[]});
+  alert('Winner ticket created');
+};
 
-// initial render
-renderProducts();
+// --- Refresh tickets admin ---
+document.getElementById('refreshTickets').onclick=()=>{alert('Admin refresh placeholder');};
+document.getElementById('closeAdmin').onclick=()=>document.getElementById('adminScreen').style.display='none';
 </script>
 </body>
 </html>
