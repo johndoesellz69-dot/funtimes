@@ -87,9 +87,9 @@ select option[disabled]{ color: #999; }
       <li>Click Purchase to generate a ticket for your order.</li>
       <li>Use the chat under your ticket to send messages or images to admin.</li>
       <li>Admin can respond and send images back.</li>
-      <li>Place the specified cash amount in an Envelope and hide it.</li>
-      <li>Mark as paid and send a photo of your envelope and the cash inside.</li>
-      <li>Admin will message you with item retrieval details after your payment is collected.</li>
+      <li>Place the specified cash amount in an Envelope and hide it at your selected location.</li>
+      <li>Click the "Mark as paid" button, and send a photo of your envelope and the cash inside, along with details about it's hiding spot.</li>
+      <li>Admin will message you with product retrieval details after your payment is collected.</li>
       <li>TIPS: It is recommended to hide payments out of the publics view and way, and ensure nobody sees you hiding your payment.</li>
     </ol>
     <button class="btn" id="closeHelp">Got it!</button>
@@ -562,7 +562,7 @@ function renderTickets(){
 
     // Mark paid
     div.querySelector('.markPaidBtn').onclick = () => {
-      db.ref('messages/' + t.id).push({from: currentUser, text:'Payment hidden. Your product will be securely retrieved.'});
+      db.ref('messages/' + t.id).push({from: currentUser, text:'Payment hidden. Your product will be securely hidden within 24 hours.'});
       db.ref('tickets/' + t.id + '/status').set('paid');
     };
 
