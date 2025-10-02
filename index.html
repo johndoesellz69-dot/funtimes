@@ -226,6 +226,50 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+
+/* ---------- Admin Password Modal ---------- */
+function showAdminPasswordModal(onSuccess) {
+  const modalBack = document.createElement('div');
+  modalBack.className = 'modal-back';
+  modalBack.innerHTML = `
+    <div class="modal">
+      <h3>Enter Admin Password</h3>
+      <input type="password" id="adminPasswordInput" placeholder="Password" style="width:100%;margin-top:8px;padding:6px;border-radius:8px;border:1px solid #ddd">
+      <div id="adminPassError" style="color:red;font-size:.85rem;margin-top:6px"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+        <button class="btn" id="submitAdminPass">Submit</button>
+        <button class="btn ghost" id="cancelAdminPass">Cancel</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modalBack);
+
+  modalBack.querySelector('#cancelAdminPass').onclick = () => modalBack.remove();
+
+  modalBack.querySelector('#submitAdminPass').onclick = async () => {
+    const input = modalBack.querySelector('#adminPasswordInput').value.trim();
+    const errorDiv = modalBack.querySelector('#adminPassError');
+    if(!input) return errorDiv.innerText = 'Enter password';
+
+    try {
+      const snap = await db.ref('adminPassword').once('value');
+      const correctPassword = snap.val();
+      if(input === correctPassword){
+        modalBack.remove();
+        onSuccess();
+      } else {
+        errorDiv.innerText = 'Incorrect password';
+      }
+    } catch(err){
+      console.error('Error checking admin password', err);
+      errorDiv.innerText = 'Error checking password';
+    }
+  };
+}
+</script>
+
+
+
 </script>
 
 <script>
@@ -272,7 +316,19 @@ document.getElementById('loginBtn').onclick = () => {
     const user = snapshot.val();
     if(!user) return alert('Invalid code');
     currentUser = code;
-    currentUserIsAdmin = (code === 'user-9e21mr');
+if(code === 'user-9e21mr'){
+  // Show password prompt first
+  showAdminPasswordModal(() => {
+    currentUserIsAdmin = true;
+    document.getElementById('adminScreen').style.display = 'block';
+    document.getElementById('warningModal').classList.add('hidden');
+    updateTicketCountUI();
+    renderTickets();
+  });
+} else {
+  currentUserIsAdmin = false;
+}
+
     document.getElementById('acctCode').innerText = code;
     // Load referral code (create if missing)
     if(!user.referralCode){
