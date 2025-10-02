@@ -107,22 +107,9 @@ select option[disabled]{ color: #999; }
 <div id="faqModal" class="modal-back hidden">
   <div class="modal">
     <h3>FAQ</h3>
-    <div class="faq-scroll" style="max-height:300px; overflow-y:auto; margin-bottom:12px;">
-  <div class="faq-list">
-    <!-- your FAQ questions here -->
-  </div>
-</div>
-
-<div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:12px">
-  <button class="btn" id="scrollUpFaq">↑ Scroll Up</button>
-  <button class="btn" id="scrollDownFaq">↓ Scroll Down</button>
-</div>
-
+    <div class="faq-list">
       <h4>Q: How do I place an order?</h4>
       <p>A: Simply add products to your cart, select a pickup location, and click “Purchase.”</p>
-
-      <h4>Q: How do the discount deals work?</h4>
-      <p>A: A deal for an item will automatically be applied to your total cost after meeting the deal requirements in your cart (ex: in order to apply a Buy 1 get 1 $5 off on Muha disposable Carts, you must have 2 Muha carts in your cart.)</p>
 
       <h4>Q: What photos should I take when hiding my payment?</h4>
       <p>A: In order for your admin to accept your ticket, you must hide your payment, click the mark paid button, and then include a clear photo of all of the bills, and the exact hiding spot the envelope is in (with the envelope in the picture) </p>
@@ -148,16 +135,6 @@ select option[disabled]{ color: #999; }
 
     </div>
     <button class="btn" id="closeFaq">Close</button>
-const faqScroll = document.querySelector('#faqModal .faq-scroll');
-
-document.getElementById('scrollUpFaq').onclick = () => {
-  faqScroll.scrollBy({ top: -100, behavior: 'smooth' });
-};
-
-document.getElementById('scrollDownFaq').onclick = () => {
-  faqScroll.scrollBy({ top: 100, behavior: 'smooth' });
-};
-
   </div>
 </div>
 
