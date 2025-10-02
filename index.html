@@ -107,7 +107,17 @@ select option[disabled]{ color: #999; }
 <div id="faqModal" class="modal-back hidden">
   <div class="modal">
     <h3>FAQ</h3>
-    <div class="faq-list">
+    <div class="faq-scroll" style="max-height:300px; overflow-y:auto; margin-bottom:12px;">
+  <div class="faq-list">
+    <!-- your FAQ questions here -->
+  </div>
+</div>
+
+<div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:12px">
+  <button class="btn" id="scrollUpFaq">↑ Scroll Up</button>
+  <button class="btn" id="scrollDownFaq">↓ Scroll Down</button>
+</div>
+
       <h4>Q: How do I place an order?</h4>
       <p>A: Simply add products to your cart, select a pickup location, and click “Purchase.”</p>
 
@@ -138,6 +148,16 @@ select option[disabled]{ color: #999; }
 
     </div>
     <button class="btn" id="closeFaq">Close</button>
+const faqScroll = document.querySelector('#faqModal .faq-scroll');
+
+document.getElementById('scrollUpFaq').onclick = () => {
+  faqScroll.scrollBy({ top: -100, behavior: 'smooth' });
+};
+
+document.getElementById('scrollDownFaq').onclick = () => {
+  faqScroll.scrollBy({ top: 100, behavior: 'smooth' });
+};
+
   </div>
 </div>
 
