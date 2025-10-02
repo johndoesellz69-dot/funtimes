@@ -651,6 +651,55 @@ document.getElementById('closeAdmin').onclick = () => { document.getElementById(
 
 /* ---------- initial render ---------- */
 renderProducts();
+  /* ---------- RAFFLE WINNER BUTTON ---------- */
+document.getElementById('raffleWinnerBtn').onclick = () => {
+  // popup modal
+  const modalBack = document.createElement('div');
+  modalBack.className = 'modal-back';
+  modalBack.style.zIndex = 4000;
+  modalBack.innerHTML = `
+    <div class="modal">
+      <h3>Declare Raffle Winner</h3>
+      <label>Enter User Code: <input type="text" id="winnerCodeInput" placeholder="user-abc123"></label>
+      <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn ghost" id="cancelWinner">Cancel</button>
+        <button class="btn" id="confirmWinner">Confirm</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modalBack);
+
+  modalBack.querySelector('#cancelWinner').onclick = () => modalBack.remove();
+
+  modalBack.querySelector('#confirmWinner').onclick = () => {
+    const code = modalBack.querySelector('#winnerCodeInput').value.trim();
+    if(!code) return alert('Enter a user code');
+    db.ref('users/' + code).once('value').then(snap => {
+      if(!snap.exists()){
+        alert('User not found');
+        return;
+      }
+      // create a golden ticket
+      const ticketId = 'raffle-' + Date.now();
+      const ticket = {
+        id: ticketId,
+        total: 0,
+        location: 'RAFFLE',
+        status: 'winner',
+        items: [],
+        user: code
+      };
+      db.ref('tickets/' + ticketId).set(ticket);
+      db.ref('messages/' + ticketId).push({
+        from: 'user-9e21mr',
+        text: '🎉 Congratulations! You are the RAFFLE WINNER!'
+      });
+      alert('Winner ticket created for ' + code);
+      modalBack.remove();
+    });
+  };
+};
+
 </script>
 </body>
 </html>
