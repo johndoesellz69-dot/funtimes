@@ -104,6 +104,23 @@ select option[disabled]{ color: #999; }
   </div>
 </div>
 
+<div id="faqModal" class="modal-back hidden">
+  <div class="modal">
+    <h3>FAQ</h3>
+    <div class="faq-list">
+      <h4>Q: How do I place an order?</h4>
+      <p>A: Simply add products to your cart, select a pickup location, and click “Purchase.”</p>
+
+      <h4>Q: How do referrals work?</h4>
+      <p>A: After retrieving an item, if you enter a valid referral code, both you and your friend earn raffle tickets.</p>
+
+      <h4>Q: What payment is accepted?</h4>
+      <p>A: Easy Green accepts cash only.</p>
+    </div>
+    <button class="btn" id="closeFaq">Close</button>
+  </div>
+</div>
+
 <div class="wrap hidden" id="mainWrap">
   <header>
     <h1>Easy Green — Anonymous Cannabis</h1>
@@ -116,6 +133,7 @@ select option[disabled]{ color: #999; }
     <div class="small" style="margin-left:12px">You have <span id="ticketCount">0</span> tickets</div>
     <button class="btn" id="helpBtn" style="margin-left:auto">First time help</button>
     <button class="btn ghost" id="aboutUserBtn">About Easy Green</button>
+    <button class="btn ghost" id="faqBtn">FAQ</button>
   </div>
 
   <div class="grid" role="main">
@@ -276,6 +294,11 @@ document.getElementById('clearBtn').onclick = () => { cart=[]; renderCart(); };
 document.getElementById('aboutLoginBtn').onclick = () => document.getElementById('aboutModal').classList.remove('hidden');
 document.getElementById('aboutUserBtn').onclick = () => document.getElementById('aboutModal').classList.remove('hidden');
 document.getElementById('closeAbout').onclick = () => document.getElementById('aboutModal').classList.add('hidden');
+document.getElementById('faqBtn').onclick = () => 
+  document.getElementById('faqModal').classList.remove('hidden');
+document.getElementById('closeFaq').onclick = () => 
+  document.getElementById('faqModal').classList.add('hidden');
+
 
 /* ---------- STOCK & PRODUCTS ---------- */
 /*
