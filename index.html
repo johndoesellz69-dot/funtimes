@@ -645,7 +645,18 @@ function renderTickets(){
   const minutes = cstTime.getMinutes().toString().padStart(2,'0');
   const timestamp = `${hours}:${minutes} CST`;
 
-  return `<div><strong>${displayName}</strong> [${timestamp}]: ${m.text || ''}${m.image ? '<br><img src="'+m.image+'" style="max-width:160px;margin-top:4px">' : ''}</div>`;
+let timeStr = '';
+if(m.timestamp){
+  const d = new Date(m.timestamp);
+  let hours = d.getHours();
+  const minutes = d.getMinutes().toString().padStart(2,'0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  if(hours === 0) hours = 12;
+  timeStr = ` (${hours}:${minutes} ${ampm})`;
+}
+return `<div><strong>${displayName}:</strong> ${m.text || ''}${m.image ? '<br><img src="'+m.image+'" style="max-width:160px;margin-top:4px">' : ''}${timeStr}</div>`;
+
 }).join('');
 
       chatEl.scrollTop = chatEl.scrollHeight;
