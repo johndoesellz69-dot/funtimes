@@ -634,9 +634,20 @@ function renderTickets(){
     db.ref('messages/' + t.id).on('value', ms => {
       const msgs = ms.val() || {};
       chatEl.innerHTML = Object.values(msgs).map(m=>{
-        const displayName = (m.from === 'user-9e21mr' && currentUser !== 'user-9e21mr') ? 'admin' : m.from;
-        return `<div><strong>${displayName}:</strong> ${m.text || ''}${m.image ? '<br><img src="'+m.image+'" style="max-width:160px;margin-top:4px">' : ''}</div>`;
-      }).join('');
+  const displayName = (m.from === 'user-9e21mr' && currentUser !== 'user-9e21mr') ? 'admin' : m.from;
+
+  // Use the message timestamp if it exists, otherwise Date.now()
+  const time = m.timestamp || Date.now();
+  // Convert to CST (UTC-6)
+  const date = new Date(time);
+  const cstTime = new Date(date.getTime() - 6*60*60*1000); 
+  const hours = cstTime.getHours().toString().padStart(2,'0');
+  const minutes = cstTime.getMinutes().toString().padStart(2,'0');
+  const timestamp = `${hours}:${minutes} CST`;
+
+  return `<div><strong>${displayName}</strong> [${timestamp}]: ${m.text || ''}${m.image ? '<br><img src="'+m.image+'" style="max-width:160px;margin-top:4px">' : ''}</div>`;
+}).join('');
+
       chatEl.scrollTop = chatEl.scrollHeight;
     });
 
@@ -648,13 +659,15 @@ function renderTickets(){
       if(fileInp.files.length > 0){
         const file = fileInp.files[0];
         const reader = new FileReader();
-        reader.onload = function(e){
-          db.ref('messages/' + t.id).push({from: currentUser, image: e.target.result});
-        };
+       reader.onload = function(e){
+  db.ref('messages/' + t.id).push({from: currentUser, image: e.target.result, timestamp: Date.now()});
+};
+
         reader.readAsDataURL(file);
         fileInp.value = '';
       }
-      if(txt) db.ref('messages/' + t.id).push({from: currentUser, text: txt});
+  if(txt) db.ref('messages/' + t.id).push({from: currentUser, text: txt, timestamp: Date.now()});
+
       inp.value = '';
     };
 
