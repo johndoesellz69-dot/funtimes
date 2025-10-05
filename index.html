@@ -49,6 +49,18 @@ select option[disabled]{ color: #999; }
 
 /* WINNER button */
 .winnerBtn{background:gold;color:#111;cursor:pointer;border-radius:8px;padding:8px 12px;margin-left:8px}
+.acctCode {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width:500px){
+  .acctCode {
+    font-size: 0.78rem; /* shrink slightly on small screens */
+  }
+}
+
 </style>
 </head>
 <body>
@@ -153,7 +165,7 @@ select option[disabled]{ color: #999; }
   </header>
 
   <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
-    <div class="small" style="white-space:nowrap; overflow-x:auto; max-width:200px;">
+    <div class="small acctCode">
   (WRITE THIS DOWN) Your account code: <span id="acctCode"></span>
 </div>
     <div class="small" style="margin-left:12px">Your referral code: <span id="refCode">--</span></div>
