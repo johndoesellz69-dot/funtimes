@@ -25,7 +25,15 @@ select,input[type="number"],input[type="file"],input[type="text"]{padding:6px;bo
 .small{font-size:.88rem;color:var(--muted)}
 .cart-item{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #eee}
 .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:1000}
-.modal{width:100%;max-width:760px;background:white;padding:16px;border-radius:12px}
+.modal {
+  width: 100%;
+  max-width: 760px;
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  max-height: 90vh;   /* keeps modal inside viewport */
+  overflow-y: auto;   /* allows vertical scrolling */
+}
 .ticket{background:#fbfff9;border:1px dashed #e6f4ea;padding:10px;border-radius:8px;margin-bottom:6px}
 .ticket.winner{background:gold}
 .ticket-entry{margin-bottom:8px}
