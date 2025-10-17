@@ -416,7 +416,11 @@ function renderProducts() {
   // sample data (you can keep it; stock will override availability)
   const sample = [
     {id:'bud1',name:'Edibles (Buy 3 get 1 free)',price:20,flavors:['Sour Patch','Skittles','Swedish fish','Starburst','Trolli','Peach Rings']},
-    {id:'cart1',name:'2g Muha Meds Carts (Buy 1 get 1 $5 off)',price:30,flavors:['Indica','Sativa','Hybrid']}
+    {id:'cart1',name:'2g Muha Meds Carts (Buy 1 get 1 $5 off)',price:30,flavors:['Indica','Sativa','Hybrid']},
+
+    // NEW ITEMS
+    {id:'itemBlank15',name:'',price:15,flavors:[]}, // blank name, $15, blank flavors
+    {id:'itemBlank35',name:'',price:35,flavors:[]}  // blank name, $35, blank flavors
   ];
 
   sample.forEach(p => {
@@ -475,6 +479,7 @@ function renderProducts() {
     grid.appendChild(div);
   });
 }
+
 
 /* ---------- CART ---------- */
 function renderCart() {
