@@ -419,8 +419,8 @@ function renderProducts() {
     {id:'cart1',name:'2g Muha Meds Carts (Buy 1 get 1 $5 off)',price:30,flavors:['Indica','Sativa','Hybrid']},
 
     // NEW ITEMS
-    {id:'itemBlank15',name:'1 Gram of weed',price:15,flavors:['OG Kush']}, // blank name, $15, blank flavors
-    {id:'itemBlank35',name:'3.5 Grams of weed',price:35,flavors:['OG Kush']}  // blank name, $35, blank flavors
+    {id:'itemBlank15',name:'1 Gram of weed',price:15,flavors:['OG Kush'],description:,photos:}, // blank name, $15, blank flavors
+    {id:'itemBlank35',name:'3.5 Grams of weed',price:35,flavors:['OG Kush'],description:,photos:}  // blank name, $35, blank flavors
   ];
 
   sample.forEach(p => {
@@ -878,7 +878,22 @@ closeInfoBtn.onclick = () => infoModal.classList.add('hidden');
 
 function openProductInfo(product) {
   document.getElementById('infoTitle').textContent = product.name;
-  // optional: you can customize description per product here later if needed
+
+  // Description
+  document.getElementById('infoDesc').innerHTML = `<p>${product.description || '(No description available)'}</p>`;
+
+  // Photos
+  const photoDiv = document.getElementById('infoPhotos');
+  photoDiv.innerHTML = '';
+  if (product.photos && product.photos.length > 0) {
+    product.photos.forEach(url => {
+      const img = document.createElement('img');
+      img.src = url;
+      img.style = 'width:100%;border-radius:8px;margin-bottom:8px;';
+      photoDiv.appendChild(img);
+    });
+  }
+
   infoModal.classList.remove('hidden');
 }
 </script>
