@@ -476,6 +476,13 @@ function renderProducts() {
     div.appendChild(priceDiv);
     div.appendChild(select);
     div.appendChild(btn);
+    const infoBtn = document.createElement('button');
+infoBtn.className = 'btn ghost';
+infoBtn.textContent = 'INFO';
+infoBtn.style.marginLeft = '6px';
+infoBtn.onclick = () => openProductInfo(p);
+div.appendChild(infoBtn);
+
     grid.appendChild(div);
   });
 }
@@ -850,5 +857,31 @@ document.getElementById('raffleWinnerBtn').onclick = () => {
 };
 
 </script>
+  <!-- Product Info Modal -->
+<div id="productInfoModal" class="modal-back hidden">
+  <div class="modal">
+    <h3 id="infoTitle"></h3>
+    <div id="infoDesc" style="margin-top:8px;">
+      <p>(Insert product description here)</p>
+    </div>
+    <div id="infoPhotos" style="margin-top:12px;">
+      <!-- Insert photos here, e.g. <img src="path.jpg" style="width:100%;border-radius:8px;margin-bottom:8px;"> -->
+    </div>
+    <button class="btn" id="closeInfoBtn" style="margin-top:12px;">Close</button>
+  </div>
+</div>
+
+<script>
+const infoModal = document.getElementById('productInfoModal');
+const closeInfoBtn = document.getElementById('closeInfoBtn');
+closeInfoBtn.onclick = () => infoModal.classList.add('hidden');
+
+function openProductInfo(product) {
+  document.getElementById('infoTitle').textContent = product.name;
+  // optional: you can customize description per product here later if needed
+  infoModal.classList.remove('hidden');
+}
+</script>
+
 </body>
 </html>
